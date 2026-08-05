@@ -1,0 +1,252 @@
+/* =====================================================================
+   DATA — crops, goods, and the buildable catalogue
+   ===================================================================== */
+
+const CROPS = {
+  lettuce   :{name:'Lettuce',    days:2, seed:6,  yield:5, price:5,  leaf:'#82c94f', thirst:1.0, seasons:[0,1,2,3]},
+  radish    :{name:'Radish',     days:2, seed:7,  yield:6, price:5,  leaf:'#6fb04a', fruit:'#d8556a', fruitN:1, thirst:0.9, seasons:[0,1,2,3]},
+  carrot    :{name:'Carrot',     days:3, seed:9,  yield:6, price:7,  leaf:'#4f9c39', fruit:'#e8862e', fruitN:1, thirst:1.0, seasons:[0,1,2,3]},
+  herbs     :{name:'Herbs',      days:3, seed:10, yield:5, price:9,  leaf:'#6fb04a', thirst:0.7, seasons:[0,1,2,3]},
+  potato    :{name:'Potato',     days:4, seed:11, yield:9, price:6,  leaf:'#5f9c3d', thirst:1.1, seasons:[1,2,3]},
+  cucumber  :{name:'Cucumber',   days:4, seed:13, yield:7, price:8,  leaf:'#4f8a35', fruit:'#4f8a35', fruitN:2, thirst:1.4, seasons:[0,1]},
+  strawberry:{name:'Strawberry', days:5, seed:16, yield:6, price:14, leaf:'#4f9c39', fruit:'#e0344a', fruitN:3, thirst:1.2, seasons:[0,3]},
+  tomato    :{name:'Tomato',     days:5, seed:15, yield:8, price:10, leaf:'#3f7a32', fruit:'#d8402f', fruitN:3, thirst:1.4, seasons:[0,1]},
+  chilli    :{name:'Chilli',     days:6, seed:18, yield:6, price:13, leaf:'#3f7a32', fruit:'#c8291f', fruitN:3, thirst:1.1, seasons:[0,1]},
+  pumpkin   :{name:'Pumpkin',    days:7, seed:20, yield:5, price:22, leaf:'#4f8a35', fruit:'#e8862e', fruitN:1, thirst:1.5, seasons:[1,2]},
+  garlic    :{name:'Garlic',     days:6, seed:17, yield:7, price:12, leaf:'#7fb268', thirst:0.6, seasons:[2,3]},
+};
+
+/* every sellable thing */
+const GOODS = {
+  lettuce:{n:'Lettuce',c:'#82c94f',p:5},      radish:{n:'Radish',c:'#d8556a',p:5},
+  carrot:{n:'Carrot',c:'#e8862e',p:7},        herbs:{n:'Herbs',c:'#6fb04a',p:9},
+  potato:{n:'Potato',c:'#c9a06a',p:6},        cucumber:{n:'Cucumber',c:'#4f8a35',p:8},
+  strawberry:{n:'Strawberry',c:'#e0344a',p:14}, tomato:{n:'Tomato',c:'#d8402f',p:10},
+  chilli:{n:'Chilli',c:'#c8291f',p:13},       pumpkin:{n:'Pumpkin',c:'#e8862e',p:22},
+  garlic:{n:'Garlic',c:'#e8e0cc',p:12},
+  apple:{n:'Apples',c:'#d84b3a',p:11},        berries:{n:'Berries',c:'#5a4a9c',p:16},
+  flowers:{n:'Cut flowers',c:'#dd6f9c',p:12},
+  egg:{n:'Eggs',c:'#f4e7c8',p:6},             milk:{n:'Milk',c:'#f2f4ee',p:9},
+  honey:{n:'Raw honey',c:'#e8a92e',p:13},     wool:{n:'Wool',c:'#efe9dc',p:17},
+  duckegg:{n:'Duck eggs',c:'#dfe9d9',p:9},
+  jam:{n:'Jam jars',c:'#b0303f',p:34,craft:1},        cheese:{n:'Cheese wheel',c:'#e8c25a',p:38,craft:1},
+  honeyjar:{n:'Honey jars',c:'#f0b93c',p:30,craft:1}, veg_box:{n:'Veg box',c:'#8b6640',p:46,craft:1},
+  soap:{n:'Milk soap',c:'#efe2ea',p:28,craft:1},
+};
+
+/* seasons: 0 summer, 1 autumn, 2 winter, 3 spring (southern hemisphere feel) */
+const SEASONS = [
+  {n:'Summer', growth:1.15, rain:0.12, evap:1.5, tour:1.35, sky:'#fff3c4'},
+  {n:'Autumn', growth:1.00, rain:0.28, evap:1.0, tour:1.00, sky:'#ffd9a0'},
+  {n:'Winter', growth:0.62, rain:0.44, evap:0.5, tour:0.65, sky:'#cfe0ea'},
+  {n:'Spring', growth:1.10, rain:0.32, evap:0.9, tour:1.15, sky:'#e6f4c8'},
+];
+
+const WEATHERS = {
+  sun   :{n:'Sunny',   ic:'☀️', growth:1.10, rain:0,    evap:1.5, power:1.25, tour:1.25},
+  cloud :{n:'Cloudy',  ic:'☁️', growth:0.95, rain:0,    evap:0.8, power:0.55, tour:0.9},
+  rain  :{n:'Rain',    ic:'🌧️', growth:1.05, rain:34,   evap:0.2, power:0.35, tour:0.55},
+  storm :{n:'Storm',   ic:'⛈️', growth:0.75, rain:58,   evap:0.1, power:0.2,  tour:0.25},
+  frost :{n:'Frost',   ic:'❄️', growth:0.45, rain:4,    evap:0.3, power:0.7,  tour:0.6},
+  heat  :{n:'Heatwave',ic:'🔥', growth:0.85, rain:0,    evap:2.6, power:1.35, tour:1.1},
+};
+
+/* ---------------------------------------------------------------
+   BLUEPRINTS — w/h are in land tiles (40px each)
+   kind drives behaviour; see the simulation section
+   --------------------------------------------------------------- */
+const BP = [
+/* ---- growing ---- */
+{id:'bed',        name:'Raised bed',        art:'bed',        cat:'grow', w:3,h:2, cost:45,   lvl:1, kind:'plot', slots:1,
+  desc:'A timber-edged bed. Plant a seed, keep it watered, harvest in a few days.',
+  tip:'The bread and butter of the farm. Cheap, quick, and it pays for itself in one crop.'},
+{id:'bed_large',  name:'Market bed block',  art:'bed_large',  cat:'grow', w:5,h:4, cost:180,  lvl:3, kind:'plot', slots:3,
+  desc:'A full market-garden block. Grows three beds worth from one planting.',
+  tip:'Triple the harvest for less than triple the price — the first real scale-up.'},
+{id:'greenhouse', name:'Greenhouse',        art:'greenhouse', cat:'grow', w:5,h:3, cost:340,  lvl:4, kind:'plot', slots:2, speed:1.6, shelter:1, power:-2,
+  desc:'Glass house. Grows 60% faster and ignores the season — but draws power.',
+  tip:'Winter is where this earns its keep: everything outside slows to a crawl, this does not.'},
+{id:'herb_spiral',name:'Herb spiral',       art:'herb_spiral',cat:'grow', w:3,h:3, cost:120,  lvl:2, kind:'plot', slots:1, speed:1.25, charm:6,
+  desc:'A stone spiral of microclimates. Fast herb growth and it looks lovely.',
+  tip:'Herbs sell well and the charm bonus quietly lifts your tourism income.'},
+{id:'orchard',    name:'Fruit orchard',     art:'orchard',    cat:'grow', w:5,h:4, cost:290,  lvl:3, kind:'perennial', good:'apple', qty:9, cycle:6, charm:8,
+  desc:'Dwarf apple rows. No replanting — fruit ripens on its own every six days.',
+  tip:'Set and forget income. Plant it early and it quietly pays you forever.'},
+{id:'berry',      name:'Berry patch',       art:'berry',      cat:'grow', w:3,h:2, cost:150,  lvl:2, kind:'perennial', good:'berries', qty:5, cycle:5, charm:4,
+  desc:'Blueberry canes that fruit on a cycle without replanting.',
+  tip:'Berries fetch a high price per unit and feed the jam kitchen.'},
+{id:'flowers',    name:'Cut-flower strip',  art:'flowers',    cat:'grow', w:4,h:2, cost:130,  lvl:2, kind:'perennial', good:'flowers', qty:6, cycle:4, charm:14,
+  desc:'Dahlias and cosmos for market bunches. Big charm boost.',
+  tip:'The strongest charm per dollar in the game — visitors pay for pretty.'},
+{id:'nursery',    name:'Seed nursery',      art:'nursery',    cat:'grow', w:3,h:2, cost:210,  lvl:4, kind:'bonus', seedoff:0.4,
+  desc:'Raise your own seedlings — all seed costs drop by 40%.',
+  tip:'Pays for itself once you are planting more than a couple of beds a day.'},
+{id:'compost',    name:'Compost bays',      art:'compost',    cat:'grow', w:3,h:2, cost:110,  lvl:2, kind:'bonus', fert:0.18,
+  desc:'Three-bay hot compost. Every crop grows 18% faster.',
+  tip:'A flat speed bonus on the whole farm. Build it early, thank yourself later.'},
+
+/* ---- water ---- */
+{id:'tank',       name:'Rain tanks',        art:'tank',       cat:'water',w:3,h:2, cost:120,  lvl:1, kind:'water', cap:220,
+  desc:'Twin poly tanks. Stores 220 L of rainwater for the beds.',
+  tip:'Without storage, rain runs straight off your land and crops go thirsty.'},
+{id:'pond',       name:'Farm pond',         art:'pond',       cat:'water',w:6,h:4, cost:260,  lvl:2, kind:'water', cap:340, gain:14, charm:16,
+  desc:'A dug pond. Big storage, refills itself, and lifts the look of the place.',
+  tip:'Storage plus a trickle of free water every day, plus serious charm.'},
+{id:'well',       name:'Bore &amp; well',       art:'well',       cat:'water',w:2,h:2, cost:300,  lvl:3, kind:'water', cap:60, gain:44, power:-1,
+  desc:'Pumps groundwater every day, rain or shine. Needs a little power.',
+  tip:'Drought insurance. The one thing that keeps working through a heatwave.'},
+{id:'sprinkler',  name:'Irrigation ring',   art:'sprinkler',  cat:'water',w:3,h:3, cost:380,  lvl:5, kind:'bonus', autowater:1, power:-2,
+  desc:'Waters every bed on the farm automatically each morning.',
+  tip:'The single biggest quality-of-life upgrade — no more watering by hand.'},
+
+/* ---- power ---- */
+{id:'solar_ground',name:'Solar array',      art:'solar_ground',cat:'power',w:4,h:3, cost:230,  lvl:2, kind:'power', power:6,
+  desc:'Ground-mounted panels. Output rises on sunny days, falls under cloud.',
+  tip:'Greenhouses, pumps and processing all eat power. This is where it comes from.'},
+{id:'wind',       name:'Wind turbine',      art:'wind',       cat:'power',w:2,h:3, cost:340,  lvl:4, kind:'power', power:5, storm:1,
+  desc:'Small turbine. Steadier than solar and actually loves bad weather.',
+  tip:'Solar dies in a storm; this spins harder. Own both and you are never dark.'},
+{id:'battery',    name:'Battery bank',      art:'battery',    cat:'power',w:2,h:2, cost:260,  lvl:3, kind:'power', power:2, buffer:1,
+  desc:'Evens out the bad days so a cloudy week does not stall production.',
+  tip:'Stops the "not enough power" message during a run of grey weather.'},
+
+/* ---- animals ---- */
+{id:'coop',       name:'Chicken coop',      art:'coop',       cat:'animal',w:4,h:3, cost:190, lvl:2, kind:'animal',
+  animal:'chicken', cap:8, buy:26, good:'egg', per:1, cycle:1, feed:0.5,
+  desc:'Houses up to 8 hens. Each lays an egg a day if she is fed.',
+  tip:'Daily income that never needs replanting. Buy hens once, collect forever.'},
+{id:'duck_pond',  name:'Duck pond',         art:'duck_pond',  cat:'animal',w:4,h:3, cost:240, lvl:3, kind:'animal',
+  animal:'duck', cap:6, buy:34, good:'duckegg', per:1, cycle:1, feed:0.5, charm:10, water:1,
+  desc:'Ducks lay a pricier egg and eat pests. Doubles as a water feature.',
+  tip:'Ducks cut pest outbreaks across the whole farm while they earn.'},
+{id:'goat_pen',   name:'Goat pen',          art:'goat_pen',   cat:'animal',w:4,h:3, cost:280, lvl:3, kind:'animal',
+  animal:'goat', cap:5, buy:70, good:'milk', per:2, cycle:1, feed:1.2,
+  desc:'Dairy goats. Two litres each per day, and milk becomes cheese and soap.',
+  tip:'Milk is the input for your highest-margin crafted goods.'},
+{id:'sheep',      name:'Sheep paddock',     art:'sheep',      cat:'animal',w:6,h:4, cost:320, lvl:4, kind:'animal',
+  animal:'sheep', cap:8, buy:60, good:'wool', per:1, cycle:5, feed:1.0, charm:8,
+  desc:'Wool every five days. Slow, but wool is worth a lot per unit.',
+  tip:'Low effort, high value. Good once you have feed to spare.'},
+{id:'apiary',     name:'Apiary row',        art:'apiary',     cat:'animal',w:4,h:2, cost:260, lvl:3, kind:'animal',
+  animal:'hive', cap:6, buy:48, good:'honey', per:1, cycle:2, feed:0, pollinate:1, charm:6,
+  desc:'Beehives need no feed, and pollination speeds every crop on the farm.',
+  tip:'Free labour: hives grow your crops faster AND hand you honey.'},
+{id:'rabbit',     name:'Rabbit hutch',      art:'rabbit',     cat:'animal',w:3,h:2, cost:130, lvl:2, kind:'bonus', charm:9,
+  desc:'Purely for the visitors. Children adore them.',
+  tip:'Cheap charm — worth it once the farm stand is open.'},
+{id:'fodder',     name:'Fodder patch',      art:'fodder',     cat:'animal',w:4,h:2, cost:100, lvl:2, kind:'feed', feed:4,
+  desc:'Grows 4 units of animal feed a day, free.',
+  tip:'Every animal eats daily. Without feed, production stops dead.'},
+
+/* ---- processing ---- */
+{id:'kitchen',    name:'Jam kitchen',       art:'kitchen',    cat:'craft',w:4,h:3, cost:300, lvl:3, kind:'process', power:-2,
+  recipes:[{in:{berries:4},out:{jam:2},days:1},{in:{strawberry:5},out:{jam:2},days:1},{in:{apple:6},out:{jam:2},days:1}],
+  desc:'Turns fruit into jam worth far more than the fruit.',
+  tip:'4 berries ($64) become 2 jars ($68) — and jars keep climbing with reputation.'},
+{id:'dairy',      name:'Dairy room',        art:'dairy',      cat:'craft',w:4,h:3, cost:360, lvl:4, kind:'process', power:-3,
+  recipes:[{in:{milk:5},out:{cheese:1},days:2},{in:{milk:3},out:{soap:2},days:1}],
+  desc:'Cheese and milk soap from your goat milk.',
+  tip:'Cheese is one of the best-value items you can make.'},
+{id:'honey_lab',  name:'Honey lab',         art:'honey_lab',  cat:'craft',w:4,h:3, cost:320, lvl:4, kind:'process', power:-2,
+  recipes:[{in:{honey:3},out:{honeyjar:2},days:1}],
+  desc:'Extracts, filters and jars your raw honey.',
+  tip:'Roughly doubles what your hives are worth.'},
+{id:'packing',    name:'Packing shed',      art:'packing',    cat:'craft',w:5,h:3, cost:420, lvl:5, kind:'process', power:-3,
+  recipes:[{in:{lettuce:3,carrot:3,potato:3},out:{veg_box:2},days:1},{in:{tomato:4,cucumber:4},out:{veg_box:2},days:1}],
+  desc:'Bundles mixed vegetables into subscription boxes.',
+  tip:'The best way to turn a glut of cheap veg into real money.'},
+
+/* ---- commerce & tourism ---- */
+{id:'farm_stand', name:'Farm stand',        art:'farm_stand', cat:'trade',w:4,h:3, cost:210, lvl:2, kind:'shop', rate:2.4, charm:6,
+  desc:'Sells your stored goods to passers-by, all day, without you.',
+  tip:'Passive income. It sells slowly but never sleeps — and charm makes it faster.'},
+{id:'tea_kiosk',  name:'Tea kiosk',         art:'tea_kiosk',  cat:'trade',w:3,h:3, cost:280, lvl:3, kind:'tourism', income:16, charm:10,
+  desc:'Cake and tea for visitors. Earns from charm, not from stock.',
+  tip:'Tourism income scales with how beautiful your farm is. Plant flowers.'},
+{id:'gift_shop',  name:'Gift shop',         art:'gift_shop',  cat:'trade',w:4,h:3, cost:400, lvl:5, kind:'shop', rate:3.6, markup:1.25, charm:8,
+  desc:'Sells crafted goods at a 25% markup, faster than the stand.',
+  tip:'Pair it with the jam kitchen and dairy for the best margins on the farm.'},
+{id:'glamping',   name:'Glamping tent',     art:'glamping',   cat:'trade',w:3,h:3, cost:340, lvl:4, kind:'tourism', income:30, charm:12,
+  desc:'A canvas bell tent guests pay to sleep in. Strong nightly income.',
+  tip:'Your biggest tourism earner — but empty land earns nothing, so decorate.'},
+{id:'dome',       name:'Geodesic dome',     art:'dome',       cat:'trade',w:4,h:4, cost:520, lvl:6, kind:'tourism', income:52, charm:20,
+  desc:'Premium glass stay. The centrepiece of an agritourism farm.',
+  tip:'Expensive, but the highest nightly rate and a huge charm bump.'},
+{id:'deck',       name:'Yoga deck',         art:'deck',       cat:'trade',w:4,h:3, cost:200, lvl:3, kind:'tourism', income:12, charm:14,
+  desc:'A timber platform for retreats and morning classes.',
+  tip:'Cheap tourism income with a very good charm return.'},
+{id:'playground', name:'Play area',         art:'playground', cat:'trade',w:5,h:3, cost:260, lvl:4, kind:'tourism', income:14, charm:18,
+  desc:'Cubby, swing and slide. Families stay far longer.',
+  tip:'Big charm. Families with children spend the most at the stand.'},
+{id:'firepit',    name:'Fire circle',       art:'firepit',    cat:'trade',w:3,h:3, cost:120, lvl:3, kind:'tourism', income:7, charm:10,
+  desc:'Somewhere for guests to gather after dark.',
+  tip:'Small cost, tidy charm — good filler between the tents.'},
+
+/* ---- land & decor ---- */
+{id:'path',       name:'Gravel path',       art:'path',       cat:'land', w:3,h:1, cost:16,  lvl:1, kind:'decor', charm:2,
+  desc:'Compacted gravel. Ties the property together.',
+  tip:'Cheap charm and it makes the plan actually read like a farm.'},
+{id:'ring',       name:'Turning circle',    art:'ring',       cat:'land', w:6,h:5, cost:110, lvl:3, kind:'decor', charm:8,
+  desc:'A gravel loop so visitor cars can turn around.',
+  tip:'Signals "we are open to the public". Nice charm for the money.'},
+{id:'parking',    name:'Visitor parking',   art:'parking',    cat:'land', w:4,h:3, cost:90,  lvl:3, kind:'bonus', tour:0.15, charm:3,
+  desc:'Marked bays. Lifts all tourism income by 15%.',
+  tip:'A flat multiplier on every tourism building you own.'},
+{id:'hedge',      name:'Boundary hedge',    art:'hedge',      cat:'land', w:4,h:1, cost:26,  lvl:1, kind:'decor', charm:3, shelter:1,
+  desc:'Clipped windbreak. Shelters crops and frames the land.',
+  tip:'Shelter reduces storm damage to anything planted nearby.'},
+{id:'fence',      name:'Post &amp; rail',       art:'fence',      cat:'land', w:4,h:1, cost:18,  lvl:1, kind:'decor', charm:1,
+  desc:'Simple stock fencing.', tip:'Pure decoration, but it sells the look.'},
+{id:'gate',       name:'Entrance arch',     art:'gate',       cat:'land', w:4,h:3, cost:140, lvl:3, kind:'decor', charm:12,
+  desc:'A timber arch at the road. First impressions count.',
+  tip:'One of the best charm-per-dollar buildings in the catalogue.'},
+{id:'sign',       name:'Farm sign',         art:'sign',       cat:'land', w:2,h:2, cost:60,  lvl:2, kind:'decor', charm:6,
+  desc:'Hand-painted board with your farm name.', tip:'Small, cheap, and it adds up.'},
+{id:'tree_native',name:'Native tree',       art:'tree_native',cat:'land', w:2,h:2, cost:34,  lvl:1, kind:'decor', charm:4, shelter:1,
+  desc:'A hardy native. Shelter and shade.', tip:'Plant a row upwind of your beds.'},
+{id:'tree_shade', name:'Shade tree',        art:'tree_shade', cat:'land', w:2,h:2, cost:40,  lvl:1, kind:'decor', charm:5, shelter:1,
+  desc:'Broad deciduous canopy.', tip:'Charming, and it softens a heatwave.'},
+{id:'tree_olive', name:'Olive tree',        art:'tree_olive', cat:'land', w:2,h:2, cost:52,  lvl:2, kind:'decor', charm:6,
+  desc:'Silver-leafed and drought-hardy.', tip:'Looks expensive. That is the point.'},
+{id:'bench',      name:'Garden bench',      art:'bench',      cat:'land', w:2,h:1, cost:22,  lvl:2, kind:'decor', charm:3,
+  desc:'Somewhere to sit and look at what you built.', tip:'Small charm, and it fills awkward corners.'},
+{id:'lights',     name:'Festoon lights',    art:'lights',     cat:'land', w:3,h:1, cost:48,  lvl:3, kind:'decor', charm:9, night:1,
+  desc:'Warm bulbs strung between posts. They glow after dark.',
+  tip:'Charm that literally shines at night — great around the tents.'},
+
+/* ---- automation ---- */
+{id:'ai_hub',     name:'Farm control hub',  art:'ai_hub',     cat:'auto', w:3,h:3, cost:480, lvl:5, kind:'hub', power:-2, charm:4,
+  desc:'The brain of an automated farm. Each Mark unlocks more AI modules.',
+  tip:'Mk I runs irrigation. Mk II adds the harvest drone and livestock robot. Mk III adds agronomy and logistics. Mk IV adds the grid optimiser.'},
+
+/* ---- home ---- */
+{id:'cabin',      name:'Homestead house',   art:'cabin',      cat:'home', w:6,h:4, cost:0,   lvl:1, kind:'home', power:8, charm:10,
+  desc:'Your house. Its roof solar feeds the whole property.',
+  tip:'Already built — this is where your farm starts.'},
+{id:'shed',       name:'Tool shed',         art:'shed',       cat:'home', w:3,h:2, cost:130, lvl:1, kind:'bonus', power:2, speedwork:0.15,
+  desc:'Better tools. All manual jobs give 15% more.',
+  tip:'A quiet multiplier on every harvest you gather by hand.'},
+{id:'workshop',   name:'Workshop',          art:'workshop',   cat:'home', w:4,h:3, cost:250, lvl:4, kind:'bonus', power:2, craftspeed:0.3,
+  desc:'Crafting runs 30% faster in every processing building.',
+  tip:'Build it before you scale up jam, cheese and boxes.'},
+{id:'cellar',     name:'Root cellar',       art:'cellar',     cat:'home', w:3,h:2, cost:180, lvl:3, kind:'bonus', price:0.12,
+  desc:'Cool storage. Everything you sell fetches 12% more.',
+  tip:'A permanent raise on every single sale you will ever make.'},
+];
+
+const BPMAP = {}; BP.forEach(b=>BPMAP[b.id]=b);
+
+const CATS = [
+  {id:'grow',  n:'Grow',    tip:'Beds, greenhouses and orchards — where food comes from.'},
+  {id:'water', n:'Water',   tip:'Tanks, ponds and irrigation. Thirsty crops stop growing.'},
+  {id:'power', n:'Power',   tip:'Solar and wind. Greenhouses and workshops need it.'},
+  {id:'animal',n:'Animals', tip:'Hens, goats, bees and the feed to keep them going.'},
+  {id:'craft', n:'Craft',   tip:'Turn raw produce into goods worth several times more.'},
+  {id:'trade', n:'Trade',   tip:'Stands, shops and stays — how visitors give you money.'},
+  {id:'land',  n:'Land',    tip:'Paths, hedges, trees and decor. Charm drives tourism.'},
+  {id:'home',  n:'Home',    tip:'Buildings that upgrade the whole farm at once.'},
+  {id:'auto',  n:'AI',      tip:'The control hub and the automation modules it unlocks.'},
+];
+
+/* level thresholds */
+function xpFor(lv){ return Math.round(90*Math.pow(lv,1.62)); }
