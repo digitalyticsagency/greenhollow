@@ -513,7 +513,11 @@ setInterval(()=>{ if(S) G.save(); }, 20000);
   if(fresh) newState();
   bindInput();
   ['pointerdown','keydown','touchstart'].forEach(ev=>
-    window.addEventListener(ev, ()=>{ SND.unlock(); if(S.muted) SND.setMuted(true); }, {once:true}));
+    window.addEventListener(ev, ()=>{
+      SND.setMuted(!!S.muted);      // set BEFORE unlocking so a muted farm stays silent
+      SND.unlock();
+      const b=$('#sndBtn'); if(b){ b.textContent = S.muted?'🔇':'🔊'; b.classList.toggle('on', !S.muted); }
+    }, {once:true}));
   render(); fitView(); ui();
   S.log.length ? (function(){ const el=$('#log');
     el.innerHTML = S.log.map(l=>`<div class="lg ${l.c}"><time>D${l.d}</time><span>${l.m}</span></div>`).join(''); })()

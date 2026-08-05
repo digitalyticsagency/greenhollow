@@ -1524,7 +1524,7 @@ function xpFor(lv){ return Math.round(90*Math.pow(lv,1.62)); }
 const SND = (function(){
   let ac=null, master=null, sfxG=null, ambG=null, wxG=null, musG=null;
   let started=false, muted=false, noiseBuf=null;
-  let wind=null, rain=null, rainF=null, birdTimer=0, musTimer=0, musStep=0;
+  let wind=null, rain=null, rainF=null, birdTimer=0, musTimer=0, musStep=0, muteHold=0;
   const vol = {master:0.75, sfx:0.9, amb:0.35, wx:0.4, mus:0.22};
 
   function ctx(){
@@ -1620,7 +1620,7 @@ const SND = (function(){
   function scheduleBird(){
     clearTimeout(birdTimer);
     birdTimer = setTimeout(()=>{
-      if(!muted && ambG && ambG.gain.value>0.01){
+      if(!muted && ac && ac.state==='running' && ambG && ambG.gain.value>0.01){
         const base = 1800+Math.random()*1400, n = 2+Math.floor(Math.random()*3);
         for(let i=0;i<n;i++)
           setTimeout(()=> tone(base*(1+Math.random()*0.3), 0.07, 'sine', 0.035, ambG, base*1.6), i*90);
@@ -1656,7 +1656,7 @@ const SND = (function(){
     if(musTimer) return;
     const step = ()=>{
       const c=ctx();
-      if(c && !muted && musG.gain.value>0.005){
+      if(c && !muted && ac.state==='running' && musG.gain.value>0.005){
         const root = 174.61;                       // F3
         const deg = SCALE[Math.floor(Math.random()*SCALE.length)];
         const f = root*Math.pow(2, deg/12);
@@ -1694,9 +1694,30 @@ const SND = (function(){
   }
   function applyMix(){
     const c=ctx(); if(!c) return;
-    master.gain.setTargetAtTime(muted?0:vol.master, c.currentTime, 0.2);
-    ambG.gain.setTargetAtTime(muted?0:(S&&S.snd&&S.snd.amb===false?0:vol.amb), c.currentTime, 0.8);
-    musG.gain.setTargetAtTime(muted?0:(S&&S.snd&&S.snd.mus===false?0:vol.mus), c.currentTime, 1.2);
+    if(muted){
+      /* setTargetAtTime only ever approaches zero, so a continuous noise bed
+         stays faintly audible. Ramp to a true zero, then stop the clock. */
+      [master, ambG, wxG, musG, sfxG].forEach(g=>{
+        g.gain.cancelScheduledValues(c.currentTime);
+        g.gain.setValueAtTime(g.gain.value, c.currentTime);
+        g.gain.linearRampToValueAtTime(0, c.currentTime+0.12);
+        g.gain.setValueAtTime(0, c.currentTime+0.13);
+      });
+      clearTimeout(birdTimer);
+      if(muteHold) clearTimeout(muteHold);
+      muteHold = setTimeout(()=>{ if(muted && ac && ac.state==='running') ac.suspend(); }, 220);
+      return;
+    }
+    if(muteHold){ clearTimeout(muteHold); muteHold=0; }
+    if(ac.state==='suspended') ac.resume();
+    [master, sfxG].forEach(g=> g.gain.cancelScheduledValues(c.currentTime));
+    master.gain.setTargetAtTime(vol.master, c.currentTime, 0.2);
+    sfxG.gain.setTargetAtTime(vol.sfx, c.currentTime, 0.1);
+    ambG.gain.cancelScheduledValues(c.currentTime);
+    musG.gain.cancelScheduledValues(c.currentTime);
+    ambG.gain.setTargetAtTime(S&&S.snd&&S.snd.amb===false?0:vol.amb, c.currentTime, 0.8);
+    musG.gain.setTargetAtTime(S&&S.snd&&S.snd.mus===false?0:vol.mus, c.currentTime, 1.2);
+    scheduleBird();
     if(S) setWeather(S.weather);
   }
 
@@ -1706,6 +1727,9 @@ const SND = (function(){
     weather(k){ if(started) setWeather(k); },
     setMuted(m){ muted=m; applyMix(); },
     isMuted(){ return muted; },
+    debug(){ return ac ? {state:ac.state, master:+master.gain.value.toFixed(4),
+      amb:+ambG.gain.value.toFixed(4), wx:+wxG.gain.value.toFixed(4),
+      mus:+musG.gain.value.toFixed(4), muted} : {state:'none', muted}; },
     toggleLayer(k,on){ if(!S.snd) S.snd={}; S.snd[k]=on; applyMix(); },
     seasonTint(){ /* birds thin out in winter */
       if(!ambG) return;
@@ -3616,7 +3640,11 @@ setInterval(()=>{ if(S) G.save(); }, 20000);
   if(fresh) newState();
   bindInput();
   ['pointerdown','keydown','touchstart'].forEach(ev=>
-    window.addEventListener(ev, ()=>{ SND.unlock(); if(S.muted) SND.setMuted(true); }, {once:true}));
+    window.addEventListener(ev, ()=>{
+      SND.setMuted(!!S.muted);      // set BEFORE unlocking so a muted farm stays silent
+      SND.unlock();
+      const b=$('#sndBtn'); if(b){ b.textContent = S.muted?'🔇':'🔊'; b.classList.toggle('on', !S.muted); }
+    }, {once:true}));
   render(); fitView(); ui();
   S.log.length ? (function(){ const el=$('#log');
     el.innerHTML = S.log.map(l=>`<div class="lg ${l.c}"><time>D${l.d}</time><span>${l.m}</span></div>`).join(''); })()
