@@ -122,7 +122,24 @@ Rules that keep animation affordable:
 
 ## The performance budget — measured, not guessed
 
-Real numbers from this codebase. They are the reason for the rules above:
+### How to measure, or the numbers will lie to you
+
+This matters more than any single figure below. Getting it wrong produced a full round of
+false conclusions once already:
+
+- **Pause the simulation** (`S.speed = 0`) before sampling. The game's own tickers run
+  `render()` mid-sample and dominate the result. A pass measured with the sim running reported
+  animation costing ~45fps; measured properly it costs ~6–11fps.
+- **Take a median of 5 short runs**, not one. Run-to-run spread on the same configuration is
+  around ±10fps.
+- **Change one thing at a time** and re-measure. Toggling a CSS class off (`animation:none`)
+  isolates a system without rebuilding.
+- **Distrust a single surprising number.** If disabling something makes the scene *slower*,
+  that is noise, not a finding.
+
+### What actually costs
+
+Real numbers from this codebase, measured as above:
 
 - 183 `feGaussianBlur` + 81 `feTurbulence` filters took the scene to **15fps**. Removing them
   and splitting static backdrop from live foreground: **121fps**, render 22ms → 10.6ms.
@@ -132,6 +149,16 @@ Real numbers from this codebase. They are the reason for the rules above:
   surfaces first took 126 objects from 19fps to 31, and a 46-object farm sits at **82fps**.
 - The whole foreground SVG is re-serialised per render, so **string length is a real cost**.
   Cap decorative loops: a green roof reads from ~24 scattered tufts; 184 is invisible spend.
+- **In SVG an animated child repaints its region — it does not composite on the GPU** the way
+  an animated HTML element does. So "transform and opacity only" is necessary but not
+  sufficient: what you are really spending is animated **area × frequency**. Prefer small
+  movements over large sweeps. A ripple growing to `scale(2.4)` is affordable; the same ripple
+  at `scale(5)`, or a specular band sweeping a full object width, is not.
+- Animation caps are `IDLE_CAP` 20 (whole-object idle) and `DETAIL_CAP` 8 (working detail).
+  Going to 26 and 10 cost roughly 11fps on a busy farm for very little visible gain.
+
+On an all-Mk IV stress farm, measured medians: **46 objects ≈ 32–43fps**, 76 ≈ 23–33,
+126 ≈ 18–22, 190 ≈ 12–14. Treat these as ranges, not points.
 
 `ARCH_LOD` (2 → full, 1 → reduced, 0 → structure only) switches on object count. Fine detail
 drops out; **structure never does** — a building must not lose its shape, only its garnish.

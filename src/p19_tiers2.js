@@ -202,7 +202,7 @@ const _artSolar = ART.solar_ground;
 ART.solar_ground = (w,h,ob)=>{
   const t = curTier(ob);
   if(!t) return _artSolar(w,h,ob);
-  let s = patch(w,h,'#87ad5c',12,1);
+  let s = patch(w,h,'#5f7a44',12,1);
   const rows = 2 + t;
   for(let i=0;i<rows;i++){
     const y = 3 + i*((h-6)/rows);

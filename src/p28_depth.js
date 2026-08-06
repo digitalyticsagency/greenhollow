@@ -63,8 +63,14 @@ function idleClass(bp){
   return '';
 }
 
-/* budget: how many objects may animate at once */
-const IDLE_CAP = 44;
+/* Budget: how many objects may animate at once. Measured, not chosen:
+   in SVG an animated child repaints its region instead of compositing,
+   so cost scales with animated AREA. Twenty movers reads as a living farm.
+   Twenty-six cost about 11fps on a busy one and twenty is most of the
+   effect for half the price; the far larger figure
+   an earlier pass reported was measurement error, taken while the game
+   simulation was still running during the sample. */
+const IDLE_CAP = 20;
 
 /* ---- hook the single place every object is drawn ---- */
 const _drawObjBase = drawObj;

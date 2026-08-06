@@ -99,7 +99,7 @@ ART.cellar    = (w,h)=>{
 
 /* — energy — */
 ART.solar_ground = (w,h)=>{
-  let s = patch(w,h,'#87ad5c',12,1);
+  let s = patch(w,h,'#5f7a44',12,1);
   const rows = Math.max(2, Math.round(h/14));
   for(let i=0;i<rows;i++){
     const y = 3 + i*((h-6)/rows);

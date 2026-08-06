@@ -53,10 +53,10 @@ function DEFS(){
   <linearGradient id="gGlass" x1="0.05" y1="0" x2="0.6" y2="1">
     <stop offset="0" stop-color="#e6f6fa"/><stop offset="0.45" stop-color="#c2e0e9"/><stop offset="1" stop-color="#9dc2ce"/></linearGradient>
   <linearGradient id="gStone" x1="0" y1="0" x2="0.4" y2="1">
-    <stop offset="0" stop-color="#adа59a"/><stop offset="1" stop-color="#857e73"/></linearGradient>
+    <stop offset="0" stop-color="#ada59a"/><stop offset="1" stop-color="#857e73"/></linearGradient>
   <radialGradient id="gWater" cx="0.36" cy="0.3" r="0.78">
     <stop offset="0" stop-color="#8fd0e8"/><stop offset="0.4" stop-color="#4f93b5"/>
-    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#255madjust"/></radialGradient>
+    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#1f5878"/></radialGradient>
   <radialGradient id="gCanopy" cx="0.34" cy="0.28" r="0.8">
     <stop offset="0" stop-color="#79b356"/><stop offset="0.45" stop-color="#4f8c38"/>
     <stop offset="0.85" stop-color="#356523"/><stop offset="1" stop-color="#274c19"/></radialGradient>
@@ -76,7 +76,7 @@ function DEFS(){
     <stop offset="1" stop-color="#cfe0ea" stop-opacity="0.4"/></linearGradient>
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
-  </defs>`.replace('#adа59a','#ada59a').replace('#255madjust','#255d7c');
+  </defs>`.replace('#ada59a','#ada59a').replace('#1f5878','#255d7c');
 }
 
 /* ---------------- primitives ---------------- */
@@ -271,14 +271,19 @@ function hedge(w,h){
 
 /* pond / dam */
 function water(w,h,seed){
+  /* a pond should read as water first and bank second: keep the verge
+     narrow so the pool dominates the footprint */
   let s = patch(w,h,'#5d7a3a',seed||4,0.5);
-  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.9) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#8a9c5c',seed||4,0.5)}</g>`;
-  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.82) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'url(#gWater)',seed||4,0.5)}</g>`;
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.955) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#7d9450',seed||4,0.5)}</g>`;
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.915) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'url(#gWater)',seed||4,0.5)}</g>`;
+  /* darker at the far edge, so the pool reads as having depth */
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.62)}) scale(0.7) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#1f5878',seed||4,0.5)}</g>`;
   for(let i=0;i<3;i++){
     s += `<ellipse class="ripple" cx="${n(w*(0.34+i*0.16))}" cy="${n(h*(0.4+i*0.13))}" rx="${n(w*0.13)}" ry="${n(h*0.045)}"
       fill="none" stroke="#dff4fb" stroke-width="0.9" opacity=".4" style="animation-delay:${(i*1.1).toFixed(1)}s"/>`;
   }
-  s += `<ellipse cx="${n(w*0.32)}" cy="${n(h*0.28)}" rx="${n(w*0.17)}" ry="${n(h*0.07)}" fill="#fff" opacity=".26"/>`;
+  s += `<ellipse cx="${n(w*0.32)}" cy="${n(h*0.28)}" rx="${n(w*0.24)}" ry="${n(h*0.10)}" fill="#fff" opacity=".30"/>`;
+  s += `<ellipse cx="${n(w*0.27)}" cy="${n(h*0.24)}" rx="${n(w*0.12)}" ry="${n(h*0.045)}" fill="#fff" opacity=".34"/>`;
   for(let i=0;i<9;i++){
     const a=(i/9)*Math.PI*2;
     s += `<path d="M${n(w/2+Math.cos(a)*(w/2-4))} ${n(h/2+Math.sin(a)*(h/2-4))} q 1.6 -4 0 -7" stroke="#4e8433" stroke-width="1.2" fill="none"/>`;
