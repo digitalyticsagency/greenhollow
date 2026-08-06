@@ -1,7 +1,7 @@
 S = "/private/tmp/claude-501/-Users-limonghosh/68773a9a-8171-4685-a5ba-87df65a27c5a/scratchpad/"
 OUT = "/Users/limonghosh/Downloads/greenhollow-homestead.html"
 parts = ["p1_head.html","p2_art.js","p3_components.js","p4_data.js","p8_audio.js","p9_systems.js",
-         "p12_world.js","p10_career.js","p5_engine.js","p11_avatar.js","p6_ui.js","p13_ui2.js","p15_life2.js","p7_boot.js","p14_wire.js","p16_fixes.js","p17_more.js","p18_family.js","p19_tiers2.js","p20_perf.js","p21_more2.js","p22_rules.js","p23_fixes3.js","p24_fleet.js","p25_weather.js","p26_offgrid.js","p27_arch.js","p28_depth.js","p29_detail.js","p30_sky.js","p31_storm.js","p32_birds.js","p33_indoors.js"]
+         "p12_world.js","p10_career.js","p5_engine.js","p11_avatar.js","p6_ui.js","p13_ui2.js","p15_life2.js","p7_boot.js","p14_wire.js","p16_fixes.js","p17_more.js","p18_family.js","p19_tiers2.js","p20_perf.js","p21_more2.js","p22_rules.js","p23_fixes3.js","p24_fleet.js","p25_weather.js","p26_offgrid.js","p27_arch.js","p28_depth.js","p29_detail.js","p30_sky.js","p31_storm.js","p32_birds.js","p33_indoors.js","p34_gate.js"]
 
 # --- guards: a SyntaxError anywhere kills the whole single-file game, so
 # --- refuse to emit a build that would not parse.
