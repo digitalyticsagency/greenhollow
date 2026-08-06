@@ -20,7 +20,7 @@ import sys
 
 # ------------------------------------------------------------------
 # PASTE YOUR GOATCOUNTER SITE CODE HERE  (just the code, not the URL)
-GOATCOUNTER_CODE = ''
+GOATCOUNTER_CODE = 'greenhollow'
 # ------------------------------------------------------------------
 
 SRC = '/Users/limonghosh/Downloads/greenhollow-homestead.html'
