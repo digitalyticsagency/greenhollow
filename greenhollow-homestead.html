@@ -7702,6 +7702,108 @@ function rulesHTML(){
   }
 })();
 
+/* =====================================================================
+   SAVE INTEGRITY — the original save swallowed every error, so a failed
+   write (quota, private browsing, a bad value) lost the farm silently.
+   It now verifies the write and says so when it cannot.
+   ===================================================================== */
+(function hardenSave(){
+  let lastGoodSave = 0, warned = false;
+
+  G.save = function(loud){
+    if(!S) return false;
+    let json;
+    try { json = JSON.stringify(S); }
+    catch(e){
+      warnSave('The farm could not be packaged for saving', e.message);
+      return false;
+    }
+    try {
+      localStorage.setItem('greenhollow', json);
+      /* read it straight back — a write that cannot be re-read is not a save */
+      const back = localStorage.getItem('greenhollow');
+      if(!back || back.length !== json.length) throw new Error('written data did not read back');
+      JSON.parse(back);
+      lastGoodSave = Date.now(); warned = false;
+      if(loud) toast('Saved','good');
+      return true;
+    } catch(e){
+      /* out of room: drop the log, which is the only expendable part */
+      if(String(e.name).includes('Quota') || String(e.message).toLowerCase().includes('quota')){
+        try {
+          const trimmed = {...S, log: S.log.slice(0,10)};
+          localStorage.setItem('greenhollow', JSON.stringify(trimmed));
+          lastGoodSave = Date.now();
+          if(loud) toast('Saved (log trimmed to fit)','good');
+          return true;
+        } catch(e2){ /* fall through to the warning */ }
+      }
+      warnSave('Could not save', e.message);
+      return false;
+    }
+  };
+
+  function warnSave(what, detail){
+    console.error('[greenhollow] ' + what + ': ' + detail);
+    if(warned) return;
+    warned = true;
+    const mins = lastGoodSave ? Math.round((Date.now()-lastGoodSave)/60000) : null;
+    toast(what + ' — your progress is at risk','bad');
+    log(`${what}: ${detail}. ${mins!==null?`Last good save was ${mins} minute${mins===1?'':'s'} ago.`:'Nothing has been saved this session.'} Try Export below.`,'bad');
+    sfx('error');
+  }
+
+  /* a way out if storage is unavailable: take the save with you */
+  G.exportSave = function(){
+    try{
+      const blob = new Blob([JSON.stringify(S,null,1)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `greenhollow-day${S.day}.json`;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+      toast('Save exported','good');
+    }catch(e){ toast('Could not export','bad'); }
+  };
+  G.importSave = function(){
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='application/json';
+    inp.onchange = ()=>{
+      const f = inp.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{
+        try{
+          const d = JSON.parse(r.result);
+          if(!d || d.v !== 5) return toast('That file is from a different version','bad');
+          S = d;
+          settingsInit(); careerInit(); youInit(); peopleInit();
+          if(S.landId && LANDMAP[S.landId]) resizeLand(LANDMAP[S.landId]);
+          S.objs.forEach(o=>{ if(o.tier===undefined) o.tier=0; initCare(o);
+            if(BPMAP[o.bp].kind==='animal'){ if(!o.herd) o.herd=[]; syncHerd(o); } });
+          bgToken=''; applyTheme(); render(); fitView(); ui();
+          toast('Farm loaded','good');
+        }catch(e){ toast('That file could not be read','bad'); }
+      };
+      r.readAsText(f);
+    };
+    inp.click();
+  };
+
+  /* offer them in Settings */
+  const _sh = settingsHTML;
+  settingsHTML = function(){
+    return _sh() + `<div class="card">
+      <div class="eyebrow">Your save</div>
+      <div class="muted">Kept in this browser. Export a copy before clearing site data,
+      or to move the farm to another machine.</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="chip" onclick="G.exportSave()">Export to file</button>
+        <button class="chip" onclick="G.importSave()">Import a file</button>
+        <button class="chip" onclick="G.save(1)">Save now</button>
+      </div></div>`;
+  };
+})();
+
 
 </script>
 </body>
