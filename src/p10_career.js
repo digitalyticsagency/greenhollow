@@ -157,7 +157,7 @@ function outgoings(){
   const tiers = S.objs.reduce((a,o)=>a+tOf(o),0);
   const rates   = Math.round(120 + built*26 + tiers*34);            // council rates on what you own
   const upkeep  = Math.round(S.objs.reduce((a,o)=>a+(BPMAP[o.bp].cost||0)*0.012,0));
-  const wages   = S.career.hired*1400;
+  const wages   = (typeof workerWages==='function' ? workerWages() : 0);
   const interest= Math.round(S.career.loan * S.career.rate);
   const ai      = (typeof autoFees==='function' ? autoFees()*30 : 0);
   return {rates, upkeep, wages, interest, ai, total: rates+upkeep+wages+interest+ai};

@@ -164,3 +164,41 @@ function homeMini(hm){
   return `<svg viewBox="0 0 60 40">${DEFS()}<rect width="60" height="40" rx="4" fill="#1b2416"/>
     <g transform="translate(10,8) scale(${(0.4*hm.sc).toFixed(2)})">${building(100,60,{roof:hm.roof,solar:hm.power>10?1:0,chimney:1})}</g></svg>`;
 }
+
+/* ---------------- family & farmhands ---------------- */
+function homeLifeHTML(){
+  peopleInit();
+  const beds = workerBeds(), used = S.workers.length;
+  const morale = S.morale===undefined ? 0.6 : S.morale;
+  let h = `<div class="card">
+    <div class="eyebrow">Household morale</div>
+    <div class="bar"><i style="transform:scaleX(${morale.toFixed(3)});background:linear-gradient(90deg,#c47fa8,#f0a8c8)"></i></div>
+    <div class="muted" style="margin-top:5px">Time with your family lifts morale and pulls back burnout,
+    which is what your salary is scaled by. When you have nothing queued, you will go and find them.</div>
+  </div><div class="ph">Family</div>`;
+
+  S.family.forEach(f=>{
+    h += `<div class="person" data-tip="${esc(`<b>${f.name}</b>${f.role==='partner'?'Your partner. Works the beds and the animals through the day.':'Studies in the morning, plays in the afternoon.'}<hr><div class="tl"><span>Right now</span><b>${f.act||'—'}</b></div>`)}">
+      <span class="pav" style="background:${f.shirt}"></span>
+      <span class="pm"><input class="pname" value="${f.name}" onchange="G.renameFamily('${f.id}', this.value)"
+        aria-label="Name"><span class="muted">${f.role==='partner'?'Partner':'Child'} · ${f.act||'at home'}</span></span>
+    </div>`;
+  });
+
+  h += `<div class="ph">Farmhands <span style="color:var(--txt3);font-weight:500">${used} of ${beds} beds</span></div>`;
+  if(!beds) h += `<div class="empty">No worker housing yet.<div style="margin-top:6px">Build a
+    <b>worker cottage</b> from the Home category — it sleeps two, and one more per upgrade.</div></div>`;
+  S.workers.forEach(w=>{
+    h += `<div class="person" data-tip="${esc(`<b>${w.name}</b>Skill ${w.skill} — does ${2+w.skill} jobs a day: watering, harvesting, collecting and mucking out.<hr><div class="tl"><span>Wage</span><span class="tk">${fmt(w.wage)}/month</span></div><div class="tl"><span>Jobs done yesterday</span><b>${w.done||0}</b></div>`)}">
+      <span class="pav" style="background:#4f8a9c"></span>
+      <span class="pm"><b>${w.name}</b><span class="muted">skill ${w.skill} · ${fmt(w.wage)}/mo · ${w.done||0} jobs yesterday</span></span>
+      <button class="chip" onclick="fireWorker('${w.id}')">Let go</button></div>`;
+  });
+  const canHire = used < beds;
+  h += `<div style="padding:9px 11px">
+    <button class="btn wide ${canHire?'':'ghost'}" ${canHire?'':'disabled'} onclick="hireWorker()"
+      data-tip="${esc('<b>Hire a farmhand</b>Signing-on fee of about half a month’s wage, then a monthly wage forever. They water, harvest, collect and clean without being asked.<hr><span class="tg">Cheaper than AI early on, dearer once you scale.</span>')}">
+      ${canHire?'Hire a farmhand':'Build a cottage first'}</button>
+    <div class="muted" style="margin-top:6px">Total wages: ${fmt(workerWages())}/month.</div></div>`;
+  return h;
+}

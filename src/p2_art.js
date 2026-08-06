@@ -68,6 +68,12 @@ function DEFS(){
     <stop offset="0" stop-color="#5b9440"/><stop offset="0.5" stop-color="#3f6f2c"/><stop offset="1" stop-color="#27491c"/></linearGradient>
   <linearGradient id="gTank" x1="0" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#4e7a4c"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+  <linearGradient id="gHaze" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#cfe0ea" stop-opacity="0.45"/>
+    <stop offset="0.22" stop-color="#cfe0ea" stop-opacity="0.10"/>
+    <stop offset="0.5" stop-color="#cfe0ea" stop-opacity="0"/>
+    <stop offset="0.8" stop-color="#cfe0ea" stop-opacity="0.10"/>
+    <stop offset="1" stop-color="#cfe0ea" stop-opacity="0.4"/></linearGradient>
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
   </defs>`.replace('#adа59a','#ada59a').replace('#255madjust','#255d7c');

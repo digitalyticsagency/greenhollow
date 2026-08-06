@@ -214,6 +214,10 @@ const BP = [
   desc:'Warm bulbs strung between posts. They glow after dark.',
   tip:'Charm that literally shines at night — great around the tents.'},
 
+{id:'worker_cottage', name:'Worker cottage', art:'worker_cottage', cat:'home', w:3,h:3, cost:320, lvl:3, kind:'housing', charm:6, power:-1,
+  desc:'A small cottage. Sleeps two farmhands, one more per upgrade.',
+  tip:'Farmhands cost wages every month but do real work daily — cheaper than AI early on, dearer later.'},
+
 /* ---- automation ---- */
 {id:'ai_hub',     name:'Farm control hub',  art:'ai_hub',     cat:'auto', w:3,h:3, cost:480, lvl:5, kind:'hub', power:-2, charm:4,
   desc:'The brain of an automated farm. Each Mark unlocks more AI modules.',

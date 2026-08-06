@@ -493,3 +493,19 @@ ART.ai_hub = (w,h,ob)=>{
       stroke="#6fb6d8" stroke-width="0.8" fill="none" opacity="${(0.6-i*0.14).toFixed(2)}"/>`;
   return s;
 };
+
+/* — worker cottage — */
+ART.worker_cottage = (w,h,ob)=>{
+  let s = building(w*0.86, h*0.7, {roof:'url(#gRoofRed)', chimney:1});
+  s = `<g transform="translate(${n(w*0.07)},${n(h*0.16)})">${s}</g>`;
+  s += `<rect x="${n(w*0.14)}" y="${n(h*0.86)}" width="${n(w*0.72)}" height="${n(h*0.1)}" rx="2" fill="#c69a68"/>`;
+  s += `<circle cx="${n(w*0.2)}" cy="${n(h*0.8)}" r="3.2" fill="#4f8a35"/>`;
+  s += `<circle cx="${n(w*0.8)}" cy="${n(h*0.8)}" r="2.8" fill="#5f9c3d"/>`;
+  /* washing line — the tell that somebody lives here */
+  s += `<path d="M${n(w*0.1)} ${n(h*0.76)} Q ${n(w*0.5)} ${n(h*0.84)} ${n(w*0.9)} ${n(h*0.76)}" stroke="#8a7f6a" stroke-width="0.8" fill="none"/>`;
+  ['#e8eef0','#c8583f','#e8c25a'].forEach((c,i)=>{
+    s += `<rect class="sway" x="${n(w*(0.24+i*0.2))}" y="${n(h*0.78)}" width="5" height="7" rx="1" fill="${c}"
+      style="transform-origin:${n(w*(0.24+i*0.2)+2.5)}px ${n(h*0.78)}px"/>`;
+  });
+  return s;
+};

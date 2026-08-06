@@ -151,6 +151,20 @@ input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:17px; he
 @keyframes dustdrift{ 0%,100%{transform:translateX(-30px);opacity:.05} 50%{opacity:.16} }
 .dust{ animation:dustdrift 14s ease-in-out infinite; }
 
+/* family, farmhands and their name tags */
+.npc{ pointer-events:none; filter:drop-shadow(1px 2px 2px rgba(0,0,0,.45)); transition:opacity .8s; }
+.nlab{ font-size:8px; font-weight:700; fill:#f2f5ee; paint-order:stroke;
+  stroke:rgba(10,16,8,.75); stroke-width:2.4px; stroke-linejoin:round; }
+.person{ display:flex; align-items:center; gap:9px; margin:6px 10px; padding:8px 10px;
+  border-radius:13px; background:var(--g1); border:.5px solid var(--hair); }
+.pav{ width:24px; height:24px; border-radius:50%; flex:none; box-shadow:inset 0 -3px 6px rgba(0,0,0,.28); }
+.pm{ flex:1; min-width:0; } .pm b{ font-size:12.5px; display:block; }
+.pname{ background:transparent; border:0; color:var(--txt); font:inherit; font-size:12.5px;
+  font-weight:650; width:100%; padding:0; border-bottom:1px dashed transparent; }
+.pname:hover,.pname:focus{ border-bottom-color:var(--hair2); outline:none; }
+@keyframes surfroll{ 0%,100%{transform:translateX(-14px);opacity:.28} 50%{transform:translateX(14px);opacity:.5} }
+.surf{ animation:surfroll 6s ease-in-out infinite; }
+
 /* the character */
 @keyframes youwalk{ 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-2px) rotate(2deg)} }
 @keyframes youwork{ 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(2px) rotate(-7deg)} }
@@ -164,6 +178,12 @@ input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:17px; he
 
 /* ---------------- extend G ---------------- */
 Object.assign(G, {
+  renameFamily(id, name){
+    peopleInit();
+    const f = S.family.find(z=>z.id===id); if(!f) return;
+    f.name = (name||'').trim().slice(0,18) || f.name;
+    render(); G.save();
+  },
   filterLand(k,v){ chooseFilter[k]=v; modal(landChooser()); },
   openLandChooser(){ modal(landChooser()); },
   pickLand(id){ S.pendingLand = id; sfx('click'); modal(homeChooser()); },
@@ -245,6 +265,7 @@ function resizeLand(land){
       b.textContent = ['Info','Barn','Orders','AI'][i] || b.textContent;
     });
     [['work','Work','<b>Your career</b>Salary, client work, bills and debt.'],
+     ['home','Family','<b>Family &amp; farmhands</b>Who lives here, who works here, and what it costs.'],
      ['coach','Coach','<b>AI coach</b>Reads the farm and tells you what to fix. Unlocks at level 2.'],
      ['set','Settings','<b>Settings</b>50 controls for gameplay, economy, display, audio and assistance.']
     ].forEach(t=>{
@@ -271,6 +292,7 @@ const _renderRight = renderRight;
 renderRight = function(){
   const b = $('#rightBody');
   if(rightTab==='work')  return void(b.innerHTML = careerHTML());
+  if(rightTab==='home')  return void(b.innerHTML = homeLifeHTML());
   if(rightTab==='coach') return void(b.innerHTML = coachHTML());
   if(rightTab==='set')   return void(b.innerHTML = settingsHTML());
   _renderRight();
@@ -293,6 +315,7 @@ render = function(){
 const _advanceDay = advanceDay;
 advanceDay = function(){
   _advanceDay();
+  if(typeof workersDay==='function') workersDay();
   if(typeof careerDay==='function' && S.settings && S.settings.salaryOn!==false) careerDay();
   else if(typeof careerInit==='function'){ careerInit(); S.career.hours = HOURS_PER_DAY; rollJobs(); }
   applyWind();
@@ -324,11 +347,30 @@ G.plant = function(id, ck){
   ui();
 };
 
+/* after a pick, walk the crate back to the house */
+['harvest','pickFruit','collect'].forEach(k=>{
+  const orig = G[k];
+  if(!orig) return;
+  G[k] = function(id){
+    const o = S.objs.find(z=>z.id===id);
+    const bp = o ? BPMAP[o.bp] : null;
+    const before = o && bp ? (bp.kind==='plot' ? o.crop : bp.good) : null;
+    const had = before ? (S.store[before]||0) : 0;
+    orig.call(G, id);
+    if(before && typeof carryTo==='function'){
+      const got = (S.store[before]||0) - had;
+      if(got > 0) setTimeout(()=> carryTo(before, got), 60);
+    }
+  };
+});
+
 /* the character and the sun tick along with everything else */
 let _sunT = 0;
 setInterval(()=>{
   const dt = 0.12;
   if(typeof tickYou==='function') tickYou(dt);
+  if(typeof tickPeople==='function') tickPeople(dt);
+  if(typeof tickIdle==='function') tickIdle(dt);
   _sunT++;
   if(_sunT % 4 === 0 && typeof paintSun==='function' &&
      (!S.settings || S.settings.sunarc !== false)) paintSun();

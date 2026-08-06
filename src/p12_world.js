@@ -228,6 +228,8 @@ const SETTINGS = [
   {g:'Assist',   k:'toasts',     n:'Pop-up messages',       t:'bool', def:true},
   {g:'Assist',   k:'logLines',   n:'Farm log length',       t:'range', min:10, max:120, def:60, unit:''},
   {g:'Assist',   k:'autoCollect',n:'Click to collect all',  t:'bool', def:false},
+  {g:'Assist',   k:'familyLife', n:'Family &amp; idle life',     t:'bool', def:true, d:'Your character seeks out the family when idle.'},
+  {g:'Assist',   k:'carry',      n:'Carry harvests home',    t:'bool', def:true, d:'Haul the crate to the house instead of teleporting goods.'},
 ];
 function settingsInit(){
   if(!S.settings) S.settings = {};

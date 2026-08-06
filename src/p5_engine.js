@@ -119,7 +119,8 @@ function sellPrice(gid){
 let terrainCache = '';
 function terrain(){
   if(terrainCache) return terrainCache;
-  let s = `<rect width="${WPX}" height="${HPX}" fill="url(#gMeadow)"/>`;
+  let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
+  s += (typeof horizonLayer==='function' ? horizonLayer() : '');
   for(let i=0;i<220;i++){
     s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
   }
@@ -283,6 +284,7 @@ function render(){
       ${roadLayer()}
       <g id="obs">${objs.map(drawObj).join('')}</g>
       ${herdLayer()}
+      ${typeof peopleLayer==='function' ? peopleLayer() : ''}
       ${selRing}${g}
     </svg>`;
   renderLabels();
@@ -337,6 +339,7 @@ function applyCam(){
   $('#scene').style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
   const L=$('#wlabels');
   L.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
+  if(typeof parallax==='function') parallax();
 }
 function fitView(){
   const w = $('#world').clientWidth, h = $('#world').clientHeight;

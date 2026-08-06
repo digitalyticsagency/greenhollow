@@ -465,6 +465,12 @@ function DEFS(){
     <stop offset="0" stop-color="#5b9440"/><stop offset="0.5" stop-color="#3f6f2c"/><stop offset="1" stop-color="#27491c"/></linearGradient>
   <linearGradient id="gTank" x1="0" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#4e7a4c"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+  <linearGradient id="gHaze" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#cfe0ea" stop-opacity="0.45"/>
+    <stop offset="0.22" stop-color="#cfe0ea" stop-opacity="0.10"/>
+    <stop offset="0.5" stop-color="#cfe0ea" stop-opacity="0"/>
+    <stop offset="0.8" stop-color="#cfe0ea" stop-opacity="0.10"/>
+    <stop offset="1" stop-color="#cfe0ea" stop-opacity="0.4"/></linearGradient>
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
   </defs>`.replace('#adа59a','#ada59a').replace('#255madjust','#255d7c');
@@ -1266,6 +1272,22 @@ ART.ai_hub = (w,h,ob)=>{
   return s;
 };
 
+/* — worker cottage — */
+ART.worker_cottage = (w,h,ob)=>{
+  let s = building(w*0.86, h*0.7, {roof:'url(#gRoofRed)', chimney:1});
+  s = `<g transform="translate(${n(w*0.07)},${n(h*0.16)})">${s}</g>`;
+  s += `<rect x="${n(w*0.14)}" y="${n(h*0.86)}" width="${n(w*0.72)}" height="${n(h*0.1)}" rx="2" fill="#c69a68"/>`;
+  s += `<circle cx="${n(w*0.2)}" cy="${n(h*0.8)}" r="3.2" fill="#4f8a35"/>`;
+  s += `<circle cx="${n(w*0.8)}" cy="${n(h*0.8)}" r="2.8" fill="#5f9c3d"/>`;
+  /* washing line — the tell that somebody lives here */
+  s += `<path d="M${n(w*0.1)} ${n(h*0.76)} Q ${n(w*0.5)} ${n(h*0.84)} ${n(w*0.9)} ${n(h*0.76)}" stroke="#8a7f6a" stroke-width="0.8" fill="none"/>`;
+  ['#e8eef0','#c8583f','#e8c25a'].forEach((c,i)=>{
+    s += `<rect class="sway" x="${n(w*(0.24+i*0.2))}" y="${n(h*0.78)}" width="5" height="7" rx="1" fill="${c}"
+      style="transform-origin:${n(w*(0.24+i*0.2)+2.5)}px ${n(h*0.78)}px"/>`;
+  });
+  return s;
+};
+
 /* =====================================================================
    DATA — crops, goods, and the buildable catalogue
    ===================================================================== */
@@ -1481,6 +1503,10 @@ const BP = [
 {id:'lights',     name:'Festoon lights',    art:'lights',     cat:'land', w:3,h:1, cost:48,  lvl:3, kind:'decor', charm:9, night:1,
   desc:'Warm bulbs strung between posts. They glow after dark.',
   tip:'Charm that literally shines at night — great around the tents.'},
+
+{id:'worker_cottage', name:'Worker cottage', art:'worker_cottage', cat:'home', w:3,h:3, cost:320, lvl:3, kind:'housing', charm:6, power:-1,
+  desc:'A small cottage. Sleeps two farmhands, one more per upgrade.',
+  tip:'Farmhands cost wages every month but do real work daily — cheaper than AI early on, dearer later.'},
 
 /* ---- automation ---- */
 {id:'ai_hub',     name:'Farm control hub',  art:'ai_hub',     cat:'auto', w:3,h:3, cost:480, lvl:5, kind:'hub', power:-2, charm:4,
@@ -2353,6 +2379,8 @@ const SETTINGS = [
   {g:'Assist',   k:'toasts',     n:'Pop-up messages',       t:'bool', def:true},
   {g:'Assist',   k:'logLines',   n:'Farm log length',       t:'range', min:10, max:120, def:60, unit:''},
   {g:'Assist',   k:'autoCollect',n:'Click to collect all',  t:'bool', def:false},
+  {g:'Assist',   k:'familyLife', n:'Family &amp; idle life',     t:'bool', def:true, d:'Your character seeks out the family when idle.'},
+  {g:'Assist',   k:'carry',      n:'Carry harvests home',    t:'bool', def:true, d:'Haul the crate to the house instead of teleporting goods.'},
 ];
 function settingsInit(){
   if(!S.settings) S.settings = {};
@@ -2576,7 +2604,7 @@ function outgoings(){
   const tiers = S.objs.reduce((a,o)=>a+tOf(o),0);
   const rates   = Math.round(120 + built*26 + tiers*34);            // council rates on what you own
   const upkeep  = Math.round(S.objs.reduce((a,o)=>a+(BPMAP[o.bp].cost||0)*0.012,0));
-  const wages   = S.career.hired*1400;
+  const wages   = (typeof workerWages==='function' ? workerWages() : 0);
   const interest= Math.round(S.career.loan * S.career.rate);
   const ai      = (typeof autoFees==='function' ? autoFees()*30 : 0);
   return {rates, upkeep, wages, interest, ai, total: rates+upkeep+wages+interest+ai};
@@ -2816,7 +2844,8 @@ function sellPrice(gid){
 let terrainCache = '';
 function terrain(){
   if(terrainCache) return terrainCache;
-  let s = `<rect width="${WPX}" height="${HPX}" fill="url(#gMeadow)"/>`;
+  let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
+  s += (typeof horizonLayer==='function' ? horizonLayer() : '');
   for(let i=0;i<220;i++){
     s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
   }
@@ -2980,6 +3009,7 @@ function render(){
       ${roadLayer()}
       <g id="obs">${objs.map(drawObj).join('')}</g>
       ${herdLayer()}
+      ${typeof peopleLayer==='function' ? peopleLayer() : ''}
       ${selRing}${g}
     </svg>`;
   renderLabels();
@@ -3034,6 +3064,7 @@ function applyCam(){
   $('#scene').style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
   const L=$('#wlabels');
   L.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
+  if(typeof parallax==='function') parallax();
 }
 function fitView(){
   const w = $('#world').clientWidth, h = $('#world').clientHeight;
@@ -3313,7 +3344,7 @@ function youLayer(){
   youInit();
   const y = S.you;
   return `<g id="you" transform="translate(${n(y.x)},${n(y.y)})">
-    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a')}</g></g></g>`;
+    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a')}${typeof carryArt==='function'?carryArt():''}</g></g></g>`;
 }
 function paintYou(){
   const el = document.getElementById('you');
@@ -4060,6 +4091,410 @@ function homeMini(hm){
     <g transform="translate(10,8) scale(${(0.4*hm.sc).toFixed(2)})">${building(100,60,{roof:hm.roof,solar:hm.power>10?1:0,chimney:1})}</g></svg>`;
 }
 
+/* ---------------- family & farmhands ---------------- */
+function homeLifeHTML(){
+  peopleInit();
+  const beds = workerBeds(), used = S.workers.length;
+  const morale = S.morale===undefined ? 0.6 : S.morale;
+  let h = `<div class="card">
+    <div class="eyebrow">Household morale</div>
+    <div class="bar"><i style="transform:scaleX(${morale.toFixed(3)});background:linear-gradient(90deg,#c47fa8,#f0a8c8)"></i></div>
+    <div class="muted" style="margin-top:5px">Time with your family lifts morale and pulls back burnout,
+    which is what your salary is scaled by. When you have nothing queued, you will go and find them.</div>
+  </div><div class="ph">Family</div>`;
+
+  S.family.forEach(f=>{
+    h += `<div class="person" data-tip="${esc(`<b>${f.name}</b>${f.role==='partner'?'Your partner. Works the beds and the animals through the day.':'Studies in the morning, plays in the afternoon.'}<hr><div class="tl"><span>Right now</span><b>${f.act||'—'}</b></div>`)}">
+      <span class="pav" style="background:${f.shirt}"></span>
+      <span class="pm"><input class="pname" value="${f.name}" onchange="G.renameFamily('${f.id}', this.value)"
+        aria-label="Name"><span class="muted">${f.role==='partner'?'Partner':'Child'} · ${f.act||'at home'}</span></span>
+    </div>`;
+  });
+
+  h += `<div class="ph">Farmhands <span style="color:var(--txt3);font-weight:500">${used} of ${beds} beds</span></div>`;
+  if(!beds) h += `<div class="empty">No worker housing yet.<div style="margin-top:6px">Build a
+    <b>worker cottage</b> from the Home category — it sleeps two, and one more per upgrade.</div></div>`;
+  S.workers.forEach(w=>{
+    h += `<div class="person" data-tip="${esc(`<b>${w.name}</b>Skill ${w.skill} — does ${2+w.skill} jobs a day: watering, harvesting, collecting and mucking out.<hr><div class="tl"><span>Wage</span><span class="tk">${fmt(w.wage)}/month</span></div><div class="tl"><span>Jobs done yesterday</span><b>${w.done||0}</b></div>`)}">
+      <span class="pav" style="background:#4f8a9c"></span>
+      <span class="pm"><b>${w.name}</b><span class="muted">skill ${w.skill} · ${fmt(w.wage)}/mo · ${w.done||0} jobs yesterday</span></span>
+      <button class="chip" onclick="fireWorker('${w.id}')">Let go</button></div>`;
+  });
+  const canHire = used < beds;
+  h += `<div style="padding:9px 11px">
+    <button class="btn wide ${canHire?'':'ghost'}" ${canHire?'':'disabled'} onclick="hireWorker()"
+      data-tip="${esc('<b>Hire a farmhand</b>Signing-on fee of about half a month’s wage, then a monthly wage forever. They water, harvest, collect and clean without being asked.<hr><span class="tg">Cheaper than AI early on, dearer once you scale.</span>')}">
+      ${canHire?'Hire a farmhand':'Build a cottage first'}</button>
+    <div class="muted" style="margin-top:6px">Total wages: ${fmt(workerWages())}/month.</div></div>`;
+  return h;
+}
+
+/* =====================================================================
+   FARMHANDS, FAMILY, CARRYING, AND THE HORIZON BEYOND YOUR FENCE
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   1. HORIZON — layered depth beyond the property, per biome.
+      Not true 3D: receding bands with atmospheric haze and parallax,
+      which is what reads as distance on a top-down map.
+   --------------------------------------------------------------- */
+function horizonLayer(){
+  const l = LANDMAP[S.landId];
+  if(!l) return '';
+  const B = l.biome, W = WPX, H = HPX;
+  const band = (y,h,fill,op)=>`<rect x="${-W}" y="${n(y)}" width="${W*3}" height="${n(h)}" fill="${fill}" opacity="${op}"/>`;
+  /* silhouette ridge: a jagged skyline at depth d (0 far, 1 near) */
+  const ridge = (y, amp, fill, seed, op)=>{
+    let d = `M${-W} ${n(y+amp)}`;
+    for(let x=-W; x<=W*2; x+=48){
+      const k = hash(seed + x*0.013);
+      d += ` L${n(x)} ${n(y + amp - k*amp*1.9)}`;
+    }
+    d += ` L${W*2} ${n(y+amp*2)} L${-W} ${n(y+amp*2)} Z`;
+    return `<path d="${d}" fill="${fill}" opacity="${op}"/>`;
+  };
+  let far='', mid='', near='';
+
+  if(B==='mount' || B==='plateau'){
+    far  = band(-260, 300, '#8fa4bd', .55) + ridge(-140, 120, '#7d92ad', 3, .8) + ridge(-120, 96, '#fbfdff', 3.4, .5);
+    mid  = ridge(-40, 80, '#6b8299', .95, 5) ? ridge(-40, 80, '#6b8299', 5, .95) : '';
+    near = ridge(20, 50, '#55705f', 7, 1);
+  } else if(B==='lake' || B==='pond'){
+    far  = band(-200, 240, '#7fa8c4', .6) + ridge(-90, 70, '#6d8f7a', 11, .75);
+    mid  = `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="#4f8fb0" opacity=".85"/>` +
+           `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="url(#gWater)" opacity=".5"/>`;
+    for(let i=0;i<40;i++) mid += `<ellipse class="ripple" cx="${n(hash(i*2.3)*W*2-W*0.4)}" cy="${n(-30+hash(i*5)*130)}"
+      rx="${n(14+hash(i)*26)}" ry="2.2" fill="#dff4fb" opacity=".3" style="animation-delay:${(hash(i)*3).toFixed(1)}s"/>`;
+    near = ridge(96, 26, '#5d8442', 13, 1);
+  } else if(B==='coast'){
+    far  = band(-220, 200, '#9fc6da', .7);
+    mid  = `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="#3f83a8"/>` +
+           `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="url(#gWater)" opacity=".6"/>`;
+    for(let i=0;i<7;i++) mid += `<rect class="surf" x="${-W}" y="${n(20+i*17)}" width="${W*3}" height="3"
+      fill="#ffffff" opacity=".38" style="animation-delay:${(i*0.5).toFixed(1)}s"/>`;
+    near = band(130, 46, '#e0d4ae', 1) + band(130, 10, '#efe6c8', 1);
+  } else if(B==='forest'){
+    far = band(-200, 240, '#5c7f5a', .5);
+    mid = ''; near = '';
+    for(let i=0;i<70;i++){
+      const x = -W*0.4 + hash(i*1.7)*W*1.9, y = -30 + hash(i*3.9)*150;
+      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+18)}px">
+        ${conifer(x, y, 18+hash(i)*16, i)}</g>`;
+    }
+    near = ridge(120, 22, '#3d6b34', 17, 1);
+  } else if(B==='river'){
+    far  = band(-200, 220, '#9dbb92', .55) + ridge(-70, 56, '#6d8f6a', 19, .8);
+    mid  = `<path d="M${-W} 40 Q ${W*0.3} -60 ${W*0.8} 30 T ${W*2} 10 L ${W*2} 130 Q ${W*0.9} 150 ${W*0.35} 70 T ${-W} 150 Z"
+             fill="#4f8fb0" opacity=".9"/>`;
+    near = ridge(120, 24, '#5d8442', 23, 1);
+  } else if(B==='hill' || B==='valley'){
+    far  = band(-220, 250, '#a8bd8e', .5) + ridge(-100, 90, '#8aa876', 29, .75);
+    mid  = ridge(-20, 66, '#7a9a63', 31, .9);
+    near = ridge(80, 40, '#5f8a48', 37, 1);
+  } else if(B==='moor'){
+    far  = band(-200, 230, '#b0ad86', .55) + ridge(-70, 46, '#93916f', 41, .7);
+    mid  = ridge(10, 32, '#8a8a63', 43, .9);
+    near = band(120, 40, '#7d8259', .9);
+  } else if(B==='oasis'){
+    far  = band(-220, 250, '#e2cf9e', .7) + ridge(-90, 76, '#d4bd85', 47, .8);
+    mid  = ridge(-10, 52, '#c4a86d', 53, .9);
+    near = ridge(96, 34, '#b09257', 59, 1);
+  } else { /* orchard and anything else */
+    far = band(-200, 230, '#9dbb7e', .5);
+    mid = '';
+    for(let i=0;i<44;i++){
+      const x = -W*0.3 + hash(i*2.1)*W*1.7, y = -20 + hash(i*4.3)*140;
+      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+14)}px">${canopy(x,y,16+hash(i)*8,'url(#gCanopy)',i,false)}</g>`;
+    }
+    near = ridge(120, 22, '#5f8a48', 61, 1);
+  }
+  /* the same treatment mirrored along the bottom edge, flipped and hazier */
+  const bottom = `<g transform="translate(0,${H}) scale(1,-1)" opacity=".72">${far}${mid}</g>`;
+  return `<g id="horizon">
+    <g class="hz-far"  data-par="0.25">${far}</g>
+    <g class="hz-mid"  data-par="0.5">${mid}</g>
+    <g class="hz-near" data-par="0.78">${near}</g>
+    ${bottom}
+    <rect x="${-W}" y="${-300}" width="${W*3}" height="${H+600}" fill="url(#gHaze)" pointer-events="none"/>
+  </g>`;
+}
+/* horizon layers drift slower than the camera, which is what sells depth */
+function parallax(){
+  const g = document.getElementById('horizon');
+  if(!g) return;
+  ['hz-far','hz-mid','hz-near'].forEach(c=>{
+    const el = g.querySelector('.'+c); if(!el) return;
+    const p = parseFloat(el.dataset.par);
+    el.setAttribute('transform', `translate(${n(-cam.x*(1-p)/cam.z*0.5)},${n(-cam.y*(1-p)/cam.z*0.35)})`);
+  });
+}
+
+/* ---------------------------------------------------------------
+   2. PEOPLE — farmhands you pay, and the family who live here
+   --------------------------------------------------------------- */
+const FIRST = ['Ama','Rafi','Noor','Ilias','Sana','Tomas','Mira','Josef','Lena','Kaito',
+               'Ruth','Dev','Aiko','Bram','Esme','Otis','Priya','Yusuf','Nell','Cato'];
+
+function peopleInit(){
+  if(!S.workers) S.workers = [];
+  if(!S.family){
+    S.family = [
+      {id:'f1', role:'partner', name:'Partner', shirt:'#8f6fc4', sc:1.1, hat:null},
+      {id:'f2', role:'child',   name:'Eldest',  shirt:'#e8a33d', sc:0.78, hat:null},
+      {id:'f3', role:'child',   name:'Youngest',name2:1, shirt:'#5fb0d4', sc:0.68, hat:null},
+    ];
+  }
+  S.family.forEach(f=>{
+    if(f.x===undefined){
+      f.x = (FARM.x+4+Math.random()*4)*T; f.y = (FARM.y+4+Math.random()*4)*T;
+      f.path=[]; f.state='idle'; f.dir=1; f.t=0; f.act='';
+    }
+  });
+  S.workers.forEach(w=>{
+    if(w.x===undefined){ w.x=(FARM.x+2)*T; w.y=(FARM.y+2)*T; w.path=[]; w.state='idle'; w.dir=1; w.t=0; }
+  });
+}
+function workerBeds(){
+  return S.objs.filter(o=>o.bp==='worker_cottage').reduce((a,o)=>a + 2 + tOf(o), 0);
+}
+function hireWorker(){
+  peopleInit();
+  if(S.workers.length >= workerBeds())
+    return toast('Nowhere to house them — build a worker cottage','bad'), sfx('error');
+  const name = FIRST[Math.floor(Math.random()*FIRST.length)];
+  const skill = 1 + Math.floor(Math.random()*3);
+  const wage = 900 + skill*280;
+  const sign = Math.round(wage*0.5);
+  if(S.cash < sign) return toast(`Signing-on fee is ${fmt(sign)}`,'bad'), sfx('error');
+  S.cash -= sign;
+  S.workers.push({id:'w'+Date.now(), name, skill, wage,
+    x:(FARM.x+2)*T, y:(FARM.y+2)*T, path:[], state:'idle', dir:1, t:0, done:0});
+  sfx('build');
+  toast(`${name} joined the farm`,'good');
+  log(`Hired ${name} (skill ${skill}) at ${fmt(wage)}/month.`,'gold');
+  render(); ui(); G.save();
+}
+function fireWorker(id){
+  peopleInit();
+  const w = S.workers.find(z=>z.id===id); if(!w) return;
+  S.workers = S.workers.filter(z=>z.id!==id);
+  log(`${w.name} left the farm.`);
+  toast(`${w.name} has gone`,''); sfx('remove');
+  render(); ui(); G.save();
+}
+function workerWages(){ peopleInit(); return S.workers.reduce((a,w)=>a+w.wage,0); }
+
+/* farmhands do a daily round of real jobs — cheaper than AI, but they eat wages */
+function workersDay(){
+  peopleInit();
+  if(!S.workers.length) return;
+  const housed = Math.min(S.workers.length, workerBeds());
+  if(housed < S.workers.length)
+    log(`${S.workers.length-housed} farmhand(s) have nowhere to sleep and did not work.`,'bad');
+  let watered=0, harvested=0, collected=0, cleaned=0;
+  S.workers.slice(0,housed).forEach(w=>{
+    let budget = 2 + w.skill;                       // jobs per day
+    S.objs.forEach(o=>{
+      if(budget<=0) return;
+      const bp = BPMAP[o.bp];
+      if(bp.kind==='plot' && o.crop && o.water<0.5 && S.water>=8){ S.water-=8; o.water=1; watered++; budget--; }
+      else if(bp.kind==='plot' && o.crop && o.stage>=1){
+        const cr=CROPS[o.crop];
+        const q=Math.max(1,Math.round(cr.yield*E.slots(o)*cropMul(o)*(0.75+w.skill*0.08)));
+        give(o.crop,q); o.fert=clamp(o.fert-0.16,0.15,1); o.last=o.crop;
+        o.crop=null;o.stage=0;o.weeds=0; harvested+=q; budget--; addXP(1);
+      }
+      else if(bp.kind==='animal' && o.ready>0){ give(bp.good,o.ready); collected+=o.ready; o.ready=0; budget--; }
+      else if(bp.kind==='animal' && (o.care||1)<0.55){ o.care=1; cleaned++; budget--; }
+    });
+    w.done = (2+w.skill) - budget;
+  });
+  const bits=[];
+  if(watered) bits.push(`watered ${watered}`);
+  if(harvested) bits.push(`picked ${harvested}`);
+  if(collected) bits.push(`collected ${collected}`);
+  if(cleaned) bits.push(`cleaned ${cleaned}`);
+  if(bits.length) log(`Farmhands: ${bits.join(', ')}.`,'good');
+}
+
+/* ---------------------------------------------------------------
+   3. DAILY ROUTINES — the family live to a timetable
+   --------------------------------------------------------------- */
+function homeSpot(){
+  const h = S.objs.find(o=>o.bp==='cabin');
+  if(!h) return {x:(FARM.x+4)*T, y:(FARM.y+4)*T};
+  const f = footprint(BPMAP[h.bp], h.rot);
+  return {x:(h.tx+f.w/2)*T, y:(h.ty+f.h+0.6)*T};
+}
+function spotNear(bpId, fallback){
+  const o = S.objs.find(z=>z.bp===bpId);
+  if(!o) return fallback || homeSpot();
+  const f = footprint(BPMAP[o.bp], o.rot);
+  return {x:(o.tx+f.w/2)*T, y:(o.ty+f.h+0.5)*T};
+}
+/* returns {x,y,act} for this person at this time of day */
+function routine(p){
+  const f = dayFrac();
+  const home = homeSpot();
+  if(f < 0.24 || f > 0.88) return {...home, act:'asleep'};
+  if(p.role==='child'){
+    if(f < 0.38) return {...home, act:'breakfast'};
+    if(f < 0.55) return {...spotNear('cabin'), act:'studying'};
+    if(f < 0.74) return {...spotNear('playground', spotNear('flowers')), act:'playing'};
+    return {...home, act:'with family'};
+  }
+  if(p.role==='partner'){
+    if(f < 0.34) return {...home, act:'house chores'};
+    if(f < 0.52){
+      const bed = S.objs.find(o=>BPMAP[o.bp].kind==='plot');
+      return bed ? {...spotNear(bed.bp), act:'tending the beds'} : {...home, act:'house chores'};
+    }
+    if(f < 0.70){
+      const pen = S.objs.find(o=>BPMAP[o.bp].kind==='animal');
+      return pen ? {...spotNear(pen.bp), act:'feeding the animals'} : {...home, act:'house chores'};
+    }
+    return {...home, act:'making dinner'};
+  }
+  /* farmhands drift between whatever they are working on */
+  const jobs = S.objs.filter(o=>['plot','animal','perennial'].includes(BPMAP[o.bp].kind));
+  if(jobs.length){
+    const o = jobs[Math.floor(hash(p.id.length + Math.floor(f*7))*jobs.length)];
+    const ft = footprint(BPMAP[o.bp], o.rot);
+    return {x:(o.tx+ft.w/2)*T, y:(o.ty+ft.h+0.5)*T, act:'working'};
+  }
+  return {...home, act:'idle'};
+}
+
+function tickPeople(dt){
+  if(!S || S.speed===0) return;
+  peopleInit();
+  const all = S.family.concat(S.workers.map(w=>({...w, role:'worker', _w:w})));
+  S.family.forEach(p=>movePerson(p, dt));
+  S.workers.forEach(p=>movePerson(p, dt));
+  paintPeople();
+}
+function movePerson(p, dt){
+  const goal = routine(p);
+  p.act = goal.act;
+  const d0 = Math.hypot(goal.x-p.x, goal.y-p.y);
+  if(d0 > T*0.9){
+    const spd = 78*dt;
+    const dx = goal.x-p.x, dy = goal.y-p.y, d = Math.hypot(dx,dy);
+    p.x += dx/d*Math.min(d,spd); p.y += dy/d*Math.min(d,spd);
+    if(Math.abs(dx)>0.5) p.dir = dx>0?1:-1;
+    p.state = 'walk';
+  } else {
+    /* potter about on the spot so nobody stands frozen */
+    p.t = (p.t||0) + dt;
+    if(p.t > 3){ p.t = 0; p.wx = (Math.random()-0.5)*26; p.wy = (Math.random()-0.5)*20; }
+    const tx = goal.x + (p.wx||0), ty = goal.y + (p.wy||0);
+    const dx = tx-p.x, dy = ty-p.y, d = Math.hypot(dx,dy);
+    if(d > 2){ const spd=26*dt; p.x += dx/d*Math.min(d,spd); p.y += dy/d*Math.min(d,spd);
+               if(Math.abs(dx)>0.5) p.dir = dx>0?1:-1; p.state='walk'; }
+    else p.state = (goal.act==='asleep') ? 'sleep' : 'busy';
+  }
+}
+function peopleLayer(){
+  peopleInit();
+  const one = (p, sc, shirt, hat) =>
+    `<g class="npc" data-p="${p.id}" transform="translate(${n(p.x)},${n(p.y)})">
+      <g class="youbob"><g transform="scale(${p.dir},1)">${person(0,0,sc,shirt,hat)}</g></g>
+      <text class="nlab" y="-26" text-anchor="middle">${p.name}</text></g>`;
+  return `<g id="people">
+    ${S.family.map(f=>one(f, f.sc, f.shirt, f.role==='partner'?'#c47fa8':null)).join('')}
+    ${S.workers.map(w=>one(w, 1.05, '#4f8a9c', '#e0c07a')).join('')}
+  </g>`;
+}
+function paintPeople(){
+  const upd = p=>{
+    const el = document.querySelector(`[data-p="${p.id}"]`);
+    if(!el) return;
+    el.setAttribute('transform', `translate(${n(p.x)},${n(p.y)})`);
+    el.style.opacity = p.state==='sleep' ? 0 : 1;
+    const bob = el.firstElementChild;
+    if(bob){
+      bob.setAttribute('class','youbob'+(p.state==='walk'?' walking':p.state==='busy'?' working':''));
+      const fl = bob.firstElementChild;
+      if(fl) fl.setAttribute('transform',`scale(${p.dir},1)`);
+    }
+  };
+  S.family.forEach(upd); S.workers.forEach(upd);
+}
+
+/* ---------------------------------------------------------------
+   4. IDLE LIFE — when you have nothing queued, you join in
+   --------------------------------------------------------------- */
+const CHORES = ['stacking firewood','hanging the washing','fixing a fence','sweeping the yard',
+                'mending a gate','carrying water','sorting seed trays'];
+function tickIdle(dt){
+  if(!S.you || S.you.state!=='idle') { S.idleT = 0; return; }
+  if(S.settings && S.settings.familyLife === false) return;
+  S.idleT = (S.idleT||0) + dt;
+  if(S.idleT < 6) return;
+  S.idleT = 0;
+  peopleInit();
+  /* half the time go and be with someone, otherwise do a chore */
+  if(Math.random() < 0.55 && S.family.length){
+    const f = S.family[Math.floor(Math.random()*S.family.length)];
+    if(f.state==='sleep') return;
+    S.you.path = findPath(Math.floor(S.you.x/T), Math.floor(S.you.y/T),
+                          Math.floor(f.x/T), Math.floor(f.y/T));
+    S.you.state = 'walk';
+    S.you.job = {kind:'family', fn:()=>{
+      const acts = f.role==='child'
+        ? [`played with ${f.name}`, `helped ${f.name} with homework`, `read to ${f.name}`]
+        : [`had a cup of tea with ${f.name}`, `talked over the week with ${f.name}`, `walked the fence with ${f.name}`];
+      const msg = acts[Math.floor(Math.random()*acts.length)];
+      S.morale = clamp((S.morale||0.6) + 0.06, 0, 1);
+      if(S.career) S.career.burnout = clamp(S.career.burnout - 0.05, 0, 0.6);
+      log('You ' + msg + '.', 'good');
+      floatNum('♥', innerWidth/2, innerHeight/2, '#ff9ec4');
+    }};
+  } else {
+    const home = homeSpot();
+    S.you.path = findPath(Math.floor(S.you.x/T), Math.floor(S.you.y/T),
+                          Math.floor(home.x/T), Math.floor(home.y/T));
+    S.you.state = 'walk';
+    const chore = CHORES[Math.floor(Math.random()*CHORES.length)];
+    S.you.job = {kind:'chore', fn:()=>{
+      S.morale = clamp((S.morale||0.6) + 0.03, 0, 1);
+      log('You spent a while ' + chore + '.');
+    }};
+  }
+}
+
+/* ---------------------------------------------------------------
+   5. CARRYING — you haul what you pick to the house
+   --------------------------------------------------------------- */
+/* The goods are already banked by the time this runs — this is the walk home
+   with the crate, so nothing is ever lost if the trip is interrupted. */
+function carryTo(goodId, qty){
+  if(!S.you || S.you.state !== 'idle') return false;
+  if(S.settings && S.settings.carry === false) return false;
+  if(!GOODS[goodId]) return false;
+  S.you.carry = {g:goodId, q:qty};
+  const home = homeSpot();
+  S.you.path = findPath(Math.floor(S.you.x/T), Math.floor(S.you.y/T),
+                        Math.floor(home.x/T), Math.floor(home.y/T));
+  S.you.state = 'walk';
+  S.you.job = {kind:'store', fn:()=>{
+    S.you.carry = null;
+    sfx('collect');
+    render();
+  }};
+  return true;
+}
+function carryArt(){
+  if(!S.you || !S.you.carry) return '';
+  const g = GOODS[S.you.carry.g];
+  const c = g ? g.c : '#8b6640';
+  return `<g transform="translate(9,-4)">
+    <rect x="-6" y="-5" width="12" height="9" rx="1.5" fill="#8b6640"/>
+    <rect x="-6" y="-5" width="12" height="2.6" rx="1" fill="#a8814f"/>
+    <circle cx="-2.4" cy="-6" r="2.2" fill="${c}"/><circle cx="1.6" cy="-6.6" r="2.4" fill="${c}"/>
+    <circle cx="4" cy="-5.4" r="1.9" fill="${c}"/></g>`;
+}
+
 /* =====================================================================
    ACTIONS, INPUT, LOOP, SAVE
    ===================================================================== */
@@ -4746,6 +5181,20 @@ input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:17px; he
 @keyframes dustdrift{ 0%,100%{transform:translateX(-30px);opacity:.05} 50%{opacity:.16} }
 .dust{ animation:dustdrift 14s ease-in-out infinite; }
 
+/* family, farmhands and their name tags */
+.npc{ pointer-events:none; filter:drop-shadow(1px 2px 2px rgba(0,0,0,.45)); transition:opacity .8s; }
+.nlab{ font-size:8px; font-weight:700; fill:#f2f5ee; paint-order:stroke;
+  stroke:rgba(10,16,8,.75); stroke-width:2.4px; stroke-linejoin:round; }
+.person{ display:flex; align-items:center; gap:9px; margin:6px 10px; padding:8px 10px;
+  border-radius:13px; background:var(--g1); border:.5px solid var(--hair); }
+.pav{ width:24px; height:24px; border-radius:50%; flex:none; box-shadow:inset 0 -3px 6px rgba(0,0,0,.28); }
+.pm{ flex:1; min-width:0; } .pm b{ font-size:12.5px; display:block; }
+.pname{ background:transparent; border:0; color:var(--txt); font:inherit; font-size:12.5px;
+  font-weight:650; width:100%; padding:0; border-bottom:1px dashed transparent; }
+.pname:hover,.pname:focus{ border-bottom-color:var(--hair2); outline:none; }
+@keyframes surfroll{ 0%,100%{transform:translateX(-14px);opacity:.28} 50%{transform:translateX(14px);opacity:.5} }
+.surf{ animation:surfroll 6s ease-in-out infinite; }
+
 /* the character */
 @keyframes youwalk{ 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-2px) rotate(2deg)} }
 @keyframes youwork{ 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(2px) rotate(-7deg)} }
@@ -4759,6 +5208,12 @@ input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:17px; he
 
 /* ---------------- extend G ---------------- */
 Object.assign(G, {
+  renameFamily(id, name){
+    peopleInit();
+    const f = S.family.find(z=>z.id===id); if(!f) return;
+    f.name = (name||'').trim().slice(0,18) || f.name;
+    render(); G.save();
+  },
   filterLand(k,v){ chooseFilter[k]=v; modal(landChooser()); },
   openLandChooser(){ modal(landChooser()); },
   pickLand(id){ S.pendingLand = id; sfx('click'); modal(homeChooser()); },
@@ -4840,6 +5295,7 @@ function resizeLand(land){
       b.textContent = ['Info','Barn','Orders','AI'][i] || b.textContent;
     });
     [['work','Work','<b>Your career</b>Salary, client work, bills and debt.'],
+     ['home','Family','<b>Family &amp; farmhands</b>Who lives here, who works here, and what it costs.'],
      ['coach','Coach','<b>AI coach</b>Reads the farm and tells you what to fix. Unlocks at level 2.'],
      ['set','Settings','<b>Settings</b>50 controls for gameplay, economy, display, audio and assistance.']
     ].forEach(t=>{
@@ -4866,6 +5322,7 @@ const _renderRight = renderRight;
 renderRight = function(){
   const b = $('#rightBody');
   if(rightTab==='work')  return void(b.innerHTML = careerHTML());
+  if(rightTab==='home')  return void(b.innerHTML = homeLifeHTML());
   if(rightTab==='coach') return void(b.innerHTML = coachHTML());
   if(rightTab==='set')   return void(b.innerHTML = settingsHTML());
   _renderRight();
@@ -4888,6 +5345,7 @@ render = function(){
 const _advanceDay = advanceDay;
 advanceDay = function(){
   _advanceDay();
+  if(typeof workersDay==='function') workersDay();
   if(typeof careerDay==='function' && S.settings && S.settings.salaryOn!==false) careerDay();
   else if(typeof careerInit==='function'){ careerInit(); S.career.hours = HOURS_PER_DAY; rollJobs(); }
   applyWind();
@@ -4919,11 +5377,30 @@ G.plant = function(id, ck){
   ui();
 };
 
+/* after a pick, walk the crate back to the house */
+['harvest','pickFruit','collect'].forEach(k=>{
+  const orig = G[k];
+  if(!orig) return;
+  G[k] = function(id){
+    const o = S.objs.find(z=>z.id===id);
+    const bp = o ? BPMAP[o.bp] : null;
+    const before = o && bp ? (bp.kind==='plot' ? o.crop : bp.good) : null;
+    const had = before ? (S.store[before]||0) : 0;
+    orig.call(G, id);
+    if(before && typeof carryTo==='function'){
+      const got = (S.store[before]||0) - had;
+      if(got > 0) setTimeout(()=> carryTo(before, got), 60);
+    }
+  };
+});
+
 /* the character and the sun tick along with everything else */
 let _sunT = 0;
 setInterval(()=>{
   const dt = 0.12;
   if(typeof tickYou==='function') tickYou(dt);
+  if(typeof tickPeople==='function') tickPeople(dt);
+  if(typeof tickIdle==='function') tickIdle(dt);
   _sunT++;
   if(_sunT % 4 === 0 && typeof paintSun==='function' &&
      (!S.settings || S.settings.sunarc !== false)) paintSun();
