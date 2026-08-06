@@ -4687,11 +4687,15 @@ body.noblur *{ backdrop-filter:none!important; }
 
 /* coach */
 .tipcard{ display:flex; gap:10px; margin:7px 10px; padding:10px 11px; border-radius:13px;
-  background:var(--g1); border:.5px solid var(--hair); border-left:3px solid var(--txt3); }
-.tipcard.p1{ border-left-color:var(--bad); } .tipcard.p2{ border-left-color:var(--warn); }
-.tipcard.p3{ border-left-color:var(--acc2); }
-.tipn{ width:19px; height:19px; border-radius:50%; background:var(--g2); flex:none;
-  display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; }
+  background:var(--g1); border:.5px solid var(--hair); }
+/* urgency lives in the badge, and the card tints only when it is genuinely urgent */
+.tipcard.p1{ background:rgba(255,107,90,.09); border-color:rgba(255,107,90,.26); }
+.tipn{ width:20px; height:20px; border-radius:50%; background:var(--g2); color:var(--txt2); flex:none;
+  display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700;
+  font-variant-numeric:tabular-nums; }
+.tipcard.p1 .tipn{ background:var(--bad);  color:#2b0e09; }
+.tipcard.p2 .tipn{ background:var(--warn); color:#2b1d06; }
+.tipcard.p3 .tipn{ background:var(--acc2); color:#06212c; }
 .tipcard b{ font-size:12.5px; display:block; margin-bottom:2px; }
 
 /* settings */
