@@ -270,11 +270,15 @@ const G = {
       const raw = localStorage.getItem('greenhollow');
       if(!raw) return false;
       const d = JSON.parse(raw);
-      if(!d || d.v !== 4) return false;
+      if(!d || d.v !== 5) return false;
       S = d;
       Object.keys(GOODS).forEach(k=>{ if(S.prices[k]===undefined) S.prices[k]=1; });
       if(!S.auto) S.auto={}; if(!S.autoCfg) S.autoCfg={moist:0.5,reserve:10};
       if(!S.snd) S.snd={amb:true,mus:true};
+      if(typeof settingsInit==='function') settingsInit();
+      if(typeof careerInit==='function') careerInit();
+      if(typeof youInit==='function') youInit();
+      if(S.landId && LANDMAP[S.landId] && typeof resizeLand==='function') resizeLand(LANDMAP[S.landId]);
       S.objs.forEach(o=>{ if(o.tier===undefined) o.tier=0; initCare(o);
         if(BPMAP[o.bp].kind==='animal' && !o.herd) o.herd=[]; });
       return true;
@@ -481,6 +485,7 @@ function loop(t){
   if(!lastT) lastT = t;
   const dt = Math.min(250, t-lastT); lastT = t;
   if(S.speed>0){
+    if(S.settings && S.settings.dayLen) DAY_MS = S.settings.dayLen*1000;
     acc += dt*S.speed;
     if(acc >= DAY_MS){ acc -= DAY_MS; advanceDay(); }
   }
@@ -522,6 +527,6 @@ setInterval(()=>{ if(S) G.save(); }, 20000);
   S.log.length ? (function(){ const el=$('#log');
     el.innerHTML = S.log.map(l=>`<div class="lg ${l.c}"><time>D${l.d}</time><span>${l.m}</span></div>`).join(''); })()
     : log('Welcome to Greenhollow.','good');
-  if(fresh) setTimeout(()=>G.openHelp(), 500);
+  if(fresh) setTimeout(()=>{ if(typeof landChooser==='function') modal(landChooser()); else G.openHelp(); }, 400);
   rafId = requestAnimationFrame(loop);
 })();

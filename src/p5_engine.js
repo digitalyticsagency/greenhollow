@@ -1,10 +1,11 @@
 /* =====================================================================
    ENGINE — world grid, camera, placement with rotation, simulation
    ===================================================================== */
-const WT = 26, HT = 18;                    // world size in tiles
-const WPX = WT*T, HPX = HT*T;
-const FARM = {x:2, y:2, w:WT-5, h:HT-4};   // fenced property, in tiles
-const DAY_MS = 45000;
+let WT = 26, HT = 18;                      // world size in tiles (land choice resizes this)
+let WPX = WT*T, HPX = HT*T;
+const FARM = {x:2, y:2, w:WT-5, h:HT-4};   // mutated by resizeLand()
+const DAY_MS_BASE = 45000;
+let DAY_MS = DAY_MS_BASE;
 
 let S = null;                              // save state
 let sel = null;                            // selected object id
@@ -36,8 +37,9 @@ function overlaps(tx,ty,f,skipId){
 /* ---------------- fresh farm ---------------- */
 function newState(){
   const st = {
-    v:4, day:1, season:3, weather:'sun', cash:520, xp:0, lvl:1,
+    v:5, day:1, season:3, weather:'sun', cash:520, xp:0, lvl:1,
     auto:{}, autoCfg:{moist:0.5, reserve:10}, autoLog:[], snd:{amb:true,mus:true}, muted:false,
+    landId:'valley_rect_farm', homeId:'farmhouse_m_std', settings:{}, career:null, you:null,
     objs:[], nid:1, store:{}, water:60, feed:24, powerBal:0,
     contracts:[], log:[], speed:1, tips:true,
     seen:{}, totalEarned:0, harvests:0, seedsPlanted:0, prices:{}, tut:0

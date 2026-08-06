@@ -51,12 +51,14 @@ function plant(cr,x,y,st,seed,pest){
     return `<circle cx="${n(x)}" cy="${n(y)}" r="0.9" fill="#6fb04a"/>`;
   }
   const R = 3.1*sc;
+  s += '<g class="cropsway">';
   for(let i=0;i<5;i++){
     const a = (i/5)*Math.PI*2 + hash(seed+i);
     s += `<ellipse cx="${n(x+Math.cos(a)*R*0.45)}" cy="${n(y+Math.sin(a)*R*0.4)}" rx="${n(R*0.55)}" ry="${n(R*0.42)}"
       fill="${leaf}" opacity="${(0.72+hash(seed*3+i)*0.28).toFixed(2)}" transform="rotate(${n(a*57)} ${n(x)} ${n(y)})"/>`;
   }
   s += `<circle cx="${n(x-R*0.2)}" cy="${n(y-R*0.24)}" r="${n(R*0.3)}" fill="#8fca63" opacity=".55"/>`;
+  s += '</g>';
   if(st > 0.72 && cr.fruit){
     const fn = cr.fruitN || 2;
     for(let i=0;i<fn;i++){
