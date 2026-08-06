@@ -174,22 +174,87 @@ function tieredBed(base, rows){
   return (w,h,ob)=>{
     const t = curTier(ob);
     let s = base(w,h,ob);
-    if(t>=1){  /* timber frame upgraded to raised sleepers with a path */
-      s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="none" stroke="#a8814f" stroke-width="2.2"/>`;
-      s += `<rect x="1.6" y="1.6" width="${n(w-3.2)}" height="${n(h-4.2)}" rx="1.6" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>`;
-    }
-    if(t>=2){  /* hoops and drip line */
-      for(let i=0;i<Math.max(2,Math.round(w/26));i++){
-        const x = 6 + i*((w-12)/Math.max(1,Math.round(w/26)-0+1));
-        s += `<path d="M${n(x)} ${n(h-4)} q ${n((w/8))} ${n(-h*0.7)} ${n(w/4)} 0" stroke="#cfe0e6" stroke-width="1.1" fill="none" opacity=".75"/>`;
+
+    /* Mk II - the bed a serious grower actually builds: cedar sleepers
+       with visible corner posts, a mulched edge, drip line with emitters
+       and a row marker. No enclosure. */
+    if(t>=1){
+      s += `<rect x="0.6" y="0.6" width="${n(w-1.2)}" height="${n(h-2.2)}" rx="2.4"
+        fill="none" stroke="#b08653" stroke-width="2.6"/>`;
+      s += `<rect x="0.6" y="0.6" width="${n(w-1.2)}" height="1.3" rx="0.6" fill="#d3a771" opacity=".9"/>`;
+      s += `<rect x="0.6" y="${n(h-2.6)}" width="${n(w-1.2)}" height="1.2" fill="#000" opacity=".22"/>`;
+      [[1.4,1.4],[w-3.6,1.4],[1.4,h-4.6],[w-3.6,h-4.6]].forEach(p=>{
+        s += `<rect x="${n(p[0])}" y="${n(p[1])}" width="2.2" height="3.2" rx="0.7" fill="#8d6a40"/>`;
+        s += `<rect x="${n(p[0])}" y="${n(p[1])}" width="2.2" height="1" rx="0.5" fill="#c69a63"/>`;
+      });
+      /* drip line down the middle with emitters */
+      s += `<line x1="4" y1="${n(h*0.52)}" x2="${n(w-4)}" y2="${n(h*0.52)}"
+        stroke="#4a6b80" stroke-width="0.9" opacity=".8"/>`;
+      for(let i=0;i<Math.max(3,Math.round(w/16));i++){
+        const ex = 6 + i*((w-12)/Math.max(1,Math.round(w/16)-1||1));
+        s += `<circle cx="${n(ex)}" cy="${n(h*0.52)}" r="0.8" fill="#8fd0e8" opacity=".85"/>`;
       }
-      s += `<line x1="4" y1="${n(h*0.5)}" x2="${n(w-4)}" y2="${n(h*0.5)}" stroke="#3f6b8a" stroke-width="1" opacity=".7"/>`;
+      /* a row marker stake at the near end */
+      s += `<rect x="3.4" y="${n(h*0.70)}" width="0.9" height="4.4" rx="0.4" fill="#8d6a40"/>`;
+      s += `<rect x="2.6" y="${n(h*0.70)}" width="2.6" height="1.8" rx="0.4" fill="#e8e2d2"/>`;
     }
-    if(t>=3){  /* fully covered, climate controlled */
-      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="url(#gGlass)" opacity=".5"/>`;
-      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="none" stroke="#9db4bb" stroke-width="1.2"/>`;
-      s += `<rect x="${n(w*0.36)}" y="${n(h-5)}" width="${n(w*0.28)}" height="3.4" rx="1.5" fill="#0e1c26"/>`;
-      s += `<circle class="twinkle" cx="${n(w*0.5)}" cy="${n(h-3.3)}" r="1.2" fill="#7cc24f"/>`;
+
+    /* Mk III - vertical growing. A back trellis with twine for climbers,
+       straw mulch, and a companion flower at the end. Still open to the
+       sky, so the crop stays visible. */
+    if(t>=2){
+      s += `<rect x="2.6" y="2.2" width="${n(w-5.2)}" height="1.1" rx="0.5" fill="#a98255"/>`;
+      /* Twine, not railings. Half as many strands, warmer and fainter, and
+         only over the back row where climbers actually go - a full-width
+         grid of verticals reads as a cage. */
+      const strands = Math.max(3, Math.round(w/26));
+      for(let i=0;i<strands;i++){
+        const sx = 6 + i*((w-12)/(strands-1||1));
+        s += `<line x1="${n(sx)}" y1="3.4" x2="${n(sx)}" y2="${n(h*0.34)}"
+          stroke="#c2b48d" stroke-width="0.4" opacity=".55"/>`;
+        /* the climber itself, which is the point of the trellis */
+        s += `<circle cx="${n(sx)}" cy="${n(h*0.16)}" r="1.9" fill="#5f9a3c" opacity=".92"/>`;
+        s += `<circle cx="${n(sx-0.7)}" cy="${n(h*0.16-0.7)}" r="0.9" fill="#84c057" opacity=".85"/>`;
+        s += `<circle cx="${n(sx+0.8)}" cy="${n(h*0.27)}" r="1.3" fill="#6ea63f" opacity=".85"/>`;
+      }
+      /* straw mulch flecks over the soil */
+      for(let i=0;i<Math.min(22,Math.round(w*h/90));i++){
+        const mx = 4+hash(i*2.7)*(w-8), my = h*0.56+hash(i*4.3)*(h*0.34);
+        s += `<line x1="${n(mx)}" y1="${n(my)}" x2="${n(mx+1.8)}" y2="${n(my-0.7)}"
+          stroke="#d8c48b" stroke-width="0.6" opacity=".55"/>`;
+      }
+      s += `<circle cx="${n(w-5)}" cy="${n(h-6)}" r="2" fill="#e6a53c"/>`;
+      s += `<circle cx="${n(w-5)}" cy="${n(h-6)}" r="0.9" fill="#8a5f1e"/>`;
+    }
+
+    /* Mk IV - a wicking bed under a rolled-back insect mesh. The mesh is
+       drawn pulled open across two thirds so you can see what is growing;
+       the old version sealed the whole bed behind glass, which read as a
+       cage rather than a garden. */
+    if(t>=3){
+      const hoops = Math.max(2, Math.round(w/44));
+      for(let i=0;i<hoops;i++){
+        const hx = 7 + i*((w-14)/(hoops-1||1));
+        s += `<path d="M${n(hx)} ${n(h-4)} q ${n(-1.5)} ${n(-h*0.55)} ${n(0)} ${n(-h*0.62)}"
+          stroke="#c3ccd2" stroke-width="1" fill="none" opacity=".8"/>`;
+      }
+      /* mesh rolled back to the far end only */
+      s += `<rect x="${n(w*0.66)}" y="1.6" width="${n(w*0.31)}" height="${n(h*0.5)}" rx="2.4"
+        fill="#e8eef1" opacity=".24"/>`;
+      for(let i=1;i<4;i++)
+        s += `<line x1="${n(w*0.66+w*0.31*i/4)}" y1="1.6" x2="${n(w*0.66+w*0.31*i/4)}" y2="${n(1.6+h*0.5)}"
+          stroke="#cfd9de" stroke-width="0.4" opacity=".5"/>`;
+      /* the roll itself, bunched at the join */
+      s += `<rect x="${n(w*0.63)}" y="1.4" width="2.6" height="${n(h*0.52)}" rx="1.3" fill="#dfe7ea" opacity=".7"/>`;
+      /* wicking reservoir inlet and a level sight tube down the near end */
+      s += `<rect x="3" y="${n(h*0.62)}" width="1.6" height="${n(h*0.3)}" rx="0.8" fill="#7fb0c8" opacity=".85"/>`;
+      s += `<circle cx="3.8" cy="${n(h*0.62)}" r="1.4" fill="#9db4bb"/>`;
+      /* ripe crop reads through the open half */
+      for(let i=0;i<4;i++){
+        const cx2 = w*0.12 + i*(w*0.46/3);
+        s += `<circle cx="${n(cx2)}" cy="${n(h*0.70)}" r="2.1" fill="#d1462f"/>`;
+        s += `<circle cx="${n(cx2-0.6)}" cy="${n(h*0.70-0.6)}" r="0.8" fill="#ef7a5c" opacity=".85"/>`;
+      }
     }
     return s;
   };

@@ -121,10 +121,18 @@ function terrain(){
   if(terrainCache) return terrainCache;
   let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
   s += (typeof horizonLayer==='function' ? horizonLayer() : '');
-  for(let i=0;i<90;i++){
-    s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
+  /* dry ground showing through the pasture. Kept very faint and widely
+     spaced: at .45 opacity these read as discs floating over the grass
+     rather than as part of it. */
+  for(let i=0;i<34;i++){
+    const ox = n(hash(i*1.7)*WPX), oy = n(hash(i*2.9+4)*HPX);
+    const rx = n(10+hash(i)*22), ry = n(5+hash(i+3)*11);
+    s += `<ellipse cx="${ox}" cy="${oy}" rx="${rx}" ry="${ry}" fill="#a8a27c" opacity=".10"/>`;
+    s += `<ellipse cx="${ox}" cy="${oy}" rx="${n(rx*0.6)}" ry="${n(ry*0.6)}" fill="#a8a27c" opacity=".08"/>`;
   }
-  [[40,50],[130,36],[300,30],[640,28],[980,40],[1150,150],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
+  /* kept below the horizon band: at y<170 these stood in the water on
+     lake and coast maps */
+  [[40,210],[130,196],[300,190],[640,188],[980,200],[1150,230],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
     .forEach((p,k)=>{ s += canopy(p[0],p[1],16+hash(k)*9,'url(#gCanopyD)',k+20,true); });
   /* road along the right edge */
   s += `<path d="M${WPX-52} -20 L${WPX-14} ${HPX+20} L${WPX+40} ${HPX+20} L${WPX+40} -20 Z" fill="#a89f88"/>`;
@@ -143,10 +151,15 @@ function terrain(){
     s += `<path d="M${n(gx)} ${n(gy)} q ${n(lean)} ${n(-len*0.6)} ${n(lean*1.7)} ${n(-len)}"
       stroke="${c}" stroke-width="${(0.6+hash(i)*0.5).toFixed(1)}" fill="none" stroke-linecap="round" opacity=".75"/>`;
   }
-  for(let i=0;i<14;i++){
+  /* richer and poorer patches in the sward - two soft passes rather than
+     one hard disc, so the edge never announces itself */
+  for(let i=0;i<12;i++){
     const gx = px+hash(i*4.3)*pw, gy = py+hash(i*6.1+3)*ph;
-    s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${n(14+hash(i)*26)}" ry="${n(9+hash(i+5)*16)}"
-      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".3"/>`;
+    const rx = n(20+hash(i)*34), ry = n(13+hash(i+5)*20);
+    s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${rx}" ry="${ry}"
+      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".09"/>`;
+    s += `<ellipse cx="${n(gx-rx*0.15)}" cy="${n(gy-ry*0.15)}" rx="${n(rx*0.58)}" ry="${n(ry*0.58)}"
+      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".08"/>`;
   }
   /* boundary hedge */
   const hb=15;

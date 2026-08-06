@@ -2874,10 +2874,18 @@ function terrain(){
   if(terrainCache) return terrainCache;
   let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
   s += (typeof horizonLayer==='function' ? horizonLayer() : '');
-  for(let i=0;i<90;i++){
-    s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
+  /* dry ground showing through the pasture. Kept very faint and widely
+     spaced: at .45 opacity these read as discs floating over the grass
+     rather than as part of it. */
+  for(let i=0;i<34;i++){
+    const ox = n(hash(i*1.7)*WPX), oy = n(hash(i*2.9+4)*HPX);
+    const rx = n(10+hash(i)*22), ry = n(5+hash(i+3)*11);
+    s += `<ellipse cx="${ox}" cy="${oy}" rx="${rx}" ry="${ry}" fill="#a8a27c" opacity=".10"/>`;
+    s += `<ellipse cx="${ox}" cy="${oy}" rx="${n(rx*0.6)}" ry="${n(ry*0.6)}" fill="#a8a27c" opacity=".08"/>`;
   }
-  [[40,50],[130,36],[300,30],[640,28],[980,40],[1150,150],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
+  /* kept below the horizon band: at y<170 these stood in the water on
+     lake and coast maps */
+  [[40,210],[130,196],[300,190],[640,188],[980,200],[1150,230],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
     .forEach((p,k)=>{ s += canopy(p[0],p[1],16+hash(k)*9,'url(#gCanopyD)',k+20,true); });
   /* road along the right edge */
   s += `<path d="M${WPX-52} -20 L${WPX-14} ${HPX+20} L${WPX+40} ${HPX+20} L${WPX+40} -20 Z" fill="#a89f88"/>`;
@@ -2896,10 +2904,15 @@ function terrain(){
     s += `<path d="M${n(gx)} ${n(gy)} q ${n(lean)} ${n(-len*0.6)} ${n(lean*1.7)} ${n(-len)}"
       stroke="${c}" stroke-width="${(0.6+hash(i)*0.5).toFixed(1)}" fill="none" stroke-linecap="round" opacity=".75"/>`;
   }
-  for(let i=0;i<14;i++){
+  /* richer and poorer patches in the sward - two soft passes rather than
+     one hard disc, so the edge never announces itself */
+  for(let i=0;i<12;i++){
     const gx = px+hash(i*4.3)*pw, gy = py+hash(i*6.1+3)*ph;
-    s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${n(14+hash(i)*26)}" ry="${n(9+hash(i+5)*16)}"
-      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".3"/>`;
+    const rx = n(20+hash(i)*34), ry = n(13+hash(i+5)*20);
+    s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${rx}" ry="${ry}"
+      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".09"/>`;
+    s += `<ellipse cx="${n(gx-rx*0.15)}" cy="${n(gy-ry*0.15)}" rx="${n(rx*0.58)}" ry="${n(ry*0.58)}"
+      fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".08"/>`;
   }
   /* boundary hedge */
   const hb=15;
@@ -6574,22 +6587,87 @@ function tieredBed(base, rows){
   return (w,h,ob)=>{
     const t = curTier(ob);
     let s = base(w,h,ob);
-    if(t>=1){  /* timber frame upgraded to raised sleepers with a path */
-      s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="none" stroke="#a8814f" stroke-width="2.2"/>`;
-      s += `<rect x="1.6" y="1.6" width="${n(w-3.2)}" height="${n(h-4.2)}" rx="1.6" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>`;
-    }
-    if(t>=2){  /* hoops and drip line */
-      for(let i=0;i<Math.max(2,Math.round(w/26));i++){
-        const x = 6 + i*((w-12)/Math.max(1,Math.round(w/26)-0+1));
-        s += `<path d="M${n(x)} ${n(h-4)} q ${n((w/8))} ${n(-h*0.7)} ${n(w/4)} 0" stroke="#cfe0e6" stroke-width="1.1" fill="none" opacity=".75"/>`;
+
+    /* Mk II - the bed a serious grower actually builds: cedar sleepers
+       with visible corner posts, a mulched edge, drip line with emitters
+       and a row marker. No enclosure. */
+    if(t>=1){
+      s += `<rect x="0.6" y="0.6" width="${n(w-1.2)}" height="${n(h-2.2)}" rx="2.4"
+        fill="none" stroke="#b08653" stroke-width="2.6"/>`;
+      s += `<rect x="0.6" y="0.6" width="${n(w-1.2)}" height="1.3" rx="0.6" fill="#d3a771" opacity=".9"/>`;
+      s += `<rect x="0.6" y="${n(h-2.6)}" width="${n(w-1.2)}" height="1.2" fill="#000" opacity=".22"/>`;
+      [[1.4,1.4],[w-3.6,1.4],[1.4,h-4.6],[w-3.6,h-4.6]].forEach(p=>{
+        s += `<rect x="${n(p[0])}" y="${n(p[1])}" width="2.2" height="3.2" rx="0.7" fill="#8d6a40"/>`;
+        s += `<rect x="${n(p[0])}" y="${n(p[1])}" width="2.2" height="1" rx="0.5" fill="#c69a63"/>`;
+      });
+      /* drip line down the middle with emitters */
+      s += `<line x1="4" y1="${n(h*0.52)}" x2="${n(w-4)}" y2="${n(h*0.52)}"
+        stroke="#4a6b80" stroke-width="0.9" opacity=".8"/>`;
+      for(let i=0;i<Math.max(3,Math.round(w/16));i++){
+        const ex = 6 + i*((w-12)/Math.max(1,Math.round(w/16)-1||1));
+        s += `<circle cx="${n(ex)}" cy="${n(h*0.52)}" r="0.8" fill="#8fd0e8" opacity=".85"/>`;
       }
-      s += `<line x1="4" y1="${n(h*0.5)}" x2="${n(w-4)}" y2="${n(h*0.5)}" stroke="#3f6b8a" stroke-width="1" opacity=".7"/>`;
+      /* a row marker stake at the near end */
+      s += `<rect x="3.4" y="${n(h*0.70)}" width="0.9" height="4.4" rx="0.4" fill="#8d6a40"/>`;
+      s += `<rect x="2.6" y="${n(h*0.70)}" width="2.6" height="1.8" rx="0.4" fill="#e8e2d2"/>`;
     }
-    if(t>=3){  /* fully covered, climate controlled */
-      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="url(#gGlass)" opacity=".5"/>`;
-      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="none" stroke="#9db4bb" stroke-width="1.2"/>`;
-      s += `<rect x="${n(w*0.36)}" y="${n(h-5)}" width="${n(w*0.28)}" height="3.4" rx="1.5" fill="#0e1c26"/>`;
-      s += `<circle class="twinkle" cx="${n(w*0.5)}" cy="${n(h-3.3)}" r="1.2" fill="#7cc24f"/>`;
+
+    /* Mk III - vertical growing. A back trellis with twine for climbers,
+       straw mulch, and a companion flower at the end. Still open to the
+       sky, so the crop stays visible. */
+    if(t>=2){
+      s += `<rect x="2.6" y="2.2" width="${n(w-5.2)}" height="1.1" rx="0.5" fill="#a98255"/>`;
+      /* Twine, not railings. Half as many strands, warmer and fainter, and
+         only over the back row where climbers actually go - a full-width
+         grid of verticals reads as a cage. */
+      const strands = Math.max(3, Math.round(w/26));
+      for(let i=0;i<strands;i++){
+        const sx = 6 + i*((w-12)/(strands-1||1));
+        s += `<line x1="${n(sx)}" y1="3.4" x2="${n(sx)}" y2="${n(h*0.34)}"
+          stroke="#c2b48d" stroke-width="0.4" opacity=".55"/>`;
+        /* the climber itself, which is the point of the trellis */
+        s += `<circle cx="${n(sx)}" cy="${n(h*0.16)}" r="1.9" fill="#5f9a3c" opacity=".92"/>`;
+        s += `<circle cx="${n(sx-0.7)}" cy="${n(h*0.16-0.7)}" r="0.9" fill="#84c057" opacity=".85"/>`;
+        s += `<circle cx="${n(sx+0.8)}" cy="${n(h*0.27)}" r="1.3" fill="#6ea63f" opacity=".85"/>`;
+      }
+      /* straw mulch flecks over the soil */
+      for(let i=0;i<Math.min(22,Math.round(w*h/90));i++){
+        const mx = 4+hash(i*2.7)*(w-8), my = h*0.56+hash(i*4.3)*(h*0.34);
+        s += `<line x1="${n(mx)}" y1="${n(my)}" x2="${n(mx+1.8)}" y2="${n(my-0.7)}"
+          stroke="#d8c48b" stroke-width="0.6" opacity=".55"/>`;
+      }
+      s += `<circle cx="${n(w-5)}" cy="${n(h-6)}" r="2" fill="#e6a53c"/>`;
+      s += `<circle cx="${n(w-5)}" cy="${n(h-6)}" r="0.9" fill="#8a5f1e"/>`;
+    }
+
+    /* Mk IV - a wicking bed under a rolled-back insect mesh. The mesh is
+       drawn pulled open across two thirds so you can see what is growing;
+       the old version sealed the whole bed behind glass, which read as a
+       cage rather than a garden. */
+    if(t>=3){
+      const hoops = Math.max(2, Math.round(w/44));
+      for(let i=0;i<hoops;i++){
+        const hx = 7 + i*((w-14)/(hoops-1||1));
+        s += `<path d="M${n(hx)} ${n(h-4)} q ${n(-1.5)} ${n(-h*0.55)} ${n(0)} ${n(-h*0.62)}"
+          stroke="#c3ccd2" stroke-width="1" fill="none" opacity=".8"/>`;
+      }
+      /* mesh rolled back to the far end only */
+      s += `<rect x="${n(w*0.66)}" y="1.6" width="${n(w*0.31)}" height="${n(h*0.5)}" rx="2.4"
+        fill="#e8eef1" opacity=".24"/>`;
+      for(let i=1;i<4;i++)
+        s += `<line x1="${n(w*0.66+w*0.31*i/4)}" y1="1.6" x2="${n(w*0.66+w*0.31*i/4)}" y2="${n(1.6+h*0.5)}"
+          stroke="#cfd9de" stroke-width="0.4" opacity=".5"/>`;
+      /* the roll itself, bunched at the join */
+      s += `<rect x="${n(w*0.63)}" y="1.4" width="2.6" height="${n(h*0.52)}" rx="1.3" fill="#dfe7ea" opacity=".7"/>`;
+      /* wicking reservoir inlet and a level sight tube down the near end */
+      s += `<rect x="3" y="${n(h*0.62)}" width="1.6" height="${n(h*0.3)}" rx="0.8" fill="#7fb0c8" opacity=".85"/>`;
+      s += `<circle cx="3.8" cy="${n(h*0.62)}" r="1.4" fill="#9db4bb"/>`;
+      /* ripe crop reads through the open half */
+      for(let i=0;i<4;i++){
+        const cx2 = w*0.12 + i*(w*0.46/3);
+        s += `<circle cx="${n(cx2)}" cy="${n(h*0.70)}" r="2.1" fill="#d1462f"/>`;
+        s += `<circle cx="${n(cx2-0.6)}" cy="${n(h*0.70-0.6)}" r="0.8" fill="#ef7a5c" opacity=".85"/>`;
+      }
     }
     return s;
   };
@@ -9504,11 +9582,12 @@ function groundShadow(o, bp){
 /* which objects are worth animating, and with what */
 function idleClass(bp){
   const a = bp.art || '';
+  /* Only motion that a real farm actually shows. A turbine mast does not
+     rock and a shed does not bob, so neither gets a whole-object
+     transform - their life comes from working detail instead. */
   if(/^tree_|orchard|berry|flowers|hedge|fodder|herb_spiral/.test(a)) return 'lf-sway';
-  if(/pond|duck_pond|well|tank/.test(a))                              return 'lf-shimmer';
-  if(/lights|sign|battery|ai_hub/.test(a))                            return 'lf-glow';
-  if(/kitchen|dairy|honey_lab|packing|workshop/.test(a))              return 'lf-work';
-  if(/wind/.test(a))                                                  return 'lf-spin';
+  if(/pond|duck_pond|well/.test(a))                                   return 'lf-shimmer';
+  if(/lights|sign/.test(a))                                           return 'lf-glow';
   return '';
 }
 
@@ -9560,8 +9639,6 @@ render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); 
   .lf-sway   { animation: lfSway 6.5s ease-in-out infinite; }
   .lf-shimmer{ animation: lfShim 5.2s ease-in-out infinite; }
   .lf-glow   { animation: lfGlow 3.8s ease-in-out infinite; }
-  .lf-work   { animation: lfWork 4.6s ease-in-out infinite; }
-  .lf-spin   { animation: lfSpin 7s   ease-in-out infinite; }
   .obshadow  { pointer-events:none; }
 
   @keyframes lfSway {
@@ -9571,12 +9648,6 @@ render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); 
     0%,100%{ opacity:.95; } 50%{ opacity:1; } }
   @keyframes lfGlow {
     0%,100%{ opacity:.88; } 50%{ opacity:1; } }
-  @keyframes lfWork {
-    0%,100%{ transform: translateY(0); }
-    50%    { transform: translateY(-0.5px); } }
-  @keyframes lfSpin {
-    0%,100%{ transform: rotate(-1.4deg); }
-    50%    { transform: rotate(1.4deg); } }
 
   /* the OS-level preference wins over our setting */
   @media (prefers-reduced-motion: reduce){
@@ -9737,6 +9808,497 @@ render = function(){ DETAIL_USED = 0; return _renderDetail.apply(this, arguments
 })();
 
 setTimeout(()=>{ if(typeof render === 'function') render(); }, 300);
+
+/* =====================================================================
+   CLOUDS
+
+   The scene had discs of tone scattered across the ground standing in
+   for variation, and nothing at all in the sky. That is backwards: the
+   ground reads better when its variation is felt rather than seen, and
+   the sky is where shapes are supposed to float.
+
+   These sit in the band above the horizon, drift slowly, and take their
+   colour from the sun — white and high at midday, gold and low-bellied
+   at dawn, bruised grey under a storm. They are built from overlapping
+   ellipses with a lit top and a shaded underside, which is the same
+   upper-left light every object on the ground obeys.
+   ===================================================================== */
+
+function cloudShape(w, h, seed){
+  /* a cumulus is a cluster of lobes, not one blob: three or four
+     overlapping circles with a flat base */
+  const lobes = 3 + Math.round(hash(seed)*2);
+  let body = '', lit = '';
+  for(let i=0;i<lobes;i++){
+    const t  = i/(lobes-1||1);
+    const cx = w*(0.16 + t*0.68);
+    const r  = h*(0.34 + hash(seed+i*3.1)*0.30) * (1 - Math.abs(t-0.5)*0.5);
+    const cy = h*0.62 - r*0.32;
+    body += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}"/>`;
+    lit  += `<circle cx="${n(cx)}" cy="${n(cy - r*0.22)}" r="${n(r*0.78)}"/>`;
+  }
+  /* flat base, the way cumulus actually sit on their condensation level */
+  body += `<rect x="${n(w*0.10)}" y="${n(h*0.44)}" width="${n(w*0.80)}" height="${n(h*0.22)}" rx="${n(h*0.11)}"/>`;
+  return `<g class="cl-body">${body}</g><g class="cl-lit">${lit}</g>`;
+}
+
+function cloudLayer(){
+  const W = WPX;
+  let s = '<g id="clouds" aria-hidden="true">';
+  /* The visible sky is a narrow band above the ridgeline, so clouds have
+     to be small and sit well inside it. Sized against that band, not
+     against the world, or one cloud swallows the horizon. */
+  for(let i=0;i<11;i++){
+    const t   = i/11;
+    const cw  = 62 + hash(i*2.7)*94;
+    const ch  = 15 + hash(i*4.1)*15;
+    /* spread across the full width, jittered so the spacing is not a comb */
+    const x   = -W*0.20 + (t + (hash(i*7.3)-0.5)*0.06) * W*1.45;
+    const y   = -246 + hash(i*3.3)*128;
+    const dur = (170 + hash(i*5.7)*190).toFixed(0);
+    /* higher sits fainter: cheap aerial perspective */
+    const dep = (0.55 + ((y+246)/128) * 0.35).toFixed(2);
+    s += `<g class="cloud" style="animation-duration:${dur}s;animation-delay:-${(hash(i*8.1)*dur).toFixed(0)}s"
+      transform="translate(${n(x)},${n(y)})" opacity="${dep}">${cloudShape(cw, ch, i*3.7)}</g>`;
+  }
+  return s + '</g>';
+}
+
+/* the sky band sits behind everything, so clouds belong in the cached
+   backdrop rather than the live foreground */
+const _terrainSky = terrain;
+terrain = function(){
+  const out = _terrainSky();
+  if(out.indexOf('id="clouds"') >= 0) return out;
+  /* drop them in just after the horizon so ridges still overlap them */
+  return out + cloudLayer();
+};
+
+/* Clouds take their colour from the sun. paintSun already runs on the
+   day tick, so tint there rather than starting another timer. */
+function tintClouds(){
+  const root = document.documentElement;
+  let body = '#f4f8fb', lit = '#ffffff', op = 1;
+  if(typeof skyNow === 'function'){
+    const s = skyNow(), f = s.f;
+    const dawn = f > 0.18 && f < 0.30, dusk = f > 0.74 && f < 0.88;
+    const night = (typeof isNight === 'function') ? isNight() : false;
+    if(night){        body = '#39465c'; lit = '#5b6b86'; op = 0.55; }
+    else if(dawn){    body = '#e9b48f'; lit = '#ffe0c0'; op = 0.95; }
+    else if(dusk){    body = '#dc9c86'; lit = '#ffd2ac'; op = 0.95; }
+  }
+  const w = (typeof S !== 'undefined' && S) ? S.weather : 'sun';
+  if(w === 'storm'){ body = '#59606b'; lit = '#7d8593'; op = 1; }
+  else if(w === 'rain'){ body = '#7c8894'; lit = '#9aa6b1'; op = 1; }
+  else if(w === 'cloud'){ body = '#dbe3e9'; lit = '#f2f7fa'; op = 1; }
+  root.style.setProperty('--cloud-body', body);
+  root.style.setProperty('--cloud-lit', lit);
+  root.style.setProperty('--cloud-op', op);
+}
+const _paintSunClouds = (typeof paintSun === 'function') ? paintSun : null;
+if(_paintSunClouds) paintSun = function(){ const r = _paintSunClouds.apply(this, arguments); tintClouds(); return r; };
+
+(function cloudCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  :root{ --cloud-body:#f4f8fb; --cloud-lit:#ffffff; --cloud-op:1; }
+  #clouds{ pointer-events:none; }
+  #clouds .cl-body circle, #clouds .cl-body rect{ fill:var(--cloud-body); }
+  #clouds .cl-lit  circle{ fill:var(--cloud-lit); opacity:.45; }
+  #clouds .cloud{ opacity:var(--cloud-op); animation-name:clDrift;
+    animation-timing-function:linear; animation-iteration-count:infinite; }
+  @keyframes clDrift{ from{ transform:translateX(-7%);} to{ transform:translateX(7%);} }
+  @media (prefers-reduced-motion: reduce){ #clouds .cloud{ animation:none !important; } }
+  `;
+  document.head.appendChild(s);
+})();
+
+setTimeout(()=>{
+  tintClouds();
+  /* the backdrop is cached, so force one rebuild to pick the clouds up */
+  if(typeof terrainCache !== 'undefined') terrainCache = '';
+  if(typeof render === 'function') render();
+}, 320);
+
+/* =====================================================================
+   TAKING SHELTER
+
+   When a storm comes through, a real family is not out weeding. They
+   come inside, and the house lights up while the paddocks go dark.
+
+   So: storms pull everyone indoors, the lightning gets genuinely
+   dramatic, and because all the interesting behaviour is now hidden
+   under a roof, you can lift the roof off and watch it.
+
+   The drama here is all light and timing — no camera shake. Shaking the
+   view reads as a bug, not as weather.
+   ===================================================================== */
+
+/* ---------- 1. everyone indoors during a storm ---------- */
+
+/* where each person sits inside the house, as a fraction of its footprint */
+const INDOOR_SPOTS = [
+  {fx:0.24, fy:0.34, act:'at the kitchen table'},
+  {fx:0.52, fy:0.30, act:'making tea'},
+  {fx:0.74, fy:0.38, act:'watching the rain'},
+  {fx:0.30, fy:0.66, act:'reading by the fire'},
+  {fx:0.58, fy:0.70, act:'playing cards'},
+  {fx:0.80, fy:0.64, act:'drawing at the window'},
+  {fx:0.42, fy:0.50, act:'listening to the radio'},
+  {fx:0.66, fy:0.52, act:'mending a jumper'},
+];
+
+function homeObj(){
+  return S.objs.find(o => BPMAP[o.bp] && BPMAP[o.bp].kind === 'home');
+}
+function stormNow(){ return S.weather === 'storm'; }
+
+/* Each person keeps the same seat for the duration of a storm rather than
+   teleporting between chairs every tick. */
+function indoorSpot(p, idx){
+  const ho = homeObj();
+  if(!ho) return null;
+  const bp = BPMAP[ho.bp], f = footprint(bp, ho.rot);
+  const sp = INDOOR_SPOTS[idx % INDOOR_SPOTS.length];
+  return { x:(ho.tx + f.w*sp.fx)*T, y:(ho.ty + f.h*sp.fy)*T, act:sp.act };
+}
+
+const _routineStorm = routine;
+routine = function(p){
+  if(stormNow()){
+    const list = S.family.concat(S.workers || []);
+    const idx = Math.max(0, list.findIndex(q => q.id === p.id));
+    const spot = indoorSpot(p, idx);
+    if(spot) return spot;
+  }
+  return _routineStorm(p);
+};
+
+/* ---------- 2. lift the roof and watch ---------- */
+
+/* A cutaway of the house: floorboards, dividing walls, and the furniture
+   that makes each room legible from above. */
+function interiorArt(w, h){
+  let s = `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-2)}" rx="3" fill="#c9a878"/>`;
+  /* floorboards running the long way */
+  const boards = Math.max(4, Math.round(h/7));
+  for(let i=1;i<boards;i++)
+    s += `<line x1="1.5" y1="${n(1+(h-2)*i/boards)}" x2="${n(w-1.5)}" y2="${n(1+(h-2)*i/boards)}"
+      stroke="#ab8a5f" stroke-width="0.6" opacity=".7"/>`;
+
+  /* interior walls: kitchen/living split, two bedrooms along the top */
+  const wall = (x1,y1,x2,y2)=>`<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}"
+    stroke="#efe6d6" stroke-width="2.4" stroke-linecap="round"/>`;
+  s += wall(w*0.46, 2, w*0.46, h*0.46);
+  s += wall(2, h*0.46, w*0.92, h*0.46);
+  s += wall(w*0.72, h*0.46, w*0.72, h-2);
+
+  /* kitchen: bench, sink, stove */
+  s += `<rect x="${n(w*0.06)}" y="${n(h*0.10)}" width="${n(w*0.34)}" height="${n(h*0.10)}" rx="1.6" fill="#8e9aa2"/>`;
+  s += `<rect x="${n(w*0.10)}" y="${n(h*0.12)}" width="${n(w*0.07)}" height="${n(h*0.06)}" rx="1" fill="#c8d2d8"/>`;
+  s += `<circle cx="${n(w*0.30)}" cy="${n(h*0.15)}" r="${n(h*0.025)}" fill="#3f4a52"/>`;
+  s += `<rect x="${n(w*0.10)}" y="${n(h*0.26)}" width="${n(w*0.24)}" height="${n(h*0.12)}" rx="2" fill="#a9764a"/>`;
+
+  /* living: rug, sofa, hearth */
+  s += `<ellipse cx="${n(w*0.60)}" cy="${n(h*0.26)}" rx="${n(w*0.13)}" ry="${n(h*0.11)}" fill="#9c5b52" opacity=".85"/>`;
+  s += `<rect x="${n(w*0.50)}" y="${n(h*0.07)}" width="${n(w*0.20)}" height="${n(h*0.07)}" rx="2.4" fill="#5f7a6b"/>`;
+  s += `<rect x="${n(w*0.86)}" y="${n(h*0.16)}" width="${n(w*0.09)}" height="${n(h*0.14)}" rx="1.4" fill="#7b6f66"/>`;
+  s += `<circle class="hearth" cx="${n(w*0.905)}" cy="${n(h*0.23)}" r="${n(h*0.035)}" fill="#f0a24b"/>`;
+
+  /* bedrooms along the bottom */
+  s += `<rect x="${n(w*0.06)}" y="${n(h*0.56)}" width="${n(w*0.20)}" height="${n(h*0.16)}" rx="2" fill="#7f8fa6"/>`;
+  s += `<rect x="${n(w*0.06)}" y="${n(h*0.56)}" width="${n(w*0.20)}" height="${n(h*0.05)}" rx="2" fill="#c3cede"/>`;
+  s += `<rect x="${n(w*0.40)}" y="${n(h*0.56)}" width="${n(w*0.20)}" height="${n(h*0.16)}" rx="2" fill="#7f8fa6"/>`;
+  s += `<rect x="${n(w*0.40)}" y="${n(h*0.56)}" width="${n(w*0.20)}" height="${n(h*0.05)}" rx="2" fill="#c3cede"/>`;
+  /* bathroom in the corner */
+  s += `<rect x="${n(w*0.78)}" y="${n(h*0.56)}" width="${n(w*0.14)}" height="${n(h*0.12)}" rx="2" fill="#cdd9de"/>`;
+
+  /* warm light spilling from the rooms */
+  s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-2)}" rx="3" fill="#ffd489" opacity=".10"/>`;
+  return s;
+}
+
+/* Draw the cutaway over the home's footprint when the roof is lifted. */
+function roofOffLayer(){
+  if(!SET('roofOff')) return '';
+  const ho = homeObj();
+  if(!ho) return '';
+  const bp = BPMAP[ho.bp], f = footprint(bp, ho.rot);
+  const w = f.w*T, h = f.h*T;
+  return `<g id="cutaway" transform="translate(${n(ho.tx*T)},${n(ho.ty*T)})">
+    ${interiorArt(w, h)}
+    <rect x="0.6" y="0.6" width="${n(w-1.2)}" height="${n(h-1.2)}" rx="3.4"
+      fill="none" stroke="#f2e9d8" stroke-width="1.6" opacity=".9"/></g>`;
+}
+
+/* the cutaway sits above the house but below the people, so the family
+   reads as being inside it */
+const _peopleLayerStorm = peopleLayer;
+peopleLayer = function(){ return roofOffLayer() + _peopleLayerStorm.apply(this, arguments); };
+
+/* a setting, and a button in the top bar */
+(function addRoofSetting(){
+  if(SETTINGS.some(o=>o.k==='roofOff')) return;
+  const i = SETTINGS.findIndex(o=>o.g==='Display');
+  SETTINGS.splice(i < 0 ? 0 : i+1, 0, {
+    g:'Display', k:'roofOff', n:'Lift the roof', t:'bool', def:false,
+    d:'See inside the house — useful in a storm, when everyone is indoors.'
+  });
+})();
+
+G.toggleRoof = function(){
+  const v = !SET('roofOff');
+  setOpt('roofOff', v);
+  render();
+  toast(v ? 'Roof lifted — you can see inside' : 'Roof back on', 'good');
+  sfx('click');
+};
+
+/* ---------- 3. dramatic lightning ---------- */
+/* Louder in light, not in motion: a double flash with a dark beat between
+   them, the sky dropping out, and the bolt held a fraction longer. */
+const _strikeBase = (typeof lightningStrike === 'function') ? lightningStrike : null;
+if(_strikeBase){
+  lightningStrike = function(){
+    const r = _strikeBase.apply(this, arguments);
+    const world = document.getElementById('world');
+    if(world){
+      world.classList.remove('storm-flash');
+      void world.offsetWidth;
+      world.classList.add('storm-flash');
+      setTimeout(()=>world.classList.remove('storm-flash'), 1300);
+    }
+    /* the follow-up stroke real lightning almost always has */
+    if(Math.random() < 0.55) setTimeout(()=>{ try{ _strikeBase(); }catch(e){} }, 180 + Math.random()*160);
+    return r;
+  };
+}
+
+(function stormCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #cutaway{ pointer-events:none; }
+  #cutaway .hearth{ animation: hearthFlicker 2.2s ease-in-out infinite; }
+  @keyframes hearthFlicker{ 0%,100%{opacity:.75} 50%{opacity:1} }
+
+  /* the world dims hard, then the strike over-brightens it twice */
+  .storm-flash{ animation: stormFlash 1.25s ease-out 1; }
+  @keyframes stormFlash{
+    0%   { filter:none; }
+    6%   { filter:brightness(1.9) contrast(.9); }
+    13%  { filter:brightness(.72); }
+    20%  { filter:brightness(1.55); }
+    30%  { filter:brightness(.85); }
+    100% { filter:none; } }
+  @media (prefers-reduced-motion: reduce){
+    .storm-flash{ animation:none !important; }
+    #cutaway .hearth{ animation:none !important; } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* a button in the top bar, since the roof is something you flip often */
+setTimeout(()=>{
+  const bar = document.querySelector('.tbtn') && document.querySelector('.tbtn').parentElement;
+  if(!bar || document.getElementById('roofbtn')) return;
+  const b = document.createElement('button');
+  b.id = 'roofbtn'; b.className = 'tbtn' + (SET('roofOff') ? ' on' : '');
+  b.textContent = 'Roof';
+  b.dataset.tip = '<b>Lift the roof</b>See what the family are doing inside. They all come in during a storm.';
+  b.addEventListener('click', ()=>{ G.toggleRoof(); b.classList.toggle('on', !!SET('roofOff')); });
+  bar.insertBefore(b, bar.firstChild);
+}, 420);
+
+/* =====================================================================
+   BIRDS
+
+   A farm without birds reads as a diagram. These are deliberately cheap:
+   a handful of flock members crossing the sky on a long loop, and a few
+   ground birds that hop between trees, beds and the compost — where
+   real birds actually go, because that is where the worms are.
+
+   They take cover in a storm like everyone else, and they roost at
+   night. Both are behaviour you would notice if it were missing.
+   ===================================================================== */
+
+const BIRDS = { sky:[], ground:[], layer:null, nests:[] };
+const BIRD_SKY_MAX = 5;
+const BIRD_GROUND_MAX = 5;
+
+/* a bird from above is a body and two swept wings */
+function birdArt(sc, col){
+  sc = sc || 1;
+  const c = col || '#3f4a52';
+  return `<g class="bd-wings">
+      <path d="M0 0 q ${n(-5*sc)} ${n(-3.4*sc)} ${n(-9*sc)} ${n(-1.2*sc)}
+               q ${n(4*sc)} ${n(1.4*sc)} ${n(9*sc)} ${n(1.2*sc)} z" fill="${c}"/>
+      <path d="M0 0 q ${n(5*sc)} ${n(-3.4*sc)} ${n(9*sc)} ${n(-1.2*sc)}
+               q ${n(-4*sc)} ${n(1.4*sc)} ${n(-9*sc)} ${n(1.2*sc)} z" fill="${c}"/>
+    </g>
+    <ellipse cx="0" cy="0" rx="${n(2.6*sc)}" ry="${n(1.5*sc)}" fill="${c}"/>
+    <circle cx="${n(2.4*sc)}" cy="${n(-0.5*sc)}" r="${n(1.1*sc)}" fill="${c}"/>
+    <path d="M${n(3.4*sc)} ${n(-0.5*sc)} l ${n(1.6*sc)} ${n(0.5*sc)} l ${n(-1.6*sc)} ${n(0.6*sc)} z" fill="#e0a13c"/>`;
+}
+
+/* a nest is a woven cup with eggs, tucked in a tree */
+function nestArt(sc){
+  sc = sc || 1;
+  let s = `<ellipse cx="0" cy="${n(1.6*sc)}" rx="${n(7*sc)}" ry="${n(4*sc)}" fill="#16240c" opacity=".26"/>`;
+  s += `<ellipse cx="0" cy="0" rx="${n(7*sc)}" ry="${n(5*sc)}" fill="#7a6242"/>`;
+  s += `<ellipse cx="0" cy="${n(-0.5*sc)}" rx="${n(5.2*sc)}" ry="${n(3.4*sc)}" fill="#5d4a31"/>`;
+  /* woven twigs around the rim */
+  for(let i=0;i<9;i++){
+    const a = (i/9)*Math.PI*2;
+    s += `<line x1="${n(Math.cos(a)*6.4*sc)}" y1="${n(Math.sin(a)*4.4*sc)}"
+      x2="${n(Math.cos(a)*7.8*sc)}" y2="${n(Math.sin(a)*5.4*sc)}"
+      stroke="#8b7150" stroke-width="${n(0.8*sc)}" stroke-linecap="round"/>`;
+  }
+  [[-1.8,-0.4],[0.6,0.6],[2.2,-0.8]].forEach(e=>{
+    s += `<ellipse cx="${n(e[0]*sc)}" cy="${n(e[1]*sc)}" rx="${n(1.7*sc)}" ry="${n(2.1*sc)}" fill="#dfe6d4"/>`;
+    s += `<ellipse cx="${n((e[0]-0.4)*sc)}" cy="${n((e[1]-0.5)*sc)}" rx="${n(0.7*sc)}" ry="${n(0.9*sc)}" fill="#fff" opacity=".6"/>`;
+  });
+  return s;
+}
+
+/* where a ground bird would actually bother going */
+function birdTargets(){
+  const good = S.objs.filter(o=>{
+    const a = (BPMAP[o.bp]||{}).art || '';
+    return /^tree_|compost|bed|orchard|berry|flowers|pond|fodder|coop/.test(a);
+  });
+  return good.length ? good : S.objs.slice(0, 4);
+}
+
+function birdsInit(){
+  if(BIRDS.sky.length) return;
+  for(let i=0;i<BIRD_SKY_MAX;i++){
+    BIRDS.sky.push({ id:'sk'+i,
+      x: Math.random()*WPX, y: -200 + Math.random()*150,
+      sc: 0.55 + Math.random()*0.4, vx: 26 + Math.random()*26,
+      bobT: Math.random()*6 });
+  }
+  for(let i=0;i<BIRD_GROUND_MAX;i++){
+    BIRDS.ground.push({ id:'gd'+i,
+      x: (FARM.x + Math.random()*FARM.w)*T, y: (FARM.y + Math.random()*FARM.h)*T,
+      sc: 0.5 + Math.random()*0.25, tx:0, ty:0, wait: Math.random()*3, hop:0 });
+  }
+}
+
+/* nests appear in mature trees — one per tree, up to three */
+function nestSites(){
+  const trees = S.objs.filter(o=>/^tree_/.test((BPMAP[o.bp]||{}).art||''));
+  return trees.slice(0,3).map(o=>{
+    const f = footprint(BPMAP[o.bp], o.rot);
+    return { x:(o.tx+f.w*0.68)*T, y:(o.ty+f.h*0.30)*T };
+  });
+}
+
+function birdsLayer(){
+  birdsInit();
+  const nests = nestSites().map(p=>
+    `<g class="bd-nest" transform="translate(${n(p.x)},${n(p.y)})">${nestArt(0.8)}</g>`).join('');
+  const sky = BIRDS.sky.map(b=>
+    `<g class="bd bd-sky" data-b="${b.id}" transform="translate(${n(b.x)},${n(b.y)})">
+      <g transform="scale(${b.sc.toFixed(2)})">${birdArt(1,'#46525c')}</g></g>`).join('');
+  const gnd = BIRDS.ground.map(b=>
+    `<g class="bd bd-gnd" data-b="${b.id}" transform="translate(${n(b.x)},${n(b.y)})">
+      <ellipse cx="1" cy="4" rx="4" ry="1.6" fill="#16240c" opacity=".3"/>
+      <g transform="scale(${b.sc.toFixed(2)})">${birdArt(1,'#5a4636')}</g></g>`).join('');
+  return `<g id="birds">${nests}${sky}${gnd}</g>`;
+}
+
+function tickBirds(dt){
+  if(!BIRDS.sky.length) return;
+  const hidden = (S.weather === 'storm' || S.weather === 'rain');
+  const night  = (typeof isNight === 'function') ? isNight() : false;
+  const away   = hidden || night;
+
+  BIRDS.sky.forEach(b=>{
+    b.x += b.vx*dt;
+    b.bobT += dt;
+    if(b.x > WPX + 120){ b.x = -120; b.y = -200 + Math.random()*150; }
+    const el = document.querySelector(`[data-b="${b.id}"]`);
+    if(el){
+      el.setAttribute('transform', `translate(${n(b.x)},${n(b.y + Math.sin(b.bobT*1.6)*4)})`);
+      el.style.opacity = away ? 0 : 1;
+    }
+  });
+
+  BIRDS.ground.forEach(b=>{
+    const el = document.querySelector(`[data-b="${b.id}"]`);
+    if(away){ if(el) el.style.opacity = 0; return; }
+    if(el) el.style.opacity = 1;
+    b.wait -= dt;
+    if(b.wait <= 0 && !b.hop){
+      const targets = birdTargets();
+      if(targets.length){
+        const o = targets[Math.floor(Math.random()*targets.length)];
+        const f = footprint(BPMAP[o.bp], o.rot);
+        b.tx = (o.tx + Math.random()*f.w)*T;
+        b.ty = (o.ty + Math.random()*f.h)*T;
+        b.hop = 1;
+      }
+    }
+    if(b.hop){
+      const dx = b.tx-b.x, dy = b.ty-b.y, d = Math.hypot(dx,dy);
+      if(d < 3){ b.hop = 0; b.wait = 1.5 + Math.random()*4; }
+      else { const spd = 54*dt; b.x += dx/d*Math.min(d,spd); b.y += dy/d*Math.min(d,spd); }
+      if(el) el.setAttribute('transform', `translate(${n(b.x)},${n(b.y)})`);
+    }
+  });
+}
+
+/* birds ride along with the people layer so they land in the same stack */
+const _peopleLayerBirds = peopleLayer;
+peopleLayer = function(){ return _peopleLayerBirds.apply(this, arguments) + birdsLayer(); };
+
+const _tickPeopleBirds = tickPeople;
+tickPeople = function(dt){ const r = _tickPeopleBirds.apply(this, arguments); tickBirds(dt); return r; };
+
+(function birdCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #birds{ pointer-events:none; }
+  #birds .bd{ transition:opacity .8s ease; }
+  #birds .bd-wings{ transform-box:fill-box; transform-origin:center;
+    animation: bdFlap .34s ease-in-out infinite; }
+  #birds .bd-gnd .bd-wings{ animation-duration:1.6s; }
+  @keyframes bdFlap{
+    0%,100%{ transform: scaleY(1)    translateY(0); }
+    50%    { transform: scaleY(.35)  translateY(-1px); } }
+  @media (prefers-reduced-motion: reduce){ #birds .bd-wings{ animation:none !important; } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* =====================================================================
+   COMPOST IS A FAMILY JOB
+
+   Turning a heap is the classic shared chore: the partner turns it, the
+   kids carry scraps out to it. Both only happen if a compost bay exists,
+   and neither happens in a storm, when the shelter routine wins.
+   ===================================================================== */
+function compostSpot(){
+  const c = S.objs.find(o => (BPMAP[o.bp]||{}).art === 'compost');
+  if(!c) return null;
+  const f = footprint(BPMAP[c.bp], c.rot);
+  return { x:(c.tx + f.w*0.5)*T, y:(c.ty + f.h + 0.4)*T };
+}
+
+const _routineCompost = routine;
+routine = function(p){
+  const f = dayFrac();
+  const heap = compostSpot();
+  if(heap && S.weather !== 'storm'){
+    /* partner turns the heap mid-morning */
+    if(p.role === 'partner' && f > 0.40 && f < 0.46)
+      return { ...heap, act:'turning the compost' };
+    /* the kids run the scraps out after breakfast */
+    if(p.role === 'child' && f > 0.36 && f < 0.40)
+      return { ...heap, act:'taking out the scraps' };
+  }
+  return _routineCompost(p);
+};
 
 
 </script>

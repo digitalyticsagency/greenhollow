@@ -55,11 +55,12 @@ function groundShadow(o, bp){
 /* which objects are worth animating, and with what */
 function idleClass(bp){
   const a = bp.art || '';
+  /* Only motion that a real farm actually shows. A turbine mast does not
+     rock and a shed does not bob, so neither gets a whole-object
+     transform - their life comes from working detail instead. */
   if(/^tree_|orchard|berry|flowers|hedge|fodder|herb_spiral/.test(a)) return 'lf-sway';
-  if(/pond|duck_pond|well|tank/.test(a))                              return 'lf-shimmer';
-  if(/lights|sign|battery|ai_hub/.test(a))                            return 'lf-glow';
-  if(/kitchen|dairy|honey_lab|packing|workshop/.test(a))              return 'lf-work';
-  if(/wind/.test(a))                                                  return 'lf-spin';
+  if(/pond|duck_pond|well/.test(a))                                   return 'lf-shimmer';
+  if(/lights|sign/.test(a))                                           return 'lf-glow';
   return '';
 }
 
@@ -111,8 +112,6 @@ render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); 
   .lf-sway   { animation: lfSway 6.5s ease-in-out infinite; }
   .lf-shimmer{ animation: lfShim 5.2s ease-in-out infinite; }
   .lf-glow   { animation: lfGlow 3.8s ease-in-out infinite; }
-  .lf-work   { animation: lfWork 4.6s ease-in-out infinite; }
-  .lf-spin   { animation: lfSpin 7s   ease-in-out infinite; }
   .obshadow  { pointer-events:none; }
 
   @keyframes lfSway {
@@ -122,12 +121,6 @@ render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); 
     0%,100%{ opacity:.95; } 50%{ opacity:1; } }
   @keyframes lfGlow {
     0%,100%{ opacity:.88; } 50%{ opacity:1; } }
-  @keyframes lfWork {
-    0%,100%{ transform: translateY(0); }
-    50%    { transform: translateY(-0.5px); } }
-  @keyframes lfSpin {
-    0%,100%{ transform: rotate(-1.4deg); }
-    50%    { transform: rotate(1.4deg); } }
 
   /* the OS-level preference wins over our setting */
   @media (prefers-reduced-motion: reduce){
