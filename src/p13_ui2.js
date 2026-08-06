@@ -37,6 +37,7 @@ function careerHTML(){
       ${ledger('Upkeep', out.upkeep, 'Maintenance on every structure you own.')}
       ${ledger('AI service', out.ai, 'Daily module fees, billed monthly.')}
       ${ledger('Wages', out.wages, 'Hired hands, if any.')}
+      ${ledger('Household', out.household||0, 'Feeding and keeping everyone who lives with you.')}
       ${ledger('Loan interest', out.interest, '4.5% a month on the outstanding balance.')}
     </div>
   </div>

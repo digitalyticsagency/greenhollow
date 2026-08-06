@@ -12,17 +12,47 @@ fitView = function(){
   if(!world) return;
   const arc = document.getElementById('sunarc');
   const arcH = (arc && arc.style.display !== 'none') ? arc.getBoundingClientRect().height : 0;
-  const w = world.clientWidth, h = world.clientHeight - arcH;
-  /* frame the property plus a tile of breathing room on each side */
+
+  /* The container can report zero height while the grid is still settling
+     (or if a layout rule collapses it). Fall back to the window rather than
+     dividing by nothing and flinging the camera off-screen. */
+  let w = world.clientWidth, h = world.clientHeight;
+  if(w < 40){
+    const left = document.getElementById('left'), right = document.getElementById('right');
+    const sideW = (left ? left.clientWidth : 0) + (right ? right.clientWidth : 0);
+    w = Math.max(240, window.innerWidth - sideW);
+  }
+  if(h < 40 + arcH){
+    const top = document.getElementById('top'), tabs = document.getElementById('mobtabs');
+    const chrome = (top ? top.offsetHeight : 0) + (tabs ? tabs.offsetHeight : 0);
+    h = Math.max(240, window.innerHeight - chrome);
+  }
+  const availH = Math.max(120, h - arcH);
+
   const pad = T * 1.2;
   const pw = FARM.w*T + pad*2, ph = FARM.h*T + pad*2;
-  cam.z = clamp(Math.min(w/pw, h/ph), 0.18, 2.6);
-  const px = (FARM.x*T - pad), py = (FARM.y*T - pad);
-  cam.x = (w  - pw*cam.z)/2 - px*cam.z;
-  cam.y = (h  - ph*cam.z)/2 - py*cam.z + arcH;
+  cam.z = clamp(Math.min(w/pw, availH/ph), 0.18, 2.6);
+  const px = FARM.x*T - pad, py = FARM.y*T - pad;
+  cam.x = (w - pw*cam.z)/2 - px*cam.z;
+  cam.y = (availH - ph*cam.z)/2 - py*cam.z + arcH;
+
+  /* Post-condition: the property must actually be visible. If anything above
+     went wrong, put it somewhere sane rather than leaving a blank screen. */
+  const sx = FARM.x*T*cam.z + cam.x, sy = FARM.y*T*cam.z + cam.y;
+  const sw = FARM.w*T*cam.z, sh = FARM.h*T*cam.z;
+  if(!isFinite(sx) || !isFinite(sy) || sx+sw < 20 || sy+sh < 20 || sx > w-20 || sy > h-20){
+    cam.z = clamp(Math.min(w/pw, availH/ph), 0.18, 2.6) || 0.6;
+    cam.x = w/2  - (FARM.x + FARM.w/2)*T*cam.z;
+    cam.y = arcH + availH/2 - (FARM.y + FARM.h/2)*T*cam.z;
+  }
   applyCam();
 };
-G.fit = function(){ fitView(); sfx('click'); };
+/* run after layout has settled, so a fit during a resize measures real boxes */
+G.fit = function(){
+  sfx('click');
+  fitView();
+  requestAnimationFrame(()=> requestAnimationFrame(fitView));
+};
 
 /* ---------------------------------------------------------------
    BUG 2 — the rain bed was far too loud. A constant band-passed

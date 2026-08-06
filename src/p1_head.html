@@ -29,8 +29,8 @@ button{font-family:inherit;font-size:inherit;color:inherit;background:none;borde
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26);}
 
 /* ============================ SHELL ============================ */
-#app{display:grid;grid-template-rows:auto 1fr;height:100%;}
-#stage{display:grid;grid-template-columns:250px 1fr 288px;min-height:0;}
+#app{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%;min-height:0;}
+#stage{display:grid;grid-template-columns:250px minmax(0,1fr) 288px;min-height:0;grid-row:2;}
 
 /* ---------- top bar ---------- */
 #top{
@@ -104,7 +104,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;background:none;borde
 .lockb{font-size:9px;color:var(--ink3);flex:none;}
 
 /* ---------- world ---------- */
-#world{position:relative;overflow:hidden;background:#0d1209;min-width:0;}
+#world{position:relative;overflow:hidden;background:#0d1209;min-width:0;min-height:0;}
 #viewport{position:absolute;inset:0;cursor:grab;}
 #viewport.panning{cursor:grabbing;}
 #viewport.placing{cursor:crosshair;}
@@ -303,12 +303,12 @@ input[type=range]{width:100%;accent-color:#7cc24f;}
 /* ---------- mobile ---------- */
 #mobtabs{display:none;}
 @media(max-width:980px){
-  #stage{grid-template-columns:1fr;grid-template-rows:1fr auto;}
+  #stage{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr);}
   #left,#right{position:absolute;left:0;right:0;bottom:38px;top:auto;max-height:52vh;z-index:70;
     border:0;border-top:1px solid var(--line2);display:none;box-shadow:0 -12px 40px rgba(0,0,0,.6);}
   #left.open,#right.open{display:flex;}
   #world{grid-row:1;}
-  #mobtabs{display:flex;grid-row:2;background:var(--panel2);border-top:1px solid var(--line2);z-index:80;}
+  #mobtabs{display:flex;grid-row:3;background:var(--panel2);border-top:1px solid var(--line2);z-index:80;}
   #mobtabs button{flex:1;padding:9px 4px;font-size:11px;font-weight:700;color:var(--ink3);}
   #mobtabs button.on{color:var(--green);background:rgba(124,194,79,.12);}
   .stats{overflow-x:auto;flex-wrap:nowrap;}
