@@ -24,7 +24,7 @@
    While this is empty the pay button stays disabled, so nobody can
    send money to the wrong account.
    ------------------------------------------------------------------ */
-const PAYPAL_LINK = '';
+const PAYPAL_LINK = 'https://www.paypal.com/ncp/payment/GL6SLJKVCLHBY';
 
 const TRIAL_MS   = 30 * 60 * 1000;      // thirty minutes of actual play
 const GATE_KEY   = 'greenhollow_play';
@@ -97,7 +97,7 @@ function showGate(){
       whole homestead.</p>
       ${paid
         ? `<a class="gateBtn pay" href="${PAYPAL_LINK}" target="_blank" rel="noopener noreferrer">
-             Pay $5 with PayPal</a>`
+             Continue with PayPal</a>`
         : `<button class="gateBtn pay" disabled title="The owner has not set a PayPal link yet">
              PayPal link not set up yet</button>`}
       <button class="gateBtn ghost" onclick="G.gateUnlock()">I have donated — unlock</button>
