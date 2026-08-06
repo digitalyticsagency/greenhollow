@@ -22,7 +22,7 @@ function bedArt(w,h,ob,rows){
   if(ob && ob.crop){
     const cr = CROPS[ob.crop];
     const st = ob.stage;                          // 0..1 growth
-    const per = Math.max(3, Math.floor((w-8)/9));
+    const per = Math.min(7, Math.max(3, Math.floor((w-8)/13)));
     for(let r0=0;r0<rows;r0++){
       const y = 2.5 + r0*rh + rh/2;
       for(let i=0;i<per;i++){
@@ -34,7 +34,7 @@ function bedArt(w,h,ob,rows){
       s += `<circle class="pulse" cx="${n(w-5)}" cy="5" r="3" fill="#f0c14b" opacity=".9"/>`;
     }
   } else {
-    for(let i=0;i<Math.floor(w*h/70);i++){
+    for(let i=0;i<Math.min(24,Math.floor(w*h/140));i++){
       s += `<circle cx="${n(3+hash(i*2.3)*(w-6))}" cy="${n(3+hash(i*4.1+2)*(h-6))}" r="${n(0.5+hash(i)*0.6)}" fill="#8a6a4a" opacity=".5"/>`;
     }
   }
@@ -52,8 +52,8 @@ function plant(cr,x,y,st,seed,pest){
   }
   const R = 3.1*sc;
   s += '<g class="cropsway">';
-  for(let i=0;i<5;i++){
-    const a = (i/5)*Math.PI*2 + hash(seed+i);
+  for(let i=0;i<4;i++){
+    const a = (i/4)*Math.PI*2 + hash(seed+i);
     s += `<ellipse cx="${n(x+Math.cos(a)*R*0.45)}" cy="${n(y+Math.sin(a)*R*0.4)}" rx="${n(R*0.55)}" ry="${n(R*0.42)}"
       fill="${leaf}" opacity="${(0.72+hash(seed*3+i)*0.28).toFixed(2)}" transform="rotate(${n(a*57)} ${n(x)} ${n(y)})"/>`;
   }
@@ -110,7 +110,7 @@ ART.solar_ground = (w,h)=>{
 };
 ART.wind = (w,h)=>{
   const cx=w/2, hy=h*0.3;
-  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="#d6dad4"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="1.3" height="${n(h-hy-3)}" fill="#fff" opacity=".5"/>`;
   s += `<g class="spin" style="transform-origin:${n(cx)}px ${n(hy)}px">`;
@@ -133,7 +133,7 @@ ART.tank = (w,h,ob)=>{
   let s='';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h/2;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){
@@ -170,7 +170,7 @@ ART.sprinkler = (w,h)=>{
 ART.bed        = (w,h,ob)=> bedArt(w,h,ob,2);
 ART.bed_large  = (w,h,ob)=> bedArt(w,h,ob,4);
 ART.greenhouse = (w,h,ob)=>{
-  let s = `<rect x="2.5" y="3" width="${n(w-3)}" height="${n(h-3)}" rx="2" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<rect x="2.5" y="3" width="${n(w-3)}" height="${n(h-3)}" rx="2" fill="#16240c" opacity=".34"/>`;
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="#8ea4ab"/>`;
   s += `<rect x="1.5" y="1.5" width="${n(w-3)}" height="${n(h-4)}" rx="1.5" fill="url(#gGlass)"/>`;
   if(ob && ob.crop){
@@ -192,7 +192,7 @@ ART.greenhouse = (w,h,ob)=>{
 };
 ART.herb_spiral = (w,h,ob)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+2)}" rx="${n(R*0.95)}" ry="${n(R*0.85)}" fill="#16240c" opacity=".3" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+2)}" rx="${n(R*0.95)}" ry="${n(R*0.85)}" fill="#16240c" opacity=".3"/>`;
   s += `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(R)}" ry="${n(R*0.94)}" fill="#8fb45f"/>`;
   let d='';
   for(let t=0;t<=Math.PI*3.4;t+=0.15){
@@ -215,7 +215,7 @@ ART.orchard = (w,h,ob)=>{
   const ripe = ob && ob.stage>=1;
   for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
     const cx = (w/cols)*(i+0.5), cy = (h/rows)*(j+0.5);
-    s += canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, true);
+    s += canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, false);
     if(ripe) for(let k=0;k<3;k++){
       const a=k*2.2+i;
       s += `<circle cx="${n(cx+Math.cos(a)*6)}" cy="${n(cy+Math.sin(a)*5)}" r="1.7" fill="#e2603a"/>`;
@@ -238,7 +238,7 @@ ART.berry = (w,h,ob)=>{
 ART.flowers = (w,h)=>{
   let s = patch(w,h,'#8cb35f',33,1);
   const cols=['#dd6f9c','#efb43c','#9b6fc4','#e2603a','#f2e07a','#5fb0d4','#fff6e0'];
-  for(let i=0;i<Math.floor(w*h/34);i++){
+  for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
     s += `<circle cx="${n(x)}" cy="${n(y+0.6)}" r="${n(1.5+hash(i)*1.1)}" fill="#3f7a32" opacity=".5"/>`;
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.4+hash(i)*1.1)}" fill="${cols[i%7]}"/>`;
@@ -381,7 +381,7 @@ ART.gift_shop = (w,h)=>{
 };
 ART.glamping = (w,h)=>{
   const cx=w/2;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="#cfc3a4"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} ${n(cx)},${n(h-4)}" fill="#efe6cd"/>`;
   s += `<path d="M${n(cx)} ${n(h-4)} L${n(cx-w*0.12)} ${n(h*0.52)} L${n(cx+w*0.12)} ${n(h*0.52)} z" fill="#6d5b44"/>`;
@@ -390,7 +390,7 @@ ART.glamping = (w,h)=>{
 };
 ART.dome = (w,h)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34"/>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGlass)"/>`;
   for(let i=0;i<6;i++){
     const a1=(i/6)*Math.PI*2, a2=((i+1)/6)*Math.PI*2;

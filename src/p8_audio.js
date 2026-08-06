@@ -114,7 +114,8 @@ const SND = (function(){
   function setWeather(kind){
     const c=ctx(); if(!c) return;
     const wet = kind==='rain'||kind==='storm';
-    if(wet && !rain){
+    const snowy = kind==='frost';
+    if((wet||snowy) && !rain){
       /* rain was a bright bandpass hiss — soften it to a lowpassed patter
          with the high end rolled off so it can sit under everything else */
       const s=noiseSrc(), f=c.createBiquadFilter(), lp=c.createBiquadFilter(), g=c.createGain();

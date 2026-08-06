@@ -479,15 +479,19 @@ function DEFS(){
 /* ---------------- primitives ---------------- */
 
 /* ambient-occlusion contact shadow under an object */
+/* A blur filter here costs an offscreen pass per object; at this zoom a
+   plain translucent ellipse is indistinguishable and effectively free. */
 function ao(x,y,w,h,o){
-  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.52)}" ry="${n(h*0.2)}"
-    fill="#16240c" opacity="${o||0.34}" filter="url(#fSoft)"/>`;
+  const op = (o||0.34);
+  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
+    fill="#16240c" opacity="${(op*0.55).toFixed(2)}"/>`
+   + `<ellipse cx="${n(x+w/2+w*0.05)}" cy="${n(y+h*0.93)}" rx="${n(w*0.46)}" ry="${n(h*0.17)}"
+    fill="#16240c" opacity="${(op*0.6).toFixed(2)}"/>`;
 }
 /* grain overlay clipped to a shape via a rect (cheap texture) */
-function grain(x,y,w,h,o){
-  return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" filter="url(#fGrain)"
-    opacity="${o||0.13}" style="mix-blend-mode:overlay" pointer-events="none"/>`;
-}
+/* feTurbulence is far too costly to run per object; texture now comes from
+   the gradients and speckles already in each material. */
+function grain(){ return ''; }
 /* organic ground patch */
 function patch(w,h,fill,seed,inset){
   inset = inset||1;
@@ -517,7 +521,8 @@ function building(w,h,o){
   const tier = o.tier||0;
   /* long soft cast shadow, sun from upper left */
   let s = `<rect x="${n(m+w*0.055)}" y="${n(m+h*0.09)}" width="${n(w-2*m)}" height="${n(h-m)}" rx="3"
-    fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+    fill="#16240c" opacity=".22"/><rect x="${n(m+w*0.035)}" y="${n(m+h*0.06)}" width="${n(w-2*m)}" height="${n(h-m)}" rx="3"
+    fill="#16240c" opacity=".16"/>`;
 
   /* wall band under the eave, with a door and windows */
   if(skirt>0){
@@ -607,21 +612,22 @@ function panels(x,y,w,h,cols,rows){
 
 /* leafy canopy with lit crown and cast shadow */
 function canopy(cx,cy,r,grad,seed,sway){
-  let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.95)}" ry="${n(r*0.58)}"
-    fill="#16240c" opacity="0.4" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.98)}" ry="${n(r*0.6)}"
+    fill="#16240c" opacity="0.24"/><ellipse cx="${n(cx+r*0.3)}" cy="${n(cy+r*0.42)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}"
+    fill="#16240c" opacity="0.26"/>`;
   s += `<g${sway?' class="sway"':''} style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
   /* dark underside mass */
   s += `<circle cx="${n(cx+r*0.1)}" cy="${n(cy+r*0.14)}" r="${n(r*0.86)}" fill="#2b5418"/>`;
   /* mid lobes with real size variance */
-  for(let i=0;i<9;i++){
-    const a=(i/9)*Math.PI*2+hash(seed+i)*0.8, d=r*(0.3+hash(seed*3+i)*0.28);
+  for(let i=0;i<6;i++){
+    const a=(i/6)*Math.PI*2+hash(seed+i)*0.8, d=r*(0.3+hash(seed*3+i)*0.28);
     s += `<circle cx="${n(cx+Math.cos(a)*d)}" cy="${n(cy+Math.sin(a)*d*0.82)}"
       r="${n(r*(0.34+hash(seed*7+i)*0.3))}" fill="${grad}"/>`;
   }
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.6)}" fill="${grad}"/>`;
   /* sun-side crown */
-  for(let i=0;i<6;i++){
-    const b=-1.5+i*0.34, d=r*(0.2+hash(seed*11+i)*0.24);
+  for(let i=0;i<3;i++){
+    const b=-1.5+i*0.6, d=r*(0.2+hash(seed*11+i)*0.24);
     s += `<circle cx="${n(cx-r*0.2+Math.cos(b)*d)}" cy="${n(cy-r*0.22+Math.sin(b)*d)}"
       r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="#a9d47c" opacity="${(0.3+hash(seed+i)*0.35).toFixed(2)}"/>`;
   }
@@ -634,8 +640,8 @@ function canopy(cx,cy,r,grad,seed,sway){
 
 /* pointed native tree */
 function conifer(cx,cy,r,seed){
-  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.8)}" ry="${n(r*0.46)}" fill="#16240c" opacity=".36" filter="url(#fSoft)"/>`;
-  s += `<g class="sway" style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
+  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="#16240c" opacity=".26"/>`;
+  s += `<g>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.88)}" fill="url(#gCanopyD)"/>`;
   s += `<circle cx="${n(cx-r*0.12)}" cy="${n(cy-r*0.12)}" r="${n(r*0.55)}" fill="#417a2f"/>`;
   s += `<circle cx="${n(cx-r*0.2)}" cy="${n(cy-r*0.2)}" r="${n(r*0.26)}" fill="#5d9c40" opacity=".8"/>`;
@@ -694,14 +700,15 @@ function gravel(w,h,shape,rx){
     s += `<rect x="${n(w*0.1)}" y="${n(h*0.22)}" width="${n(w*0.8)}" height="${n(h*0.56)}" rx="2" fill="#b8ac8c" opacity=".4"/>`;
   }
   /* graded stone: a few big, many small */
-  for(let i=0;i<Math.floor(w*h/16);i++){
-    const big = i%11===0;
+  const stones = Math.min(46, Math.floor(w*h/140));
+  for(let i=0;i<stones;i++){
+    const big = i%7===0;
     const r = big ? 1.4+hash(i)*1.6 : 0.4+hash(i+9)*0.8;
     const c = i%4===0 ? '#e2d8bf' : i%3===0 ? '#7f7660' : '#a3987c';
     s += `<circle cx="${n(hash(i*1.7)*w)}" cy="${n(hash(i*3.1+5)*h)}" r="${n(r)}" fill="${c}" opacity="${big?0.75:0.55}"/>`;
   }
   /* ragged edge: stones spilling onto the grass instead of a hard cut line */
-  for(let i=0;i<Math.floor(w/5);i++){
+  for(let i=0;i<Math.min(10,Math.floor(w/14));i++){
     s += `<circle cx="${n(hash(i*2.3)*w)}" cy="${n(h-1+hash(i*4.1)*3)}" r="${n(0.6+hash(i)*1)}" fill="#b6a988" opacity=".7"/>`;
     s += `<circle cx="${n(hash(i*5.3+1)*w)}" cy="${n(1-hash(i*2.9)*3)}" r="${n(0.6+hash(i+3)*1)}" fill="#b6a988" opacity=".7"/>`;
   }
@@ -757,7 +764,7 @@ function beast(kind,x,y,sc,idle){
   else b =
     `<ellipse cx="${n(x)}" cy="${n(y)}" rx="${n(3.2*sc)}" ry="${n(2.3*sc)}" fill="#e7dcc6"/>
      <circle cx="${n(x+2.6*sc)}" cy="${n(y-1.7*sc)}" r="${n(1.4*sc)}" fill="#f2e9d6"/>`;
-  return `<g class="${idle===false?'':'peck'}" style="animation-delay:${(hash(x*y)*2).toFixed(1)}s">${sh}${b}</g>`;
+  return `<g>${sh}${b}</g>`;
 }
 
 /* human figure for scale */
@@ -800,7 +807,7 @@ function bedArt(w,h,ob,rows){
   if(ob && ob.crop){
     const cr = CROPS[ob.crop];
     const st = ob.stage;                          // 0..1 growth
-    const per = Math.max(3, Math.floor((w-8)/9));
+    const per = Math.min(7, Math.max(3, Math.floor((w-8)/13)));
     for(let r0=0;r0<rows;r0++){
       const y = 2.5 + r0*rh + rh/2;
       for(let i=0;i<per;i++){
@@ -812,7 +819,7 @@ function bedArt(w,h,ob,rows){
       s += `<circle class="pulse" cx="${n(w-5)}" cy="5" r="3" fill="#f0c14b" opacity=".9"/>`;
     }
   } else {
-    for(let i=0;i<Math.floor(w*h/70);i++){
+    for(let i=0;i<Math.min(24,Math.floor(w*h/140));i++){
       s += `<circle cx="${n(3+hash(i*2.3)*(w-6))}" cy="${n(3+hash(i*4.1+2)*(h-6))}" r="${n(0.5+hash(i)*0.6)}" fill="#8a6a4a" opacity=".5"/>`;
     }
   }
@@ -830,8 +837,8 @@ function plant(cr,x,y,st,seed,pest){
   }
   const R = 3.1*sc;
   s += '<g class="cropsway">';
-  for(let i=0;i<5;i++){
-    const a = (i/5)*Math.PI*2 + hash(seed+i);
+  for(let i=0;i<4;i++){
+    const a = (i/4)*Math.PI*2 + hash(seed+i);
     s += `<ellipse cx="${n(x+Math.cos(a)*R*0.45)}" cy="${n(y+Math.sin(a)*R*0.4)}" rx="${n(R*0.55)}" ry="${n(R*0.42)}"
       fill="${leaf}" opacity="${(0.72+hash(seed*3+i)*0.28).toFixed(2)}" transform="rotate(${n(a*57)} ${n(x)} ${n(y)})"/>`;
   }
@@ -888,7 +895,7 @@ ART.solar_ground = (w,h)=>{
 };
 ART.wind = (w,h)=>{
   const cx=w/2, hy=h*0.3;
-  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="#d6dad4"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="1.3" height="${n(h-hy-3)}" fill="#fff" opacity=".5"/>`;
   s += `<g class="spin" style="transform-origin:${n(cx)}px ${n(hy)}px">`;
@@ -911,7 +918,7 @@ ART.tank = (w,h,ob)=>{
   let s='';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h/2;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){
@@ -948,7 +955,7 @@ ART.sprinkler = (w,h)=>{
 ART.bed        = (w,h,ob)=> bedArt(w,h,ob,2);
 ART.bed_large  = (w,h,ob)=> bedArt(w,h,ob,4);
 ART.greenhouse = (w,h,ob)=>{
-  let s = `<rect x="2.5" y="3" width="${n(w-3)}" height="${n(h-3)}" rx="2" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<rect x="2.5" y="3" width="${n(w-3)}" height="${n(h-3)}" rx="2" fill="#16240c" opacity=".34"/>`;
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="#8ea4ab"/>`;
   s += `<rect x="1.5" y="1.5" width="${n(w-3)}" height="${n(h-4)}" rx="1.5" fill="url(#gGlass)"/>`;
   if(ob && ob.crop){
@@ -970,7 +977,7 @@ ART.greenhouse = (w,h,ob)=>{
 };
 ART.herb_spiral = (w,h,ob)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+2)}" rx="${n(R*0.95)}" ry="${n(R*0.85)}" fill="#16240c" opacity=".3" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+2)}" rx="${n(R*0.95)}" ry="${n(R*0.85)}" fill="#16240c" opacity=".3"/>`;
   s += `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(R)}" ry="${n(R*0.94)}" fill="#8fb45f"/>`;
   let d='';
   for(let t=0;t<=Math.PI*3.4;t+=0.15){
@@ -993,7 +1000,7 @@ ART.orchard = (w,h,ob)=>{
   const ripe = ob && ob.stage>=1;
   for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
     const cx = (w/cols)*(i+0.5), cy = (h/rows)*(j+0.5);
-    s += canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, true);
+    s += canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, false);
     if(ripe) for(let k=0;k<3;k++){
       const a=k*2.2+i;
       s += `<circle cx="${n(cx+Math.cos(a)*6)}" cy="${n(cy+Math.sin(a)*5)}" r="1.7" fill="#e2603a"/>`;
@@ -1016,7 +1023,7 @@ ART.berry = (w,h,ob)=>{
 ART.flowers = (w,h)=>{
   let s = patch(w,h,'#8cb35f',33,1);
   const cols=['#dd6f9c','#efb43c','#9b6fc4','#e2603a','#f2e07a','#5fb0d4','#fff6e0'];
-  for(let i=0;i<Math.floor(w*h/34);i++){
+  for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
     s += `<circle cx="${n(x)}" cy="${n(y+0.6)}" r="${n(1.5+hash(i)*1.1)}" fill="#3f7a32" opacity=".5"/>`;
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.4+hash(i)*1.1)}" fill="${cols[i%7]}"/>`;
@@ -1159,7 +1166,7 @@ ART.gift_shop = (w,h)=>{
 };
 ART.glamping = (w,h)=>{
   const cx=w/2;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="#cfc3a4"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} ${n(cx)},${n(h-4)}" fill="#efe6cd"/>`;
   s += `<path d="M${n(cx)} ${n(h-4)} L${n(cx-w*0.12)} ${n(h*0.52)} L${n(cx+w*0.12)} ${n(h*0.52)} z" fill="#6d5b44"/>`;
@@ -1168,7 +1175,7 @@ ART.glamping = (w,h)=>{
 };
 ART.dome = (w,h)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34"/>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGlass)"/>`;
   for(let i=0;i<6;i++){
     const a1=(i/6)*Math.PI*2, a2=((i+1)/6)*Math.PI*2;
@@ -1661,7 +1668,8 @@ const SND = (function(){
   function setWeather(kind){
     const c=ctx(); if(!c) return;
     const wet = kind==='rain'||kind==='storm';
-    if(wet && !rain){
+    const snowy = kind==='frost';
+    if((wet||snowy) && !rain){
       /* rain was a bright bandpass hiss — soften it to a lowpassed patter
          with the high end rolled off so it can sit under everything else */
       const s=noiseSrc(), f=c.createBiquadFilter(), lp=c.createBiquadFilter(), g=c.createGain();
@@ -2198,32 +2206,24 @@ function applyWind(){
 }
 
 /* weather particles: rain streaks, sand haze, snow */
-function weatherLayer(){
+/* Dozens of animated SVG lines repaint the whole scene; a single CSS layer
+   is one GPU-composited element instead. */
+function weatherLayer(){ return ''; }
+function syncWeatherFx(){
+  const world = document.getElementById('world');
+  if(!world) return;
+  let fx = document.getElementById('wxfx');
+  if(!fx){ fx = document.createElement('div'); fx.id='wxfx'; world.appendChild(fx); }
   const w = S.weather;
-  if(S.settings && S.settings.particles === false) return '';
+  const on = (!S.settings || S.settings.particles !== false);
   const land = LANDMAP[S.landId] || {};
-  const dusty = land.dust;
-  let s = '';
-  if(w==='rain' || w==='storm'){
-    const n0 = w==='storm' ? 150 : 80;
-    for(let i=0;i<n0;i++){
-      const x = hash(i*1.7)*WPX, y = hash(i*3.3)*HPX, len = w==='storm'?16:11;
-      s += `<line class="rainline" x1="${n(x)}" y1="${n(y)}" x2="${n(x-4)}" y2="${n(y+len)}"
-        stroke="#cfe6f5" stroke-width="1" opacity=".5" style="animation-delay:${(hash(i)*1.2).toFixed(2)}s"/>`;
-    }
+  let kind = '';
+  if(on){
+    if(w==='rain' || w==='storm') kind = w==='storm' ? 'storm' : 'rain';
+    else if(w==='frost') kind = 'snow';
+    else if(land.dust && (w==='sun'||w==='heat')) kind = 'dust';
   }
-  if(w==='frost'){
-    for(let i=0;i<70;i++)
-      s += `<circle class="snowflake" cx="${n(hash(i*2.1)*WPX)}" cy="${n(hash(i*4.4)*HPX)}" r="${(1+hash(i)*1.4).toFixed(1)}"
-        fill="#fff" opacity=".7" style="animation-delay:${(hash(i*3)*3).toFixed(2)}s"/>`;
-  }
-  if(dusty && (w==='sun'||w==='heat')){
-    for(let i=0;i<26;i++)
-      s += `<ellipse class="dust" cx="${n(hash(i*5.1)*WPX)}" cy="${n(hash(i*2.7)*HPX)}"
-        rx="${n(30+hash(i)*70)}" ry="${n(8+hash(i+2)*14)}" fill="#d8c9a0" opacity=".13"
-        style="animation-delay:${(hash(i)*6).toFixed(2)}s"/>`;
-  }
-  return s ? `<g id="wxlayer" pointer-events="none">${s}</g>` : '';
+  if(fx.dataset.kind !== kind){ fx.dataset.kind = kind; fx.className = kind ? 'wx-'+kind : ''; }
 }
 
 /* ---------------------------------------------------------------
@@ -2869,7 +2869,7 @@ function terrain(){
   if(terrainCache) return terrainCache;
   let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
   s += (typeof horizonLayer==='function' ? horizonLayer() : '');
-  for(let i=0;i<220;i++){
+  for(let i=0;i<90;i++){
     s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
   }
   [[40,50],[130,36],[300,30],[640,28],[980,40],[1150,150],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
@@ -2884,14 +2884,14 @@ function terrain(){
     s += `<rect x="${n(px+i*48)}" y="${py}" width="24" height="${ph}" fill="#fff" opacity=".035"/>`;
   s += grain(px,py,pw,ph,0.16);
   /* scattered grass tufts and clover so the lawn is not flat colour */
-  for(let i=0;i<520;i++){
+  for(let i=0;i<230;i++){
     const gx = px+2+hash(i*1.31)*(pw-4), gy = py+2+hash(i*2.77+9)*(ph-4);
     const len = 2.4+hash(i*3.7)*3.4, lean = (hash(i*5.1)-0.5)*2.6;
     const c = i%9===0 ? '#9dc46a' : i%5===0 ? '#5b8438' : '#79a44e';
     s += `<path d="M${n(gx)} ${n(gy)} q ${n(lean)} ${n(-len*0.6)} ${n(lean*1.7)} ${n(-len)}"
       stroke="${c}" stroke-width="${(0.6+hash(i)*0.5).toFixed(1)}" fill="none" stroke-linecap="round" opacity=".75"/>`;
   }
-  for(let i=0;i<26;i++){
+  for(let i=0;i<14;i++){
     const gx = px+hash(i*4.3)*pw, gy = py+hash(i*6.1+3)*ph;
     s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${n(14+hash(i)*26)}" ry="${n(9+hash(i+5)*16)}"
       fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".3"/>`;
@@ -2961,7 +2961,7 @@ function roadLayer(){
       rut += `<rect x="${px+T*0.62}" y="${py-1}" width="3.2" height="${T+2}" fill="#8f8468" opacity=".45"/>`;
     }
     /* size-varied aggregate */
-    for(let i=0;i<11;i++){
+    for(let i=0;i<7;i++){
       const sx = px+2+hash(x*31+y*17+i)*(T-4), sy = py+2+hash(x*13+y*29+i*3)*(T-4);
       const rr = 0.5+hash(i+x+y)*1.5;
       stones += `<circle cx="${n(sx)}" cy="${n(sy)}" r="${n(rr)}" fill="${i%3?'#8f8468':'#e0d6bd'}" opacity=".6"/>`;
@@ -2973,8 +2973,7 @@ function roadLayer(){
       stones += `<circle cx="${n(px+4+hash(i*5+y)*(T-8))}" cy="${n(py-1-hash(i*9+x)*4)}" r="${n(0.6+hash(i+2)*0.9)}" fill="#b6a988" opacity=".7"/>`;
   });
   return `<g class="roadlay">${base}${edge}${rut}${stones}
-    <g opacity=".22">${Array.from(set).map(k=>{const[x,y]=k.split(',').map(Number);
-      return `<rect x="${x*T}" y="${y*T}" width="${T}" height="${T}" filter="url(#fGrain)" style="mix-blend-mode:overlay"/>`;}).join('')}</g></g>`;
+    </g>`;
 }
 
 function objTransform(o, bp){
@@ -4192,15 +4191,15 @@ function horizonLayer(){
   const l = LANDMAP[S.landId];
   if(!l) return '';
   const B = l.biome, W = WPX, H = HPX;
-  const band = (y,h,fill,op)=>`<rect x="${-W}" y="${n(y)}" width="${W*3}" height="${n(h)}" fill="${fill}" opacity="${op}"/>`;
+  const band = (y,h,fill,op)=>`<rect x="${-W*0.3}" y="${n(y)}" width="${W*1.6}" height="${n(h)}" fill="${fill}" opacity="${op}"/>`;
   /* silhouette ridge: a jagged skyline at depth d (0 far, 1 near) */
   const ridge = (y, amp, fill, seed, op)=>{
     let d = `M${-W} ${n(y+amp)}`;
-    for(let x=-W; x<=W*2; x+=48){
+    for(let x=-W*0.3; x<=W*1.3; x+=64){
       const k = hash(seed + x*0.013);
       d += ` L${n(x)} ${n(y + amp - k*amp*1.9)}`;
     }
-    d += ` L${W*2} ${n(y+amp*2)} L${-W} ${n(y+amp*2)} Z`;
+    d += ` L${W*1.3} ${n(y+amp*2)} L${-W*0.3} ${n(y+amp*2)} Z`;
     return `<path d="${d}" fill="${fill}" opacity="${op}"/>`;
   };
   let far='', mid='', near='';
@@ -4211,25 +4210,24 @@ function horizonLayer(){
     near = ridge(20, 50, '#55705f', 7, 1);
   } else if(B==='lake' || B==='pond'){
     far  = band(-200, 240, '#7fa8c4', .6) + ridge(-90, 70, '#6d8f7a', 11, .75);
-    mid  = `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="#4f8fb0" opacity=".85"/>` +
-           `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="url(#gWater)" opacity=".5"/>`;
-    for(let i=0;i<40;i++) mid += `<ellipse class="ripple" cx="${n(hash(i*2.3)*W*2-W*0.4)}" cy="${n(-30+hash(i*5)*130)}"
+    mid  = `<rect x="${-W*0.3}" y="${-40}" width="${W*1.6}" height="150" fill="#4f8fb0" opacity=".85"/>` +
+           `<rect x="${-W*0.3}" y="${-40}" width="${W*1.6}" height="150" fill="url(#gWater)" opacity=".5"/>`;
+    for(let i=0;i<6;i++) mid += `<ellipse class="ripple" cx="${n(hash(i*2.3)*W*2-W*0.4)}" cy="${n(-30+hash(i*5)*130)}"
       rx="${n(14+hash(i)*26)}" ry="2.2" fill="#dff4fb" opacity=".3" style="animation-delay:${(hash(i)*3).toFixed(1)}s"/>`;
     near = ridge(96, 26, '#5d8442', 13, 1);
   } else if(B==='coast'){
     far  = band(-220, 200, '#9fc6da', .7);
-    mid  = `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="#3f83a8"/>` +
-           `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="url(#gWater)" opacity=".6"/>`;
-    for(let i=0;i<7;i++) mid += `<rect class="surf" x="${-W}" y="${n(20+i*17)}" width="${W*3}" height="3"
+    mid  = `<rect x="${-W*0.3}" y="${-30}" width="${W*1.6}" height="170" fill="#3f83a8"/>` +
+           `<rect x="${-W*0.3}" y="${-30}" width="${W*1.6}" height="170" fill="url(#gWater)" opacity=".6"/>`;
+    for(let i=0;i<4;i++) mid += `<rect class="surf" x="${-W*0.3}" y="${n(20+i*17)}" width="${W*1.6}" height="3"
       fill="#ffffff" opacity=".38" style="animation-delay:${(i*0.5).toFixed(1)}s"/>`;
     near = band(130, 46, '#e0d4ae', 1) + band(130, 10, '#efe6c8', 1);
   } else if(B==='forest'){
     far = band(-200, 240, '#5c7f5a', .5);
     mid = ''; near = '';
-    for(let i=0;i<70;i++){
+    for(let i=0;i<26;i++){
       const x = -W*0.4 + hash(i*1.7)*W*1.9, y = -30 + hash(i*3.9)*150;
-      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+18)}px">
-        ${conifer(x, y, 18+hash(i)*16, i)}</g>`;
+      mid += conifer(x, y, 18+hash(i)*16, i);
     }
     near = ridge(120, 22, '#3d6b34', 17, 1);
   } else if(B==='river'){
@@ -4252,9 +4250,9 @@ function horizonLayer(){
   } else { /* orchard and anything else */
     far = band(-200, 230, '#9dbb7e', .5);
     mid = '';
-    for(let i=0;i<44;i++){
+    for(let i=0;i<20;i++){
       const x = -W*0.3 + hash(i*2.1)*W*1.7, y = -20 + hash(i*4.3)*140;
-      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+14)}px">${canopy(x,y,16+hash(i)*8,'url(#gCanopy)',i,false)}</g>`;
+      mid += canopy(x,y,16+hash(i)*8,'url(#gCanopy)',i,false);
     }
     near = ridge(120, 22, '#5f8a48', 61, 1);
   }
@@ -4265,7 +4263,7 @@ function horizonLayer(){
     <g class="hz-mid"  data-par="0.5">${mid}</g>
     <g class="hz-near" data-par="0.78">${near}</g>
     ${bottom}
-    <rect x="${-W}" y="${-300}" width="${W*3}" height="${H+600}" fill="url(#gHaze)" pointer-events="none"/>
+    <rect x="${-W*0.3}" y="${-300}" width="${W*1.6}" height="${H+600}" fill="url(#gHaze)" pointer-events="none"/>
   </g>`;
 }
 /* horizon layers drift slower than the camera, which is what sells depth */
@@ -5028,6 +5026,7 @@ function bindInput(){
    LOOP
    ===================================================================== */
 function loop(t){
+  if(window.__perfLoop) return;              // superseded by the unified frame
   rafId = requestAnimationFrame(loop);
   if(!lastT) lastT = t;
   const dt = Math.min(250, t-lastT); lastT = t;
@@ -5043,35 +5042,8 @@ function loop(t){
   badge.style.background = `linear-gradient(90deg, rgba(124,194,79,.28) ${pct}%, rgba(10,16,8,.86) ${pct}%)`;
 }
 
-/* animals move on their own light timer, independent of the day clock */
-let lifeLast = 0;
-setInterval(()=>{
-  const now = performance.now();
-  const dt = Math.min(0.4, (now - (lifeLast||now))/1000);
-  lifeLast = now;
-  if(typeof tickLife==='function') tickLife(dt);
-}, 120);
-
 let uiTick = 0;
-setInterval(()=>{ if(S && S.speed>0){ uiTick++; if(uiTick%3===0){ renderStats(); $('#wbadge').innerHTML = hint(); } } }, 1000);
-setInterval(()=>{ if(S && (typeof SET!=='function' || SET('autoSave'))) G.save(); }, 20000);
-/* edge panning, off by default */
-(function edgePan(){
-  let mx=0,my=0,inWorld=false;
-  const w=document.getElementById('world');
-  if(!w) return;
-  w.addEventListener('mousemove',e=>{ const r=w.getBoundingClientRect();
-    mx=e.clientX-r.left; my=e.clientY-r.top; inWorld=true; });
-  w.addEventListener('mouseleave',()=>inWorld=false);
-  setInterval(()=>{
-    if(!inWorld || typeof SET!=='function' || !SET('edgePan') || ghost) return;
-    const r=w.getBoundingClientRect(), m=48, sp=9;
-    let dx=0,dy=0;
-    if(mx<m) dx=sp; else if(mx>r.width-m) dx=-sp;
-    if(my<m) dy=sp; else if(my>r.height-m) dy=-sp;
-    if(dx||dy){ cam.x+=dx; cam.y+=dy; applyCam(); }
-  }, 30);
-})();
+
 
 /* =====================================================================
    BOOT
@@ -5461,17 +5433,7 @@ G.plant = function(id, ck){
   };
 });
 
-/* the character and the sun tick along with everything else */
-let _sunT = 0;
-setInterval(()=>{
-  const dt = 0.12;
-  if(typeof tickYou==='function') tickYou(dt);
-  if(typeof tickPeople==='function') tickPeople(dt);
-  if(typeof tickIdle==='function') tickIdle(dt);
-  _sunT++;
-  if(_sunT % 4 === 0 && typeof paintSun==='function' &&
-     (!S.settings || S.settings.sunarc !== false)) paintSun();
-}, 120);
+
 
 /* =====================================================================
    MAKING THE SWITCHES REAL — every setting now changes the game,
@@ -5796,7 +5758,6 @@ function partnerHelps(){
     if(e.target.tagName==='INPUT') return;
     if(e.key.toLowerCase()==='c' && SET('autoCollect')) G.collectAll();
   });
-  setInterval(syncCollectAll, 1200);
   setTimeout(()=>{ applyDisplay(); syncCollectAll(); }, 200);
 })();
 
@@ -5950,7 +5911,7 @@ ART.rec_sandpit = (w,h)=>{
   return s;
 };
 ART.rec_treehouse = (w,h)=>{
-  let s = canopy(w/2, h*0.55, Math.min(w,h)*0.46, 'url(#gCanopy)', 12, true);
+  let s = canopy(w/2, h*0.55, Math.min(w,h)*0.46, 'url(#gCanopy)', 12, false);
   s += `<g transform="translate(${n(w*0.24)},${n(h*0.2)})">${building(w*0.5,h*0.34,{roof:'url(#gRoofRed)',skirt:0})}</g>`;
   s += `<path d="M${n(w*0.5)} ${n(h*0.54)} L${n(w*0.62)} ${n(h*0.92)}" stroke="#8b6640" stroke-width="2.4"/>`;
   for(let i=0;i<4;i++) s += `<rect x="${n(w*0.5+i*w*0.03)}" y="${n(h*0.6+i*h*0.08)}" width="7" height="2" rx="1" fill="#a8814f"/>`;
@@ -6119,26 +6080,34 @@ function expandFarm(){
 /* ---------------------------------------------------------------
    A LIVING HORIZON — the backdrop now tracks the sun and weather
    --------------------------------------------------------------- */
+/* Animating a CSS filter over a group this large forced a full repaint every
+   frame. Opacity on flat overlay rects composites on the GPU instead. */
 function tintHorizon(){
   const g = document.getElementById('horizon');
   if(!g || typeof skyNow!=='function') return;
-  const s = skyNow();
-  const wx = S.weather;
-  /* grey and flatten under cloud, drown it in a storm, warm it at golden hour */
-  const sat = wx==='storm' ? 0.35 : wx==='rain' ? 0.55 : wx==='cloud' ? 0.75 : 1;
-  const bri = (1 - s.l*0.95) * (wx==='storm' ? 0.62 : wx==='rain' ? 0.78 : 1);
-  g.style.filter = `saturate(${sat.toFixed(2)}) brightness(${bri.toFixed(2)})`;
+  const s = skyNow(), wx = S.weather;
+
   let tint = g.querySelector('.hz-tint');
+  let grey = g.querySelector('.hz-grey');
   if(!tint){
-    tint = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    tint.setAttribute('class','hz-tint');
-    tint.setAttribute('x', -WPX); tint.setAttribute('y', -400);
-    tint.setAttribute('width', WPX*3); tint.setAttribute('height', HPX+800);
-    tint.style.pointerEvents='none';
-    g.appendChild(tint);
+    const mk = cls => {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('class', cls);
+      r.setAttribute('x', -WPX*0.3); r.setAttribute('y', -400);
+      r.setAttribute('width', WPX*1.6); r.setAttribute('height', HPX+800);
+      r.style.pointerEvents='none';
+      g.appendChild(r); return r;
+    };
+    tint = mk('hz-tint'); grey = mk('hz-grey');
+    grey.setAttribute('fill', '#6b7a80');
   }
+  /* time of day: warm at the edges of the day, deep blue at night */
   tint.setAttribute('fill', s.hz);
-  tint.setAttribute('opacity', (0.10 + s.l*0.55).toFixed(3));
+  tint.setAttribute('opacity', (0.08 + s.l*0.55).toFixed(3));
+  /* weather: a flat grey veil stands in for desaturation */
+  const veil = wx==='storm' ? 0.42 : wx==='rain' ? 0.26 : wx==='cloud' ? 0.13 : 0;
+  grey.setAttribute('opacity', veil.toFixed(3));
+  g.style.filter = '';
 }
 
 /* ---------------------------------------------------------------
@@ -6151,8 +6120,8 @@ function tintHorizon(){
   .swingy{transform-box:fill-box;animation:swingy 2.4s ease-in-out infinite;}
   @keyframes steamup{0%{opacity:0;transform:translateY(4px)}40%{opacity:.55}100%{opacity:0;transform:translateY(-12px)}}
   .steam{animation:steamup 3.6s ease-out infinite;}
-  #horizon{transition:filter 3s linear;}
-  .hz-tint{transition:opacity 3s linear, fill 3s linear;}
+  #horizon{contain:paint;}
+  .hz-tint,.hz-grey{transition:opacity 2.5s linear;}
   @media(prefers-reduced-motion:reduce){.swingy,.steam{animation:none!important}}`;
   document.head.appendChild(css);
 
@@ -6419,6 +6388,1012 @@ if(typeof routine === 'function'){
     return _rt18(p);
   };
 }
+
+/* =====================================================================
+   UPGRADES YOU CAN SEE — each Mark rebuilds the structure, it does not
+   just decorate it. Mk I is a shed; Mk IV is a plant.
+   ===================================================================== */
+
+/* The art functions are called without a tier argument all over the place,
+   so we park it here for the duration of one draw. */
+let ART_TIER = 0;
+if(typeof drawObj === 'function'){
+  const _drawObj = drawObj;
+  drawObj = function(o){
+    ART_TIER = (typeof tOf==='function') ? tOf(o) : 0;
+    const out = _drawObj(o);
+    ART_TIER = 0;
+    return out;
+  };
+}
+function curTier(o){
+  if(o && typeof o.tier === 'number') return o.tier;
+  return ART_TIER;
+}
+
+/* ---------------------------------------------------------------
+   The building primitive, rebuilt per Mark.
+   I — a plain gable shed
+   II — a longer building with a lean-to wing and a clerestory
+   III — a two-block works with a parapet, loading canopy and vents
+   IV — a clad plant: glass atrium, full solar skin, gantry and mast
+   --------------------------------------------------------------- */
+const _buildingBase = building;
+building = function(w, h, o){
+  o = o || {};
+  const tier = (o.tier !== undefined) ? o.tier : ART_TIER;
+  if(!tier) return _buildingBase(w, h, o);
+
+  const roof = o.roof || 'url(#gRoof)';
+  let s = '';
+
+  /* one shadow for the whole complex */
+  s += `<rect x="${n(w*0.05)}" y="${n(h*0.09)}" width="${n(w*0.96)}" height="${n(h*0.94)}" rx="3"
+    fill="#16240c" opacity=".34"/>`;
+
+  if(tier === 1){
+    /* main range plus a lean-to along the sunny side */
+    s += `<g>${_buildingBase(w*0.74, h*0.9, {...o, tier:0, solar:1})}</g>`;
+    s += `<g transform="translate(${n(w*0.70)},${n(h*0.28)})">
+      ${_buildingBase(w*0.30, h*0.62, {...o, tier:0, roof:'#8d979d', skirt:3})}</g>`;
+    /* clerestory ridge lights */
+    for(let i=0;i<3;i++)
+      s += `<rect x="${n(w*(0.16+i*0.18))}" y="${n(h*0.40)}" width="${n(w*0.11)}" height="${n(h*0.07)}"
+        rx="1" fill="url(#gGlass)" stroke="#6e7d85" stroke-width="0.6"/>`;
+    /* concrete apron */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.90)}" width="${n(w*0.66)}" height="${n(h*0.08)}" rx="1.5" fill="#b3ab9c"/>`;
+  }
+
+  if(tier === 2){
+    /* two blocks joined by a glazed link, with a loading canopy */
+    s += `<g>${_buildingBase(w*0.52, h*0.62, {...o, tier:0, solar:1, solar2:1})}</g>`;
+    s += `<g transform="translate(${n(w*0.46)},${n(h*0.34)})">
+      ${_buildingBase(w*0.54, h*0.66, {...o, tier:0, solar:1, solar2:1})}</g>`;
+    s += `<rect x="${n(w*0.40)}" y="${n(h*0.44)}" width="${n(w*0.16)}" height="${n(h*0.22)}" rx="1.5"
+      fill="url(#gGlass)" stroke="#7e929a" stroke-width="0.9"/>`;
+    /* parapet band across the front */
+    s += `<rect x="${n(w*0.02)}" y="${n(h*0.62)}" width="${n(w*0.50)}" height="${n(h*0.05)}" rx="1" fill="#c3ccd2"/>`;
+    /* loading canopy on steel posts */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.70)}" width="${n(w*0.34)}" height="${n(h*0.14)}" rx="1.5" fill="#8d979d"/>`;
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.70)}" width="${n(w*0.34)}" height="${n(h*0.05)}" rx="1.5" fill="#a9b3b9"/>`;
+    [0.09,0.22,0.35].forEach(t=> s += `<rect x="${n(w*t)}" y="${n(h*0.84)}" width="2" height="${n(h*0.12)}" fill="#6e7d85"/>`);
+    /* roof plant: vents and a silo */
+    for(let i=0;i<4;i++)
+      s += `<circle cx="${n(w*(0.60+i*0.09))}" cy="${n(h*0.42)}" r="${n(Math.min(w,h)*0.028)}" fill="#b6bfc4" stroke="#78848b" stroke-width="0.6"/>`;
+    s += `<circle cx="${n(w*0.90)}" cy="${n(h*0.20)}" r="${n(Math.min(w,h)*0.09)}" fill="#cdd5d9" stroke="#87949b" stroke-width="1"/>`;
+  }
+
+  if(tier >= 3){
+    /* a proper plant: podium, glass atrium, full solar skin, gantry */
+    s += `<rect x="${n(w*0.02)}" y="${n(h*0.10)}" width="${n(w*0.96)}" height="${n(h*0.84)}" rx="3" fill="#5f6a70"/>`;
+    s += `<rect x="${n(w*0.02)}" y="${n(h*0.10)}" width="${n(w*0.96)}" height="${n(h*0.30)}" rx="3" fill="#78848b"/>`;
+    /* solar skin over the whole roof */
+    s += panels(w*0.05, h*0.14, w*0.90, h*0.34, Math.max(5, Math.round(w/12)), 3);
+    /* glazed atrium down the middle */
+    s += `<rect x="${n(w*0.30)}" y="${n(h*0.50)}" width="${n(w*0.40)}" height="${n(h*0.36)}" rx="2"
+      fill="url(#gGlass)" stroke="#8fa8b0" stroke-width="1"/>`;
+    for(let i=1;i<4;i++)
+      s += `<line x1="${n(w*(0.30+i*0.10))}" y1="${n(h*0.50)}" x2="${n(w*(0.30+i*0.10))}" y2="${n(h*0.86)}"
+        stroke="#8fa8b0" stroke-width="0.8"/>`;
+    /* service wings either side */
+    s += `<rect x="${n(w*0.05)}" y="${n(h*0.52)}" width="${n(w*0.22)}" height="${n(h*0.34)}" rx="2" fill="#6e7a81"/>`;
+    s += `<rect x="${n(w*0.73)}" y="${n(h*0.52)}" width="${n(w*0.22)}" height="${n(h*0.34)}" rx="2" fill="#6e7a81"/>`;
+    /* gantry running the length of the roof */
+    s += `<rect x="${n(w*0.05)}" y="${n(h*0.455)}" width="${n(w*0.90)}" height="2.4" rx="1.2" fill="#c3ccd2"/>`;
+    for(let i=0;i<5;i++)
+      s += `<rect x="${n(w*(0.10+i*0.19))}" y="${n(h*0.42)}" width="2" height="${n(h*0.05)}" fill="#9aa5ab"/>`;
+    /* status strip */
+    s += `<rect x="${n(w*0.32)}" y="${n(h*0.88)}" width="${n(w*0.36)}" height="${n(h*0.06)}" rx="1.5" fill="#0e1c26"/>`;
+    for(let i=0;i<5;i++)
+      s += `<rect class="twinkle" style="animation-delay:${(i*0.28).toFixed(2)}s"
+        x="${n(w*(0.34+i*0.065))}" y="${n(h*0.895)}" width="${n(w*0.04)}" height="${n(h*0.03)}" fill="#7cc24f"/>`;
+    /* stacks */
+    [0.12,0.86].forEach(t=>{
+      s += `<rect x="${n(w*t)}" y="${n(h*0.02)}" width="${n(w*0.045)}" height="${n(h*0.16)}" rx="1" fill="#aab4ba"/>`;
+      s += `<rect x="${n(w*t)}" y="${n(h*0.02)}" width="${n(w*0.045)}" height="${n(h*0.04)}" rx="1" fill="#cdd5d9"/>`;
+    });
+    /* standing-seam cladding across the podium */
+    for(let i=0;i<Math.max(6, Math.round(w/9)); i++){
+      const x = w*0.03 + i*(w*0.94/Math.max(6, Math.round(w/9)));
+      s += `<line x1="${n(x)}" y1="${n(h*0.50)}" x2="${n(x)}" y2="${n(h*0.92)}" stroke="#fff" stroke-opacity=".07" stroke-width="0.8"/>`;
+      s += `<line x1="${n(x+1.2)}" y1="${n(h*0.50)}" x2="${n(x+1.2)}" y2="${n(h*0.92)}" stroke="#000" stroke-opacity=".12" stroke-width="0.8"/>`;
+    }
+    /* rooftop plant: chillers, ducting and a walkway */
+    for(let i=0;i<3;i++)
+      s += `<rect x="${n(w*(0.14+i*0.13))}" y="${n(h*0.155)}" width="${n(w*0.09)}" height="${n(h*0.10)}" rx="1.5"
+        fill="#9aa5ab" stroke="#6e7d85" stroke-width="0.7"/>`;
+    s += `<rect x="${n(w*0.60)}" y="${n(h*0.16)}" width="${n(w*0.28)}" height="${n(h*0.07)}" rx="3" fill="#b6bfc4"/>`;
+    s += `<rect x="${n(w*0.05)}" y="${n(h*0.115)}" width="${n(w*0.90)}" height="1.6" fill="#c3ccd2" opacity=".7"/>`;
+    /* access ladder and handrail */
+    s += `<rect x="${n(w*0.955)}" y="${n(h*0.14)}" width="1.6" height="${n(h*0.34)}" fill="#9aa5ab"/>`;
+    for(let i=0;i<5;i++)
+      s += `<rect x="${n(w*0.945)}" y="${n(h*(0.17+i*0.06))}" width="3.6" height="1" fill="#9aa5ab"/>`;
+    /* lit atrium glow at night */
+    s += `<rect x="${n(w*0.30)}" y="${n(h*0.50)}" width="${n(w*0.40)}" height="${n(h*0.36)}" rx="2"
+      fill="#ffe9b0" opacity=".16"/>`;
+    /* company sign band */
+    s += `<rect x="${n(w*0.05)}" y="${n(h*0.44)}" width="${n(w*0.90)}" height="${n(h*0.045)}" rx="1" fill="#2c3a42"/>`;
+    s += `<rect x="${n(w*0.07)}" y="${n(h*0.452)}" width="${n(w*0.24)}" height="${n(h*0.022)}" rx="1" fill="#7cc24f" opacity=".85"/>`;
+  }
+  s += grain(0,0,w,h,0.08);
+  return s;
+};
+
+/* ---------------------------------------------------------------
+   The non-building structures grow too
+   --------------------------------------------------------------- */
+/* rain tanks: two, then four, then a bank with a pump house */
+const _artTank = ART.tank;
+ART.tank = (w,h,ob)=>{
+  const t = curTier(ob);
+  if(!t) return _artTank(w,h,ob);
+  const cnt = t===1 ? 3 : t===2 ? 4 : 5;
+  const rad = Math.min(h*0.44, (w/cnt)/2 - 1);
+  let s = '';
+  for(let i=0;i<cnt;i++){
+    const cx=(w/cnt)*(i+0.5), cy=h*0.48;
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
+    s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
+    s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
+    for(let j=0;j<12;j++){ const a=(j/12)*Math.PI*2;
+      s += `<line x1="${n(cx)}" y1="${n(cy)}" x2="${n(cx+Math.cos(a)*(rad-2))}" y2="${n(cy+Math.sin(a)*(rad-2))}" stroke="#3e6a3e" stroke-width="0.7" opacity=".7"/>`; }
+    s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad*0.26)}" fill="#5f8a5c"/>`;
+    s += `<path d="M${n(cx-rad*0.58)} ${n(cy-rad*0.5)} a ${n(rad*0.8)} ${n(rad*0.8)} 0 0 1 ${n(rad*0.9)} ${n(-rad*0.14)}" stroke="#fff" stroke-width="1.2" fill="none" opacity=".38"/>`;
+  }
+  /* manifold pipework along the base */
+  s += `<rect x="${n(w*0.04)}" y="${n(h*0.88)}" width="${n(w*0.92)}" height="2.6" rx="1.3" fill="#8b949a"/>`;
+  for(let i=0;i<cnt;i++)
+    s += `<rect x="${n((w/cnt)*(i+0.5)-1)}" y="${n(h*0.78)}" width="2" height="${n(h*0.12)}" fill="#8b949a"/>`;
+  if(t>=2){  /* pump house */
+    s += `<g transform="translate(${n(w*0.80)},${n(h*0.04)})">${_buildingBase(w*0.18,h*0.3,{roof:'#8d979d',skirt:2})}</g>`;
+  }
+  if(t>=3){  /* filtration skid and a level readout */
+    s += `<rect x="${n(w*0.04)}" y="${n(h*0.04)}" width="${n(w*0.2)}" height="${n(h*0.22)}" rx="2" fill="#5f6a70"/>`;
+    s += `<circle class="pulse" cx="${n(w*0.14)}" cy="${n(h*0.15)}" r="2" fill="#6fb6d8"/>`;
+  }
+  if(ob){
+    const lv = clamp(ob.store/(ob.cap||100), 0, 1);
+    s += `<rect x="${n(w*0.16)}" y="${n(h-3.4)}" width="${n(w*0.68)}" height="2.6" rx="1.3" fill="#0e1a10" opacity=".8"/>`;
+    s += `<rect x="${n(w*0.16)}" y="${n(h-3.4)}" width="${n(w*0.68*lv)}" height="2.6" rx="1.3" fill="#6fb6d8"/>`;
+  }
+  return s;
+};
+
+/* beds: more rows, then cloches, then a full poly-covered block */
+const _artBed = ART.bed, _artBedL = ART.bed_large;
+function tieredBed(base, rows){
+  return (w,h,ob)=>{
+    const t = curTier(ob);
+    let s = base(w,h,ob);
+    if(t>=1){  /* timber frame upgraded to raised sleepers with a path */
+      s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="none" stroke="#a8814f" stroke-width="2.2"/>`;
+      s += `<rect x="1.6" y="1.6" width="${n(w-3.2)}" height="${n(h-4.2)}" rx="1.6" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>`;
+    }
+    if(t>=2){  /* hoops and drip line */
+      for(let i=0;i<Math.max(2,Math.round(w/26));i++){
+        const x = 6 + i*((w-12)/Math.max(1,Math.round(w/26)-0+1));
+        s += `<path d="M${n(x)} ${n(h-4)} q ${n((w/8))} ${n(-h*0.7)} ${n(w/4)} 0" stroke="#cfe0e6" stroke-width="1.1" fill="none" opacity=".75"/>`;
+      }
+      s += `<line x1="4" y1="${n(h*0.5)}" x2="${n(w-4)}" y2="${n(h*0.5)}" stroke="#3f6b8a" stroke-width="1" opacity=".7"/>`;
+    }
+    if(t>=3){  /* fully covered, climate controlled */
+      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="url(#gGlass)" opacity=".5"/>`;
+      s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="3" fill="none" stroke="#9db4bb" stroke-width="1.2"/>`;
+      s += `<rect x="${n(w*0.36)}" y="${n(h-5)}" width="${n(w*0.28)}" height="3.4" rx="1.5" fill="#0e1c26"/>`;
+      s += `<circle class="twinkle" cx="${n(w*0.5)}" cy="${n(h-3.3)}" r="1.2" fill="#7cc24f"/>`;
+    }
+    return s;
+  };
+}
+ART.bed = tieredBed(_artBed);
+ART.bed_large = tieredBed(_artBedL);
+
+/* solar: more rows, then trackers, then a full array with an inverter shed */
+const _artSolar = ART.solar_ground;
+ART.solar_ground = (w,h,ob)=>{
+  const t = curTier(ob);
+  if(!t) return _artSolar(w,h,ob);
+  let s = patch(w,h,'#87ad5c',12,1);
+  const rows = 2 + t;
+  for(let i=0;i<rows;i++){
+    const y = 3 + i*((h-6)/rows);
+    s += `<rect x="4" y="${n(y+3)}" width="${n(w-8)}" height="3" fill="#16240c" opacity=".3"/>`;
+    s += panels(3, y, w-6, (h-8)/rows, Math.max(4, Math.round(w/10)), 1);
+    if(t>=2)  /* tracker torque tube */
+      s += `<rect x="3" y="${n(y+(h-8)/rows/2)}" width="${n(w-6)}" height="1.6" rx="0.8" fill="#9aa5ab"/>`;
+  }
+  if(t>=3){
+    s += `<g transform="translate(${n(w*0.76)},${n(h*0.72)})">${_buildingBase(w*0.22,h*0.26,{roof:'#8d979d',skirt:2})}</g>`;
+    s += `<circle class="pulse" cx="${n(w*0.87)}" cy="${n(h*0.78)}" r="2" fill="#7cc24f"/>`;
+  }
+  return s;
+};
+
+/* coop: bigger run, second house, then an aviary with a feed silo */
+const _artCoop = ART.coop;
+ART.coop = (w,h,ob)=>{
+  const t = curTier(ob);
+  if(!t) return _artCoop(w,h,ob);
+  const cnt = ob ? Math.min(20, ob.animals||0) : 4;
+  let s = paddock(w,h,'chicken',cnt,7,0.9);
+  s += `<g transform="translate(${n(w*0.04)},${n(h*0.06)})">
+    ${_buildingBase(w*0.40, h*0.44, {roof:'url(#gRoofRed)', solar:1})}</g>`;
+  if(t>=1)
+    s += `<g transform="translate(${n(w*0.48)},${n(h*0.06)})">
+      ${_buildingBase(w*0.30, h*0.36, {roof:'url(#gRoofRed)'})}</g>`;
+  if(t>=2){   /* covered run */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.54)}" width="${n(w*0.86)}" height="${n(h*0.38)}" rx="3"
+      fill="none" stroke="#9db4bb" stroke-width="1.2" stroke-dasharray="3 2" opacity=".8"/>`;
+    s += `<rect x="${n(w*0.82)}" y="${n(h*0.10)}" width="${n(w*0.13)}" height="${n(h*0.3)}" rx="2" fill="#b6bfc4"/>`;
+    s += `<path d="M${n(w*0.825)} ${n(h*0.10)} l ${n(w*0.06)} ${n(-h*0.07)} l ${n(w*0.06)} ${n(h*0.07)} z" fill="#cdd5d9"/>`;
+  }
+  if(t>=3){   /* automated feed line and egg belt */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.50)}" width="${n(w*0.86)}" height="2" rx="1" fill="#c3ccd2"/>`;
+    s += `<rect x="${n(w*0.30)}" y="${n(h*0.94)}" width="${n(w*0.4)}" height="3" rx="1.5" fill="#0e1c26"/>`;
+    s += `<circle class="twinkle" cx="${n(w*0.5)}" cy="${n(h*0.955)}" r="1.2" fill="#f0c14b"/>`;
+  }
+  if(ob && ob.ready>0) s += `<circle class="pulse" cx="${n(w-6)}" cy="6" r="3.4" fill="#f0c14b"/>`;
+  return s;
+};
+
+/* greenhouse: taller glass, then a gothic arch range, then a research house */
+const _artGh = ART.greenhouse;
+ART.greenhouse = (w,h,ob)=>{
+  const t = curTier(ob);
+  let s = _artGh(w,h,ob);
+  if(t>=1){
+    for(let i=0;i<3;i++)
+      s += `<rect x="${n(w*(0.14+i*0.26))}" y="${n(h*0.04)}" width="${n(w*0.18)}" height="${n(h*0.08)}"
+        rx="1" fill="#dff0f5" stroke="#8fa8b0" stroke-width="0.7"/>`;   // roof vents
+  }
+  if(t>=2){
+    s += `<rect x="0" y="${n(h*0.46)}" width="${n(w)}" height="${n(h*0.06)}" fill="#c3ccd2" opacity=".85"/>`;
+    s += `<g transform="translate(${n(w*0.02)},${n(h*0.74)})">${_buildingBase(w*0.2,h*0.24,{roof:'#8d979d',skirt:2})}</g>`;
+  }
+  if(t>=3){
+    s += `<rect x="1" y="1" width="${n(w-2)}" height="${n(h-3)}" rx="2" fill="#7fd0ff" opacity=".10"/>`;
+    for(let i=0;i<4;i++)
+      s += `<rect class="twinkle" style="animation-delay:${(i*0.3).toFixed(2)}s"
+        x="${n(w*(0.12+i*0.22))}" y="${n(h*0.30)}" width="${n(w*0.16)}" height="1.8" rx="0.9" fill="#ff9ec4" opacity=".8"/>`;  // grow lights
+    s += `<rect x="${n(w*0.36)}" y="${n(h-5)}" width="${n(w*0.28)}" height="3.4" rx="1.5" fill="#0e1c26"/>`;
+  }
+  return s;
+};
+
+/* farm stand: stall, then a shop, then a farm shop with parking canopy */
+const _artStand = ART.farm_stand;
+ART.farm_stand = (w,h,ob)=>{
+  const t = curTier(ob);
+  if(!t) return _artStand(w,h,ob);
+  let s = `<rect x="0" y="1" width="${n(w)}" height="${n(h-1)}" rx="3" fill="#9d9276"/>` +
+          `<rect x="0" y="0" width="${n(w)}" height="${n(h-2)}" rx="3" fill="url(#gGravel)"/>`;
+  for(let i=0;i<Math.min(40, Math.floor(w*h/90));i++)
+    s += `<circle cx="${n(hash(i*1.7)*w)}" cy="${n(hash(i*3.1+5)*h)}" r="${n(0.5+hash(i)*0.9)}" fill="#8d8268" opacity=".5"/>`;
+  s += `<g transform="translate(${n(w*0.04)},${n(h*0.04)})">
+    ${_buildingBase(w*0.62, h*0.62, {roof:'url(#gRoofRed)', solar:t>=2?1:0})}</g>`;
+  s += `<rect x="${n(w*0.08)}" y="${n(h*0.56)}" width="${n(w*0.54)}" height="${n(h*0.1)}" rx="1.5" fill="url(#gGlass)"/>`;
+  const goods=['#e2603a','#efb43c','#6fb04a','#c8583f','#f2e07a','#9b6fc4'];
+  for(let i=0;i<4+t;i++)
+    s += `<circle cx="${n(w*0.10+i*(w*0.52/(4+t)))}" cy="${n(h*0.74)}" r="2.4" fill="${goods[i%6]}"/>`;
+  if(t>=1)  /* awning */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.66)}" width="${n(w*0.58)}" height="${n(h*0.05)}" rx="1" fill="#c8583f"/>`;
+  if(t>=2){ /* sign and a second counter */
+    s += `<rect x="${n(w*0.68)}" y="${n(h*0.12)}" width="${n(w*0.28)}" height="${n(h*0.18)}" rx="2" fill="#f4efe1" stroke="#7d5931" stroke-width="1.4"/>`;
+    s += `<line x1="${n(w*0.72)}" y1="${n(h*0.19)}" x2="${n(w*0.92)}" y2="${n(h*0.19)}" stroke="#9c8470" stroke-width="1.4"/>`;
+    s += `<line x1="${n(w*0.72)}" y1="${n(h*0.24)}" x2="${n(w*0.88)}" y2="${n(h*0.24)}" stroke="#9c8470" stroke-width="1.4"/>`;
+  }
+  if(t>=3){ /* covered forecourt with lights */
+    s += `<rect x="${n(w*0.66)}" y="${n(h*0.42)}" width="${n(w*0.30)}" height="${n(h*0.4)}" rx="2" fill="#8d979d" opacity=".85"/>`;
+    s += `<rect x="${n(w*0.66)}" y="${n(h*0.42)}" width="${n(w*0.30)}" height="${n(h*0.06)}" rx="2" fill="#a9b3b9"/>`;
+    [0.70,0.90].forEach(t2=> s += `<rect x="${n(w*t2)}" y="${n(h*0.80)}" width="2" height="${n(h*0.16)}" fill="#6e7d85"/>`);
+    s += `<circle class="twinkle" cx="${n(w*0.81)}" cy="${n(h*0.50)}" r="1.6" fill="#ffd97a"/>`;
+  }
+  if(ob && ob.ready>0) s += `<circle class="pulse" cx="${n(w-6)}" cy="6" r="3.4" fill="#f0c14b"/>`;
+  return s;
+};
+
+/* the old overlay was fighting the new geometry — keep only the Mk badge glow */
+tierSkin = function(w,h,tier){
+  if(!tier) return '';
+  if(tier < 3) return '';
+  return `<circle class="pulse" cx="${n(w-5)}" cy="5" r="2.4" fill="#f0c14b" opacity=".9"/>`;
+};
+
+/* ---------------------------------------------------------------
+   Show the player what they are buying: current vs next, side by side
+   --------------------------------------------------------------- */
+function tierPreview(o, tier){
+  const bp = BPMAP[o.bp];
+  const fn = ART[bp.art] || ART.shed;
+  const w = bp.w*T, h = bp.h*T;
+  const sc = Math.min(72/w, 54/h, 1.4);
+  const prev = ART_TIER; ART_TIER = tier;
+  let art = '';
+  try { art = fn(w, h, {...o, tier}); } catch(e){ art = ''; }
+  ART_TIER = prev;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${n(w*sc)}" height="${n(h*sc)}">${DEFS()}${art}</svg>`;
+}
+if(typeof inspHTML === 'function'){
+  const _insp = inspHTML;
+  inspHTML = function(){
+    let h = _insp();
+    const o = S.objs.find(z=>z.id===sel);
+    if(!o || !canUpgrade(o)) return h;
+    const nt = tOf(o)+1;
+    const card = `<div class="card" style="margin:0 0 8px">
+      <div class="eyebrow">What ${TIERS[nt].n} looks like</div>
+      <div class="tierprev">
+        <span><i>${tierPreview(o, tOf(o))}</i><small>${TIERS[tOf(o)].n} now</small></span>
+        <span class="arrow">→</span>
+        <span><i>${tierPreview(o, nt)}</i><small style="color:${TIERS[nt].col}">${TIERS[nt].n}</small></span>
+      </div></div>`;
+    /* slot it just above the upgrade button */
+    return h.replace('<button class="act primary full"', card + '<button class="act primary full"');
+  };
+}
+
+(function tierCss(){
+  const st = document.createElement('style');
+  st.textContent = `
+  .tierprev{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;}
+  .tierprev > span{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;}
+  .tierprev i{display:flex;align-items:center;justify-content:center;height:56px;width:100%;
+    background:rgba(0,0,0,.28);border-radius:10px;border:.5px solid var(--hair);
+    filter:drop-shadow(1px 2px 2px rgba(0,0,0,.45));}
+  .tierprev small{font-size:9.5px;color:var(--txt3);font-weight:600;}
+  .tierprev .arrow{flex:0 0 auto;color:var(--txt3);font-size:14px;}`;
+  document.head.appendChild(st);
+})();
+
+/* =====================================================================
+   PERFORMANCE — the scene was rebuilt whole on every change: terrain,
+   horizon, every tuft of grass, re-serialised and re-parsed each time.
+   Now the static backdrop is built once and only the moving parts are
+   redrawn, and every ticker shares one animation frame.
+   ===================================================================== */
+
+/* ---------- 1. split the scene: a static backdrop, a live foreground ---------- */
+let bgToken = '';
+function sceneSize(){ return {w:WPX, h:HPX}; }
+
+function ensureBackdrop(){
+  const scene = document.getElementById('scene');
+  if(!scene) return null;
+  const token = `${WPX}x${HPX}:${S.landId}:${S.expansions||0}`;
+  let bg = document.getElementById('bg');
+  if(bg && bgToken === token) return bg;
+  /* the backdrop only changes when the land itself does */
+  const bgSvg = `<svg id="bg" width="${WPX}" height="${HPX}" viewBox="0 0 ${WPX} ${HPX}"
+      xmlns="http://www.w3.org/2000/svg">${DEFS()}${terrain()}</svg>`;
+  const fgSvg = `<svg id="fg" width="${WPX}" height="${HPX}" viewBox="0 0 ${WPX} ${HPX}"
+      xmlns="http://www.w3.org/2000/svg">${DEFS()}</svg>`;
+  scene.innerHTML = bgSvg + fgSvg;
+  bgToken = token;
+  return document.getElementById('bg');
+}
+
+/* the whole render, rebuilt to touch only the foreground */
+render = function(){
+  if(!S) return;
+  ensureBackdrop();
+  const fg = document.getElementById('fg');
+  if(!fg) return;
+
+  const order = {access:0, water:1, garden:2, trees:3, animals:4, energy:5, build:6, tourism:7, people:8, markers:9};
+  const objs = S.objs.slice().sort((a,b)=>{
+    const A=BPMAP[a.bp], B=BPMAP[b.bp];
+    const ra = A.cat==='land'&&(A.art==='path'||A.art==='ring'||A.art==='parking') ? 0 : 1;
+    const rb = B.cat==='land'&&(B.art==='path'||B.art==='ring'||B.art==='parking') ? 0 : 1;
+    if(ra!==rb) return ra-rb;
+    return (a.ty+BPMAP[a.bp].h) - (b.ty+BPMAP[b.bp].h);
+  });
+
+  let ghostSvg = '';
+  if(ghost){
+    const f = footprint(ghost.bp, ghost.rot);
+    if((typeof SET!=='function') || SET('grid')){
+      ghostSvg += `<g class="gridlay">`;
+      for(let x=FARM.x;x<=FARM.x+FARM.w;x++)
+        ghostSvg += `<line x1="${x*T}" y1="${FARM.y*T}" x2="${x*T}" y2="${(FARM.y+FARM.h)*T}" stroke="#fff" stroke-opacity=".13" stroke-width="1"/>`;
+      for(let y=FARM.y;y<=FARM.y+FARM.h;y++)
+        ghostSvg += `<line x1="${FARM.x*T}" y1="${y*T}" x2="${(FARM.x+FARM.w)*T}" y2="${y*T}" stroke="#fff" stroke-opacity=".13" stroke-width="1"/>`;
+      ghostSvg += `</g>`;
+    }
+    const bad = overlaps(ghost.tx, ghost.ty, f, ghost.moving) || S.cash < (ghost.moving?0:ghost.bp.cost);
+    const fake = {id:-1, bp:ghost.bp.id, tx:ghost.tx, ty:ghost.ty, rot:ghost.rot, tier:0,
+      crop:null, stage:0.6, water:.6, animals:2, ready:0, store:(ghost.bp.cap||0)*0.6, cap:ghost.bp.cap};
+    ghostSvg += `<g opacity=".72">${drawObj(fake)}</g>`;
+    ghostSvg += `<rect x="${ghost.tx*T}" y="${ghost.ty*T}" width="${f.w*T}" height="${f.h*T}" rx="4"
+      fill="${bad?'#e2705c':'#7cc24f'}" fill-opacity=".2" stroke="${bad?'#e2705c':'#7cc24f'}" stroke-width="2.5"/>`;
+  }
+
+  let selRing = '';
+  if(sel){
+    const o = S.objs.find(z=>z.id===sel);
+    if(o){ const f = footprint(BPMAP[o.bp], o.rot);
+      selRing = `<rect x="${o.tx*T-2}" y="${o.ty*T-2}" width="${f.w*T+4}" height="${f.h*T+4}" rx="5"
+        fill="none" stroke="#f0c14b" stroke-width="2.5" stroke-dasharray="7 5" class="selring"/>`; }
+  }
+
+  fg.innerHTML = DEFS()
+    + (typeof roadLayer==='function' ? roadLayer() : '')
+    + `<g id="obs">${objs.map(drawObj).join('')}</g>`
+    + (typeof herdLayer==='function' ? herdLayer() : '')
+    + (typeof peopleLayer==='function' ? peopleLayer() : '')
+    + (typeof youLayer==='function' ? youLayer() : '')
+    + selRing + ghostSvg
+    + (typeof weatherLayer==='function' ? weatherLayer() : '');
+
+  nodeCache.clear();
+  renderLabels();
+  if(typeof applyWind==='function') applyWind();
+  const cnt = document.getElementById('layoutCount');
+  if(cnt) cnt.textContent = S.objs.length + ' pieces';
+};
+
+/* ---------- 2. stop querying the DOM for every creature every tick ---------- */
+const nodeCache = new Map();
+function node(sel2){
+  let el = nodeCache.get(sel2);
+  if(el && el.isConnected) return el;
+  el = document.querySelector(sel2);
+  if(el) nodeCache.set(sel2, el);
+  return el;
+}
+if(typeof paintHerd === 'function'){
+  paintHerd = function(){
+    S.objs.forEach(o=>{
+      if(!o.herd) return;
+      o.herd.forEach((a,i)=>{
+        const el = node(`[data-b="${o.id}_${i}"]`);
+        if(!el) return;
+        el.setAttribute('transform', `translate(${n(a.x)},${n(a.y)})`);
+        const inner = el.firstElementChild;
+        if(inner){
+          const want = 'bwalk' + (a.moving ? (a.run ? ' running' : ' walking') : '');
+          if(inner.getAttribute('class') !== want) inner.setAttribute('class', want);
+          const flip = inner.firstElementChild;
+          if(flip && a.dir !== a._d){ flip.setAttribute('transform', `scale(${a.dir},1)`); a._d = a.dir; }
+        }
+      });
+    });
+  };
+}
+if(typeof paintPeople === 'function'){
+  paintPeople = function(){
+    const upd = p=>{
+      const el = node(`[data-p="${p.id}"]`);
+      if(!el) return;
+      el.setAttribute('transform', `translate(${n(p.x)},${n(p.y)})`);
+      const op = p.state==='sleep' ? '0' : '1';
+      if(el.style.opacity !== op) el.style.opacity = op;
+      const bob = el.firstElementChild;
+      if(bob){
+        const want = 'youbob' + (p.state==='walk'?' walking':p.state==='busy'?' working':'');
+        if(bob.getAttribute('class') !== want) bob.setAttribute('class', want);
+        const fl = bob.firstElementChild;
+        if(fl && p.dir !== p._d){ fl.setAttribute('transform',`scale(${p.dir},1)`); p._d = p.dir; }
+      }
+    };
+    S.family.forEach(upd); S.workers.forEach(upd);
+  };
+}
+if(typeof paintYou === 'function'){
+  paintYou = function(){
+    const el = node('#you');
+    if(!el) return;
+    const y = S.you;
+    el.setAttribute('transform', `translate(${n(y.x)},${n(y.y)})`);
+    const bob = el.firstElementChild;
+    if(bob){
+      const want = 'youbob' + (y.state==='walk'?' walking':y.state==='work'?' working':'');
+      if(bob.getAttribute('class') !== want) bob.setAttribute('class', want);
+      const flip = bob.firstElementChild;
+      if(flip && y.dir !== y._d){ flip.setAttribute('transform', `scale(${y.dir},1)`); y._d = y.dir; }
+    }
+  };
+}
+
+/* ---------- 3. one animation frame drives everything ---------- */
+window.__perfLoop = true;
+(function unifyTickers(){
+  /* the old per-system timers are removed at source; this frame drives them all */
+  let last = performance.now(), sunAcc = 0, uiAcc = 0, saveAcc = 0, collectAcc = 0;
+  function frame(now){
+    requestAnimationFrame(frame);
+    const dtms = Math.min(120, now - last);
+    last = now;
+    if(!S) return;
+    const dt = dtms/1000;
+
+    /* the world clock */
+    if(S.speed > 0){
+      if(S.settings && S.settings.dayLen) DAY_MS = S.settings.dayLen*1000;
+      acc += dtms*S.speed;
+      if(acc >= DAY_MS){ acc -= DAY_MS; advanceDay(); }
+      if(typeof tickLife==='function')   tickLife(dt);
+      if(typeof tickPeople==='function') tickPeople(dt);
+    }
+    if(typeof tickYou==='function')  tickYou(dt);
+    if(typeof tickIdle==='function') tickIdle(dt);
+
+    /* the day badge fill */
+    const badge = document.getElementById('wbadge');
+    if(badge){
+      const pct = Math.round(acc/DAY_MS*100);
+      badge.style.background = `linear-gradient(90deg, rgba(124,194,79,.28) ${pct}%, rgba(10,16,8,.86) ${pct}%)`;
+    }
+
+    sunAcc += dtms; uiAcc += dtms; saveAcc += dtms; collectAcc += dtms;
+    if(sunAcc > 500){ sunAcc = 0;
+      if(typeof paintSun==='function' && (!S.settings || S.settings.sunarc !== false)) paintSun(); }
+    if(uiAcc > 3000){ uiAcc = 0;
+      if(S.speed>0){ renderStats(); const b=document.getElementById('wbadge'); if(b) b.innerHTML = hint(); } }
+    if(collectAcc > 1500){ collectAcc = 0;
+      if(typeof syncWeatherFx==='function') syncWeatherFx();
+      if(typeof syncCollectAll==='function') syncCollectAll(); }
+    if(saveAcc > 20000){ saveAcc = 0;
+      if(typeof SET!=='function' || SET('autoSave')) G.save(); }
+
+    /* edge panning, only while it is switched on */
+    if(typeof SET==='function' && SET('edgePan') && edge.on && !ghost){
+      let dx=0, dy=0; const m=48, sp=520*dt;
+      if(edge.x < m) dx = sp; else if(edge.x > edge.w-m) dx = -sp;
+      if(edge.y < m) dy = sp; else if(edge.y > edge.h-m) dy = -sp;
+      if(dx||dy){ cam.x += dx; cam.y += dy; applyCam(); }
+    }
+  }
+  requestAnimationFrame(frame);
+  if(typeof syncWeatherFx==='function') setTimeout(syncWeatherFx, 300);
+
+  /* pointer position for edge panning, tracked passively */
+  const edge = {on:false, x:0, y:0, w:0, h:0};
+  const world = document.getElementById('world');
+  if(world){
+    world.addEventListener('mousemove', e=>{
+      const r = world.getBoundingClientRect();
+      edge.x = e.clientX-r.left; edge.y = e.clientY-r.top;
+      edge.w = r.width; edge.h = r.height; edge.on = true;
+    }, {passive:true});
+    world.addEventListener('mouseleave', ()=>{ edge.on = false; }, {passive:true});
+  }
+})();
+
+/* ---------- 4. fewer things animating, and cheaper compositing ---------- */
+(function trimWork(){
+  const css = document.createElement('style');
+  css.textContent = `
+  /* promote the moving layers so panning does not repaint the world */
+  /* the two layers must overlap, not stack */
+  #scene{will-change:transform;position:relative;}
+  #scene > svg{position:absolute;left:0;top:0;}
+  #bg{pointer-events:none;z-index:0;}
+  #fg{z-index:1;}
+  #world{contain:layout paint;}
+  #wlabels{will-change:transform;contain:layout;}
+  /* distant scenery does not need to sway — it is 200m away */
+  #horizon .sway{animation:none!important;}
+  /* anything that moves gets its own compositor layer, so its repaint
+     never drags the rest of the scene with it */
+  .sway,.bwalk,.youbob,.ripple,.twinkle,.pulse,.flame,.spin,.bee,.swingy,.steam{
+    will-change:transform,opacity;}
+  #obs,#herd,#people{contain:paint;}
+  /* weather as one composited layer rather than dozens of animated nodes */
+  #wxfx{position:absolute;inset:0;pointer-events:none;z-index:19;opacity:0;transition:opacity 1.4s;}
+  #wxfx.wx-rain,#wxfx.wx-storm,#wxfx.wx-snow,#wxfx.wx-dust{opacity:1;}
+  @keyframes wxfall{from{background-position:0 0}to{background-position:-140px 900px}}
+  #wxfx.wx-rain{background-image:repeating-linear-gradient(105deg,
+    rgba(207,230,245,0) 0 7px, rgba(207,230,245,.34) 7px 8px, rgba(207,230,245,0) 8px 15px);
+    animation:wxfall 1.1s linear infinite;}
+  #wxfx.wx-storm{background-image:repeating-linear-gradient(108deg,
+    rgba(207,230,245,0) 0 5px, rgba(207,230,245,.46) 5px 7px, rgba(207,230,245,0) 7px 12px);
+    animation:wxfall .55s linear infinite;}
+  @keyframes wxsnow{from{background-position:0 0}to{background-position:60px 700px}}
+  #wxfx.wx-snow{background-image:radial-gradient(circle at 20% 30%, #fff 0 1.6px, transparent 2px),
+    radial-gradient(circle at 70% 60%, #fff 0 1.3px, transparent 2px);
+    background-size:90px 90px, 130px 130px; opacity:.55; animation:wxsnow 9s linear infinite;}
+  @keyframes wxdust{0%,100%{background-position:0 0;opacity:.16}50%{background-position:120px 0;opacity:.3}}
+  #wxfx.wx-dust{background-image:linear-gradient(92deg, rgba(216,201,160,0) 0%, rgba(216,201,160,.5) 50%, rgba(216,201,160,0) 100%);
+    background-size:60% 100%; animation:wxdust 16s ease-in-out infinite;}
+  @media(prefers-reduced-motion:reduce){#wxfx{animation:none!important}}
+  /* nothing animates while the tab is in the background */
+  body.hidden *{animation-play-state:paused!important;}
+  `;
+  document.head.appendChild(css);
+  document.addEventListener('visibilitychange', ()=>{
+    document.body.classList.toggle('hidden', document.hidden);
+  });
+})();
+
+/* the backdrop must be rebuilt when the land changes shape */
+if(typeof resizeLand === 'function'){
+  const _resize = resizeLand;
+  resizeLand = function(l){ _resize(l); bgToken = ''; };
+}
+if(typeof expandFarm === 'function'){
+  const _expand = expandFarm;
+  expandFarm = function(){ _expand(); bgToken = ''; render(); };
+}
+
+/* =====================================================================
+   In-game confirms, discoverability, idle rules, navigation, themes,
+   country presets and a gentler weather bed.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   1. window.confirm() is swallowed in embedded contexts — it returned
+      false without ever showing, so Move out / Remove / New farm all
+      silently did nothing. Everything now uses an in-game dialog.
+   --------------------------------------------------------------- */
+function ask(title, body, okLabel, onOk, danger){
+  const m = document.getElementById('modal');
+  document.getElementById('modalBody').innerHTML = `
+    <h2>${title}</h2><p class="sub">${body}</p>
+    <div class="mfoot">
+      <button class="mbtn ghost" id="askNo">Cancel</button>
+      <button class="mbtn" id="askYes" ${danger?'style="background:linear-gradient(180deg,#c05540,#94402f);border-color:#e2705c"':''}>${okLabel}</button>
+    </div>`;
+  m.classList.add('show');
+  document.getElementById('askNo').onclick = ()=>{ G.closeModal(); sfx('click'); };
+  document.getElementById('askYes').onclick = ()=>{ G.closeModal(); onOk(); };
+}
+
+removeFamily = function(id){
+  peopleInit();
+  const f = S.family.find(z=>z.id===id);
+  if(!f) return;
+  const go = ()=>{
+    S.family = S.family.filter(z=>z.id!==id);
+    S.morale = clamp((S.morale||0.6) - 0.08, 0, 1);
+    sfx('remove'); toast(`${f.name} has moved away`,'');
+    log(`${f.name} moved away.`);
+    render(); ui(); G.save();
+  };
+  if(!SET('confirmSell')) return go();
+  ask(`${f.name} moves away?`,
+      `They leave the household and its costs. Morale takes a knock.`,
+      'Yes, move out', go, true);
+};
+
+(function fixConfirms(){
+  const _sellObj = G.sellObj;
+  G.sellObj = function(id){
+    const o = S.objs.find(z=>z.id===id); if(!o) return;
+    const bp = BPMAP[o.bp];
+    if(bp.kind==='home') return toast('You cannot remove the house','bad');
+    const go = ()=>{
+      const refund = Math.round(bp.cost*0.55);
+      S.cash += refund; S.objs = S.objs.filter(z=>z.id!==id); sel = null; sfx('remove');
+      toast(`Removed — ${fmt(refund)} back`,'');
+      render(); ui(); G.save();
+    };
+    if(!SET('confirmSell')) return go();
+    ask(`Remove the ${bp.name}?`, `You get ${fmt(Math.round(bp.cost*0.55))} back — 55% of what you paid.`,
+        'Remove it', go, true);
+  };
+  G.confirmReset = function(){
+    ask('Start a new farm?', 'This clears everything you have built here.', 'Start over', ()=>G.reset(), true);
+  };
+  if(typeof fireWorker === 'function'){
+    const _fire = fireWorker;
+    fireWorker = function(id){
+      const w = S.workers.find(z=>z.id===id); if(!w) return;
+      if(!SET('confirmSell')) return _fire(id);
+      ask(`Let ${w.name} go?`, `They leave the farm and stop drawing wages.`, 'Let them go', ()=>_fire(id), true);
+    };
+  }
+})();
+
+/* ---------------------------------------------------------------
+   2. Tabs that tell you there is something to do
+   --------------------------------------------------------------- */
+function tabBadges(){
+  const counts = {
+    work : (S.career && S.career.jobs) ? S.career.jobs.filter(j=>S.career.hours>=j.hrs).length : 0,
+    jobs : S.contracts ? S.contracts.filter(c=>(S.store[c.gid]||0) >= c.qty).length : 0,
+    market: Object.keys(S.store||{}).length,
+    insp : 0, home:0, coach:0, set:0, auto:0,
+  };
+  document.querySelectorAll('.ptab').forEach(b=>{
+    const k = b.dataset.rt, c = counts[k]||0;
+    let dot = b.querySelector('.tbadge');
+    if(c > 0){
+      if(!dot){ dot = document.createElement('i'); dot.className='tbadge'; b.appendChild(dot); }
+      dot.textContent = c > 9 ? '9+' : c;
+    } else if(dot) dot.remove();
+  });
+}
+
+/* ---------------------------------------------------------------
+   3. Idle rules — the farm does not run itself for free
+   --------------------------------------------------------------- */
+function idleInit(){ if(S.idleSecs===undefined) S.idleSecs = 0; }
+function noteActivity(){ idleInit(); S.idleSecs = 0; if(S.idlePaused){ S.idlePaused=false; S.speed = S._preIdle||1; ui(); } }
+['pointerdown','keydown','wheel','touchstart'].forEach(ev=>
+  window.addEventListener(ev, ()=>{ if(S) noteActivity(); }, {passive:true}));
+
+function tickIdleRules(dt){
+  idleInit();
+  if(!SET('idleRules')) return;
+  if(S.speed === 0 && !S.idlePaused) return;      // deliberately paused, leave alone
+  S.idleSecs += dt;
+  const limit = (SET('idleMins')||10) * 60;
+  if(!S.idlePaused && S.idleSecs > limit){
+    S.idlePaused = true; S._preIdle = S.speed || 1; S.speed = 0;
+    /* neglect costs exactly a tenth, rounded up, so it is always felt */
+    let lostCrops = 0, lostStock = 0;
+    const planted = S.objs.filter(o=>BPMAP[o.bp].kind==='plot' && o.crop);
+    for(let i=planted.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [planted[i],planted[j]]=[planted[j],planted[i]]; }
+    planted.slice(0, Math.ceil(planted.length*0.10)).forEach(o=>{
+      o.crop=null; o.stage=0; o.weeds=0; lostCrops++;
+    });
+    const herd = S.objs.filter(o=>BPMAP[o.bp].kind==='animal' && o.animals>0);
+    let toLose = Math.ceil(herd.reduce((a,o)=>a+o.animals,0) * 0.10);
+    while(toLose > 0){
+      const pen = herd.filter(o=>o.animals>0);
+      if(!pen.length) break;
+      const o = pen[Math.floor(Math.random()*pen.length)];
+      o.animals--; syncHerd(o); lostStock++; toLose--;
+    }
+    S.morale = clamp((S.morale||0.6) - 0.1, 0, 1);
+    const bits = [];
+    if(lostCrops) bits.push(`${lostCrops} bed${lostCrops>1?'s':''} of crops failed`);
+    if(lostStock) bits.push(`${lostStock} animal${lostStock>1?'s':''} lost`);
+    log(`Left unattended for ${SET('idleMins')} minutes — ${bits.length?bits.join(' and '):'no losses this time'}. Clock paused.`, 'bad');
+    toast(bits.length ? `Neglect: ${bits.join(', ')}` : 'Farm paused — you were away', 'bad');
+    sfx('error');
+    render(); ui();
+  }
+}
+
+/* ---------------------------------------------------------------
+   4. Getting around a big farm
+   --------------------------------------------------------------- */
+function buildMinimap(){
+  const world = document.getElementById('world');
+  if(!world || document.getElementById('minimap')) return;
+  const d = document.createElement('div');
+  d.id = 'minimap';
+  d.innerHTML = `<canvas id="mmCanvas" width="150" height="110"></canvas><div id="mmView"></div>`;
+  world.appendChild(d);
+  const canvas = d.querySelector('canvas');
+  const jump = e=>{
+    const r = canvas.getBoundingClientRect();
+    const fx = (e.clientX - r.left)/r.width, fy = (e.clientY - r.top)/r.height;
+    const wx = (FARM.x + fx*FARM.w)*T, wy = (FARM.y + fy*FARM.h)*T;
+    const vw = world.clientWidth, vh = world.clientHeight;
+    cam.x = vw/2 - wx*cam.z; cam.y = vh/2 - wy*cam.z;
+    applyCam(); noteActivity();
+  };
+  let down=false;
+  canvas.addEventListener('pointerdown', e=>{ down=true; jump(e); });
+  window.addEventListener('pointermove', e=>{ if(down) jump(e); });
+  window.addEventListener('pointerup', ()=> down=false);
+}
+function paintMinimap(){
+  const c = document.getElementById('mmCanvas');
+  if(!c || !SET('minimap')) return;
+  const g = c.getContext('2d');
+  const sx = c.width/(FARM.w*T), sy = c.height/(FARM.h*T);
+  g.clearRect(0,0,c.width,c.height);
+  g.fillStyle = '#6f9f45'; g.fillRect(0,0,c.width,c.height);
+  S.objs.forEach(o=>{
+    const bp = BPMAP[o.bp], f = footprint(bp, o.rot);
+    const col = {plot:'#8a6a4a', perennial:'#4f8a35', animal:'#c9a06a', water:'#4f93b5',
+      power:'#26365c', process:'#a98fd6', shop:'#e2603a', tourism:'#dd6f9c', rec:'#efb43c',
+      housing:'#c8583f', home:'#c3ccd2', hub:'#6fb6d8'}[bp.kind] || '#9aa88a';
+    g.fillStyle = col;
+    g.fillRect((o.tx-FARM.x)*T*sx, (o.ty-FARM.y)*T*sy, f.w*T*sx, f.h*T*sy);
+  });
+  /* where the camera is looking */
+  const world = document.getElementById('world');
+  const vx = (-cam.x/cam.z - FARM.x*T)*sx, vy = (-cam.y/cam.z - FARM.y*T)*sy;
+  const vw = (world.clientWidth/cam.z)*sx, vh = (world.clientHeight/cam.z)*sy;
+  g.strokeStyle = '#fff'; g.lineWidth = 1.5;
+  g.strokeRect(Math.max(0,vx), Math.max(0,vy), Math.min(vw,c.width), Math.min(vh,c.height));
+}
+
+/* keyboard panning, and a much more forgiving grab */
+(function navigation(){
+  const keys = {};
+  window.addEventListener('keydown', e=>{
+    if(e.target.tagName==='INPUT') return;
+    const k = e.key.toLowerCase();
+    if(['arrowup','arrowdown','arrowleft','arrowright'].includes(k)){ keys[k]=1; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', e=> keys[e.key.toLowerCase()]=0);
+  setInterval(()=>{
+    if(!S) return;
+    const sp = 26;
+    let dx=0, dy=0;
+    if(keys['arrowleft']) dx += sp;
+    if(keys['arrowright']) dx -= sp;
+    if(keys['arrowup']) dy += sp;
+    if(keys['arrowdown']) dy -= sp;
+    if(dx||dy){ cam.x += dx; cam.y += dy; applyCam(); noteActivity(); }
+  }, 16);
+})();
+
+/* ---------------------------------------------------------------
+   5. Colour themes
+   --------------------------------------------------------------- */
+const THEMES = {
+  greenhollow:{n:'Greenhollow', acc:'#7cc24f', acc2:'#6fb6d8', bg:'#12180f', panel:'#1e2718', lawn:['#88b25c','#74a04b','#5d8a3c']},
+  slate      :{n:'Slate',       acc:'#6fb6d8', acc2:'#a98fd6', bg:'#101418', panel:'#1a2027', lawn:['#7fa06a','#6b8c58','#557046']},
+  ember      :{n:'Ember',       acc:'#e8a33d', acc2:'#e2705c', bg:'#171208', panel:'#241c10', lawn:['#9db35c','#879c4b','#6d803c']},
+  orchid     :{n:'Orchid',      acc:'#dd6f9c', acc2:'#a98fd6', bg:'#150f16', panel:'#221a24', lawn:['#8ab167','#749b53','#5d8043']},
+  nordic     :{n:'Nordic',      acc:'#8fd0c4', acc2:'#9db4d8', bg:'#0e1416', panel:'#171f22', lawn:['#8fae7a','#7a9866','#627c52']},
+  paper      :{n:'Daylight',    acc:'#4d8f3c', acc2:'#3f7f9c', bg:'#e8e6dd', panel:'#f5f3ea', lawn:['#9dc46a','#87b055','#6f9645'], light:1},
+};
+function applyTheme(){
+  const t = THEMES[SET('theme')] || THEMES.greenhollow;
+  const r = document.documentElement;
+  r.style.setProperty('--acc', t.acc);
+  r.style.setProperty('--acc2', t.acc2);
+  r.style.setProperty('--bg', t.bg);
+  r.style.setProperty('--panel', t.panel);
+  r.style.setProperty('--green', t.acc);
+  document.body.classList.toggle('lighttheme', !!t.light);
+  /* the lawn gradient lives in the SVG defs, so the backdrop must be rebuilt */
+  const g = document.getElementById('gLawn');
+  if(g){
+    const stops = g.querySelectorAll('stop');
+    t.lawn.forEach((c,i)=>{ if(stops[i]) stops[i].setAttribute('stop-color', c); });
+  }
+}
+
+/* ---------------------------------------------------------------
+   6. Where in the world — units, currency and local limits.
+      These are game rules chosen for balance, not legal advice.
+   --------------------------------------------------------------- */
+const COUNTRIES = {
+  au:{n:'Australia',    cur:'A$', area:'hectares', ha:1, maxStock:120, waterCap:1.35, rates:1.15,
+      note:'Big blocks, tight water. Generous stock limits, higher council rates, tank storage encouraged.'},
+  nz:{n:'New Zealand',  cur:'NZ$',area:'hectares', ha:1, maxStock:100, waterCap:1.2,  rates:1.05,
+      note:'Wet and green. Good rainfall, moderate rates, strong dairy and horticulture.'},
+  uk:{n:'United Kingdom',cur:'£', area:'acres',    ha:2.47,maxStock:70, waterCap:1.0,  rates:1.25,
+      note:'Small fields, high rates, reliable rain. Smallholdings and farm shops do well.'},
+  ie:{n:'Ireland',      cur:'€',  area:'acres',    ha:2.47,maxStock:80, waterCap:1.15, rates:1.1,
+      note:'Mild and damp. Grass grows nearly year round.'},
+  ca:{n:'Canada',       cur:'C$', area:'acres',    ha:2.47,maxStock:110,waterCap:1.1,  rates:0.95,
+      note:'Long hard winters, big acreage, cheap land outside the cities.'},
+  us:{n:'United States',cur:'US$',area:'acres',    ha:2.47,maxStock:130,waterCap:1.0,  rates:0.9,
+      note:'Large holdings, low rates, weak safety net. Scale pays.'},
+  za:{n:'South Africa', cur:'R',  area:'hectares', ha:1,  maxStock:100, waterCap:0.8,  rates:0.85,
+      note:'Hot and dry. Water is the binding constraint.'},
+};
+function country(){ return COUNTRIES[SET('country')] || COUNTRIES.au; }
+function stockLimit(){ return Math.round(country().maxStock * (1 + (S.expansions||0)*0.25)); }
+function totalStock(){ return S.objs.reduce((a,o)=>a+(o.animals||0),0); }
+
+/* currency symbol follows the country */
+(function localiseMoney(){
+  const _fmt = fmt;
+  fmt = function(v){ return country().cur + Math.round(v).toLocaleString(); };
+})();
+
+/* the stock limit actually binds */
+if(typeof G.buyAnimal === 'function'){
+  const _buy = G.buyAnimal;
+  G.buyAnimal = function(id){
+    if(totalStock() >= stockLimit()){
+      toast(`Stock limit reached — ${stockLimit()} head for ${country().n}`,'bad'); sfx('error');
+      log(`You are at the ${stockLimit()}-head limit. Buy adjoining land to raise it.`,'bad');
+      return;
+    }
+    _buy.call(G, id);
+  };
+}
+/* and water storage scales with the climate */
+if(typeof stat === 'function'){
+  const _stat = stat;
+  stat = function(){
+    const s = _stat();
+    s.waterCap = Math.round(s.waterCap * country().waterCap);
+    return s;
+  };
+}
+if(typeof outgoings === 'function'){
+  const _out21 = outgoings;
+  outgoings = function(){
+    const o = _out21();
+    if(!o.total) return o;
+    const before = o.rates;
+    o.rates = Math.round(o.rates * country().rates);
+    o.total += (o.rates - before);
+    return o;
+  };
+}
+
+/* ---------------------------------------------------------------
+   7. New settings
+   --------------------------------------------------------------- */
+SETTINGS.push(
+  {g:'Gameplay', k:'idleRules', n:'Pause &amp; penalise when idle', t:'bool', def:true,
+   d:'If you walk away, the clock stops and neglect costs you stock.'},
+  {g:'Gameplay', k:'idleMins',  n:'Idle before pausing', t:'range', min:2, max:60, def:10, unit:' min'},
+  {g:'Gameplay', k:'country',   n:'Where you farm', t:'pick',
+   opts:['au','nz','uk','ie','ca','us','za'], def:'au',
+   d:'Sets currency, stock limits, water and rates.'},
+  {g:'Display',  k:'theme',     n:'Colour theme', t:'pick',
+   opts:['greenhollow','slate','ember','orchid','nordic','paper'], def:'greenhollow'},
+  {g:'Display',  k:'minimap',   n:'Minimap', t:'bool', def:true, d:'Click or drag it to jump around a big farm.'},
+  {g:'Display',  k:'bigHit',    n:'Easier object grabbing', t:'bool', def:true,
+   d:'Widens the clickable area around every building.'},
+);
+
+/* the picker rows need friendly labels for these two */
+const PICK_LABEL = {
+  au:'Australia', nz:'New Zealand', uk:'UK', ie:'Ireland', ca:'Canada', us:'USA', za:'South Africa',
+  greenhollow:'Greenhollow', slate:'Slate', ember:'Ember', orchid:'Orchid', nordic:'Nordic', paper:'Daylight',
+};
+if(typeof settingsHTML === 'function'){
+  const _setHtml = settingsHTML;
+  settingsHTML = function(){
+    let h = _setHtml();
+    Object.keys(PICK_LABEL).forEach(k=>{
+      h = h.split(`>${k}</button>`).join(`>${PICK_LABEL[k]}</button>`);
+    });
+    return h + `<div class="card"><div class="eyebrow">About the country setting</div>
+      <div class="muted">${country().note}</div>
+      <div class="muted" style="margin-top:6px">Stock limit ${stockLimit()} head ·
+      water ×${country().waterCap} · rates ×${country().rates}. These are balance rules for the
+      game, not a guide to real agricultural regulation.</div></div>`;
+  };
+}
+
+/* ---------------------------------------------------------------
+   8. Wire-up
+   --------------------------------------------------------------- */
+(function wire21(){
+  const css = document.createElement('style');
+  css.textContent = `
+  .tbadge{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;
+    margin-left:5px;padding:0 4px;border-radius:8px;background:var(--acc);color:#0d1409;
+    font-size:9.5px;font-weight:800;font-style:normal;vertical-align:1px;}
+  #minimap{position:absolute;right:12px;top:58px;z-index:34;border-radius:10px;overflow:hidden;
+    border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.45);
+    background:rgba(10,16,8,.75);backdrop-filter:blur(8px);cursor:crosshair;}
+  #minimap canvas{display:block;}
+  body.lighttheme{--txt:#1b2417;--txt2:#4a5a42;--txt3:#6d7d64;--hair:rgba(0,0,0,.10);--hair2:rgba(0,0,0,.18);
+    --g1:rgba(0,0,0,.045);--g2:rgba(0,0,0,.08);}
+  body.lighttheme #top,body.lighttheme .panel{background:linear-gradient(180deg,#f7f5ec,#eceadf);}
+  body.lighttheme .wlab{background:rgba(255,255,255,.9);color:#1b2417;border-color:rgba(0,0,0,.2);}
+  /* a forgiving grab area around every building */
+  body.bighit .ob{stroke:transparent;stroke-width:14px;paint-order:stroke;}
+  `;
+  document.head.appendChild(css);
+
+  buildMinimap();
+  applyTheme();
+
+  const _setOpt21 = setOpt;
+  setOpt = function(k,v){
+    _setOpt21(k,v);
+    if(k==='theme'){ applyTheme(); bgToken=''; render(); }
+    if(k==='country'){ ui(); render(); }
+    if(k==='minimap'){ const m=document.getElementById('minimap'); if(m) m.style.display = v?'':'none'; }
+    if(k==='bigHit') document.body.classList.toggle('bighit', !!v);
+  };
+  document.body.classList.toggle('bighit', !!SET('bigHit'));
+  const mm=document.getElementById('minimap'); if(mm) mm.style.display = SET('minimap')?'':'none';
+
+  /* fold the new per-frame work into the existing loop */
+  let mmAcc = 0, badgeAcc = 0;
+  const _raf = window.requestAnimationFrame.bind(window);
+  let last = performance.now();
+  (function extra(now){
+    _raf(extra);
+    const dt = Math.min(0.2, (now-last)/1000); last = now;
+    if(!S) return;
+    tickIdleRules(dt);
+    mmAcc += dt; badgeAcc += dt;
+    if(mmAcc > 0.5){ mmAcc = 0; paintMinimap(); }
+    if(badgeAcc > 2){ badgeAcc = 0; tabBadges(); }
+  })(performance.now());
+
+  setTimeout(()=>{ tabBadges(); paintMinimap(); }, 600);
+})();
 
 
 </script>

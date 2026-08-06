@@ -121,7 +121,7 @@ function terrain(){
   if(terrainCache) return terrainCache;
   let s = `<rect x="${-WPX}" y="${-HPX}" width="${WPX*3}" height="${HPX*3}" fill="url(#gMeadow)"/>`;
   s += (typeof horizonLayer==='function' ? horizonLayer() : '');
-  for(let i=0;i<220;i++){
+  for(let i=0;i<90;i++){
     s += `<ellipse cx="${n(hash(i*1.7)*WPX)}" cy="${n(hash(i*2.9+4)*HPX)}" rx="${n(4+hash(i)*11)}" ry="${n(2+hash(i+3)*5)}" fill="#b3aa78" opacity=".45"/>`;
   }
   [[40,50],[130,36],[300,30],[640,28],[980,40],[1150,150],[1180,520],[70,700],[420,790],[820,800],[1130,700],[26,340]]
@@ -136,14 +136,14 @@ function terrain(){
     s += `<rect x="${n(px+i*48)}" y="${py}" width="24" height="${ph}" fill="#fff" opacity=".035"/>`;
   s += grain(px,py,pw,ph,0.16);
   /* scattered grass tufts and clover so the lawn is not flat colour */
-  for(let i=0;i<520;i++){
+  for(let i=0;i<230;i++){
     const gx = px+2+hash(i*1.31)*(pw-4), gy = py+2+hash(i*2.77+9)*(ph-4);
     const len = 2.4+hash(i*3.7)*3.4, lean = (hash(i*5.1)-0.5)*2.6;
     const c = i%9===0 ? '#9dc46a' : i%5===0 ? '#5b8438' : '#79a44e';
     s += `<path d="M${n(gx)} ${n(gy)} q ${n(lean)} ${n(-len*0.6)} ${n(lean*1.7)} ${n(-len)}"
       stroke="${c}" stroke-width="${(0.6+hash(i)*0.5).toFixed(1)}" fill="none" stroke-linecap="round" opacity=".75"/>`;
   }
-  for(let i=0;i<26;i++){
+  for(let i=0;i<14;i++){
     const gx = px+hash(i*4.3)*pw, gy = py+hash(i*6.1+3)*ph;
     s += `<ellipse cx="${n(gx)}" cy="${n(gy)}" rx="${n(14+hash(i)*26)}" ry="${n(9+hash(i+5)*16)}"
       fill="${i%3?'#6d9445':'#87ad5b'}" opacity=".3"/>`;
@@ -213,7 +213,7 @@ function roadLayer(){
       rut += `<rect x="${px+T*0.62}" y="${py-1}" width="3.2" height="${T+2}" fill="#8f8468" opacity=".45"/>`;
     }
     /* size-varied aggregate */
-    for(let i=0;i<11;i++){
+    for(let i=0;i<7;i++){
       const sx = px+2+hash(x*31+y*17+i)*(T-4), sy = py+2+hash(x*13+y*29+i*3)*(T-4);
       const rr = 0.5+hash(i+x+y)*1.5;
       stones += `<circle cx="${n(sx)}" cy="${n(sy)}" r="${n(rr)}" fill="${i%3?'#8f8468':'#e0d6bd'}" opacity=".6"/>`;
@@ -225,8 +225,7 @@ function roadLayer(){
       stones += `<circle cx="${n(px+4+hash(i*5+y)*(T-8))}" cy="${n(py-1-hash(i*9+x)*4)}" r="${n(0.6+hash(i+2)*0.9)}" fill="#b6a988" opacity=".7"/>`;
   });
   return `<g class="roadlay">${base}${edge}${rut}${stones}
-    <g opacity=".22">${Array.from(set).map(k=>{const[x,y]=k.split(',').map(Number);
-      return `<rect x="${x*T}" y="${y*T}" width="${T}" height="${T}" filter="url(#fGrain)" style="mix-blend-mode:overlay"/>`;}).join('')}</g></g>`;
+    </g>`;
 }
 
 function objTransform(o, bp){

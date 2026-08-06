@@ -321,6 +321,5 @@ function partnerHelps(){
     if(e.target.tagName==='INPUT') return;
     if(e.key.toLowerCase()==='c' && SET('autoCollect')) G.collectAll();
   });
-  setInterval(syncCollectAll, 1200);
   setTimeout(()=>{ applyDisplay(); syncCollectAll(); }, 200);
 })();

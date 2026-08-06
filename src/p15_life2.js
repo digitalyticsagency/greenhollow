@@ -11,15 +11,15 @@ function horizonLayer(){
   const l = LANDMAP[S.landId];
   if(!l) return '';
   const B = l.biome, W = WPX, H = HPX;
-  const band = (y,h,fill,op)=>`<rect x="${-W}" y="${n(y)}" width="${W*3}" height="${n(h)}" fill="${fill}" opacity="${op}"/>`;
+  const band = (y,h,fill,op)=>`<rect x="${-W*0.3}" y="${n(y)}" width="${W*1.6}" height="${n(h)}" fill="${fill}" opacity="${op}"/>`;
   /* silhouette ridge: a jagged skyline at depth d (0 far, 1 near) */
   const ridge = (y, amp, fill, seed, op)=>{
     let d = `M${-W} ${n(y+amp)}`;
-    for(let x=-W; x<=W*2; x+=48){
+    for(let x=-W*0.3; x<=W*1.3; x+=64){
       const k = hash(seed + x*0.013);
       d += ` L${n(x)} ${n(y + amp - k*amp*1.9)}`;
     }
-    d += ` L${W*2} ${n(y+amp*2)} L${-W} ${n(y+amp*2)} Z`;
+    d += ` L${W*1.3} ${n(y+amp*2)} L${-W*0.3} ${n(y+amp*2)} Z`;
     return `<path d="${d}" fill="${fill}" opacity="${op}"/>`;
   };
   let far='', mid='', near='';
@@ -30,25 +30,24 @@ function horizonLayer(){
     near = ridge(20, 50, '#55705f', 7, 1);
   } else if(B==='lake' || B==='pond'){
     far  = band(-200, 240, '#7fa8c4', .6) + ridge(-90, 70, '#6d8f7a', 11, .75);
-    mid  = `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="#4f8fb0" opacity=".85"/>` +
-           `<rect x="${-W}" y="${-40}" width="${W*3}" height="150" fill="url(#gWater)" opacity=".5"/>`;
-    for(let i=0;i<40;i++) mid += `<ellipse class="ripple" cx="${n(hash(i*2.3)*W*2-W*0.4)}" cy="${n(-30+hash(i*5)*130)}"
+    mid  = `<rect x="${-W*0.3}" y="${-40}" width="${W*1.6}" height="150" fill="#4f8fb0" opacity=".85"/>` +
+           `<rect x="${-W*0.3}" y="${-40}" width="${W*1.6}" height="150" fill="url(#gWater)" opacity=".5"/>`;
+    for(let i=0;i<6;i++) mid += `<ellipse class="ripple" cx="${n(hash(i*2.3)*W*2-W*0.4)}" cy="${n(-30+hash(i*5)*130)}"
       rx="${n(14+hash(i)*26)}" ry="2.2" fill="#dff4fb" opacity=".3" style="animation-delay:${(hash(i)*3).toFixed(1)}s"/>`;
     near = ridge(96, 26, '#5d8442', 13, 1);
   } else if(B==='coast'){
     far  = band(-220, 200, '#9fc6da', .7);
-    mid  = `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="#3f83a8"/>` +
-           `<rect x="${-W}" y="${-30}" width="${W*3}" height="170" fill="url(#gWater)" opacity=".6"/>`;
-    for(let i=0;i<7;i++) mid += `<rect class="surf" x="${-W}" y="${n(20+i*17)}" width="${W*3}" height="3"
+    mid  = `<rect x="${-W*0.3}" y="${-30}" width="${W*1.6}" height="170" fill="#3f83a8"/>` +
+           `<rect x="${-W*0.3}" y="${-30}" width="${W*1.6}" height="170" fill="url(#gWater)" opacity=".6"/>`;
+    for(let i=0;i<4;i++) mid += `<rect class="surf" x="${-W*0.3}" y="${n(20+i*17)}" width="${W*1.6}" height="3"
       fill="#ffffff" opacity=".38" style="animation-delay:${(i*0.5).toFixed(1)}s"/>`;
     near = band(130, 46, '#e0d4ae', 1) + band(130, 10, '#efe6c8', 1);
   } else if(B==='forest'){
     far = band(-200, 240, '#5c7f5a', .5);
     mid = ''; near = '';
-    for(let i=0;i<70;i++){
+    for(let i=0;i<26;i++){
       const x = -W*0.4 + hash(i*1.7)*W*1.9, y = -30 + hash(i*3.9)*150;
-      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+18)}px">
-        ${conifer(x, y, 18+hash(i)*16, i)}</g>`;
+      mid += conifer(x, y, 18+hash(i)*16, i);
     }
     near = ridge(120, 22, '#3d6b34', 17, 1);
   } else if(B==='river'){
@@ -71,9 +70,9 @@ function horizonLayer(){
   } else { /* orchard and anything else */
     far = band(-200, 230, '#9dbb7e', .5);
     mid = '';
-    for(let i=0;i<44;i++){
+    for(let i=0;i<20;i++){
       const x = -W*0.3 + hash(i*2.1)*W*1.7, y = -20 + hash(i*4.3)*140;
-      mid += `<g class="sway" style="transform-origin:${n(x)}px ${n(y+14)}px">${canopy(x,y,16+hash(i)*8,'url(#gCanopy)',i,false)}</g>`;
+      mid += canopy(x,y,16+hash(i)*8,'url(#gCanopy)',i,false);
     }
     near = ridge(120, 22, '#5f8a48', 61, 1);
   }
@@ -84,7 +83,7 @@ function horizonLayer(){
     <g class="hz-mid"  data-par="0.5">${mid}</g>
     <g class="hz-near" data-par="0.78">${near}</g>
     ${bottom}
-    <rect x="${-W}" y="${-300}" width="${W*3}" height="${H+600}" fill="url(#gHaze)" pointer-events="none"/>
+    <rect x="${-W*0.3}" y="${-300}" width="${W*1.6}" height="${H+600}" fill="url(#gHaze)" pointer-events="none"/>
   </g>`;
 }
 /* horizon layers drift slower than the camera, which is what sells depth */

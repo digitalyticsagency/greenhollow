@@ -148,7 +148,7 @@ ART.rec_sandpit = (w,h)=>{
   return s;
 };
 ART.rec_treehouse = (w,h)=>{
-  let s = canopy(w/2, h*0.55, Math.min(w,h)*0.46, 'url(#gCanopy)', 12, true);
+  let s = canopy(w/2, h*0.55, Math.min(w,h)*0.46, 'url(#gCanopy)', 12, false);
   s += `<g transform="translate(${n(w*0.24)},${n(h*0.2)})">${building(w*0.5,h*0.34,{roof:'url(#gRoofRed)',skirt:0})}</g>`;
   s += `<path d="M${n(w*0.5)} ${n(h*0.54)} L${n(w*0.62)} ${n(h*0.92)}" stroke="#8b6640" stroke-width="2.4"/>`;
   for(let i=0;i<4;i++) s += `<rect x="${n(w*0.5+i*w*0.03)}" y="${n(h*0.6+i*h*0.08)}" width="7" height="2" rx="1" fill="#a8814f"/>`;
@@ -317,26 +317,34 @@ function expandFarm(){
 /* ---------------------------------------------------------------
    A LIVING HORIZON — the backdrop now tracks the sun and weather
    --------------------------------------------------------------- */
+/* Animating a CSS filter over a group this large forced a full repaint every
+   frame. Opacity on flat overlay rects composites on the GPU instead. */
 function tintHorizon(){
   const g = document.getElementById('horizon');
   if(!g || typeof skyNow!=='function') return;
-  const s = skyNow();
-  const wx = S.weather;
-  /* grey and flatten under cloud, drown it in a storm, warm it at golden hour */
-  const sat = wx==='storm' ? 0.35 : wx==='rain' ? 0.55 : wx==='cloud' ? 0.75 : 1;
-  const bri = (1 - s.l*0.95) * (wx==='storm' ? 0.62 : wx==='rain' ? 0.78 : 1);
-  g.style.filter = `saturate(${sat.toFixed(2)}) brightness(${bri.toFixed(2)})`;
+  const s = skyNow(), wx = S.weather;
+
   let tint = g.querySelector('.hz-tint');
+  let grey = g.querySelector('.hz-grey');
   if(!tint){
-    tint = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    tint.setAttribute('class','hz-tint');
-    tint.setAttribute('x', -WPX); tint.setAttribute('y', -400);
-    tint.setAttribute('width', WPX*3); tint.setAttribute('height', HPX+800);
-    tint.style.pointerEvents='none';
-    g.appendChild(tint);
+    const mk = cls => {
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('class', cls);
+      r.setAttribute('x', -WPX*0.3); r.setAttribute('y', -400);
+      r.setAttribute('width', WPX*1.6); r.setAttribute('height', HPX+800);
+      r.style.pointerEvents='none';
+      g.appendChild(r); return r;
+    };
+    tint = mk('hz-tint'); grey = mk('hz-grey');
+    grey.setAttribute('fill', '#6b7a80');
   }
+  /* time of day: warm at the edges of the day, deep blue at night */
   tint.setAttribute('fill', s.hz);
-  tint.setAttribute('opacity', (0.10 + s.l*0.55).toFixed(3));
+  tint.setAttribute('opacity', (0.08 + s.l*0.55).toFixed(3));
+  /* weather: a flat grey veil stands in for desaturation */
+  const veil = wx==='storm' ? 0.42 : wx==='rain' ? 0.26 : wx==='cloud' ? 0.13 : 0;
+  grey.setAttribute('opacity', veil.toFixed(3));
+  g.style.filter = '';
 }
 
 /* ---------------------------------------------------------------
@@ -349,8 +357,8 @@ function tintHorizon(){
   .swingy{transform-box:fill-box;animation:swingy 2.4s ease-in-out infinite;}
   @keyframes steamup{0%{opacity:0;transform:translateY(4px)}40%{opacity:.55}100%{opacity:0;transform:translateY(-12px)}}
   .steam{animation:steamup 3.6s ease-out infinite;}
-  #horizon{transition:filter 3s linear;}
-  .hz-tint{transition:opacity 3s linear, fill 3s linear;}
+  #horizon{contain:paint;}
+  .hz-tint,.hz-grey{transition:opacity 2.5s linear;}
   @media(prefers-reduced-motion:reduce){.swingy,.steam{animation:none!important}}`;
   document.head.appendChild(css);
 

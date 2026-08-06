@@ -82,15 +82,19 @@ function DEFS(){
 /* ---------------- primitives ---------------- */
 
 /* ambient-occlusion contact shadow under an object */
+/* A blur filter here costs an offscreen pass per object; at this zoom a
+   plain translucent ellipse is indistinguishable and effectively free. */
 function ao(x,y,w,h,o){
-  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.52)}" ry="${n(h*0.2)}"
-    fill="#16240c" opacity="${o||0.34}" filter="url(#fSoft)"/>`;
+  const op = (o||0.34);
+  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
+    fill="#16240c" opacity="${(op*0.55).toFixed(2)}"/>`
+   + `<ellipse cx="${n(x+w/2+w*0.05)}" cy="${n(y+h*0.93)}" rx="${n(w*0.46)}" ry="${n(h*0.17)}"
+    fill="#16240c" opacity="${(op*0.6).toFixed(2)}"/>`;
 }
 /* grain overlay clipped to a shape via a rect (cheap texture) */
-function grain(x,y,w,h,o){
-  return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" filter="url(#fGrain)"
-    opacity="${o||0.13}" style="mix-blend-mode:overlay" pointer-events="none"/>`;
-}
+/* feTurbulence is far too costly to run per object; texture now comes from
+   the gradients and speckles already in each material. */
+function grain(){ return ''; }
 /* organic ground patch */
 function patch(w,h,fill,seed,inset){
   inset = inset||1;
@@ -120,7 +124,8 @@ function building(w,h,o){
   const tier = o.tier||0;
   /* long soft cast shadow, sun from upper left */
   let s = `<rect x="${n(m+w*0.055)}" y="${n(m+h*0.09)}" width="${n(w-2*m)}" height="${n(h-m)}" rx="3"
-    fill="#16240c" opacity=".34" filter="url(#fSoft)"/>`;
+    fill="#16240c" opacity=".22"/><rect x="${n(m+w*0.035)}" y="${n(m+h*0.06)}" width="${n(w-2*m)}" height="${n(h-m)}" rx="3"
+    fill="#16240c" opacity=".16"/>`;
 
   /* wall band under the eave, with a door and windows */
   if(skirt>0){
@@ -210,21 +215,22 @@ function panels(x,y,w,h,cols,rows){
 
 /* leafy canopy with lit crown and cast shadow */
 function canopy(cx,cy,r,grad,seed,sway){
-  let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.95)}" ry="${n(r*0.58)}"
-    fill="#16240c" opacity="0.4" filter="url(#fSoft)"/>`;
+  let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.98)}" ry="${n(r*0.6)}"
+    fill="#16240c" opacity="0.24"/><ellipse cx="${n(cx+r*0.3)}" cy="${n(cy+r*0.42)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}"
+    fill="#16240c" opacity="0.26"/>`;
   s += `<g${sway?' class="sway"':''} style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
   /* dark underside mass */
   s += `<circle cx="${n(cx+r*0.1)}" cy="${n(cy+r*0.14)}" r="${n(r*0.86)}" fill="#2b5418"/>`;
   /* mid lobes with real size variance */
-  for(let i=0;i<9;i++){
-    const a=(i/9)*Math.PI*2+hash(seed+i)*0.8, d=r*(0.3+hash(seed*3+i)*0.28);
+  for(let i=0;i<6;i++){
+    const a=(i/6)*Math.PI*2+hash(seed+i)*0.8, d=r*(0.3+hash(seed*3+i)*0.28);
     s += `<circle cx="${n(cx+Math.cos(a)*d)}" cy="${n(cy+Math.sin(a)*d*0.82)}"
       r="${n(r*(0.34+hash(seed*7+i)*0.3))}" fill="${grad}"/>`;
   }
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.6)}" fill="${grad}"/>`;
   /* sun-side crown */
-  for(let i=0;i<6;i++){
-    const b=-1.5+i*0.34, d=r*(0.2+hash(seed*11+i)*0.24);
+  for(let i=0;i<3;i++){
+    const b=-1.5+i*0.6, d=r*(0.2+hash(seed*11+i)*0.24);
     s += `<circle cx="${n(cx-r*0.2+Math.cos(b)*d)}" cy="${n(cy-r*0.22+Math.sin(b)*d)}"
       r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="#a9d47c" opacity="${(0.3+hash(seed+i)*0.35).toFixed(2)}"/>`;
   }
@@ -237,8 +243,8 @@ function canopy(cx,cy,r,grad,seed,sway){
 
 /* pointed native tree */
 function conifer(cx,cy,r,seed){
-  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.8)}" ry="${n(r*0.46)}" fill="#16240c" opacity=".36" filter="url(#fSoft)"/>`;
-  s += `<g class="sway" style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
+  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="#16240c" opacity=".26"/>`;
+  s += `<g>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.88)}" fill="url(#gCanopyD)"/>`;
   s += `<circle cx="${n(cx-r*0.12)}" cy="${n(cy-r*0.12)}" r="${n(r*0.55)}" fill="#417a2f"/>`;
   s += `<circle cx="${n(cx-r*0.2)}" cy="${n(cy-r*0.2)}" r="${n(r*0.26)}" fill="#5d9c40" opacity=".8"/>`;
@@ -297,14 +303,15 @@ function gravel(w,h,shape,rx){
     s += `<rect x="${n(w*0.1)}" y="${n(h*0.22)}" width="${n(w*0.8)}" height="${n(h*0.56)}" rx="2" fill="#b8ac8c" opacity=".4"/>`;
   }
   /* graded stone: a few big, many small */
-  for(let i=0;i<Math.floor(w*h/16);i++){
-    const big = i%11===0;
+  const stones = Math.min(46, Math.floor(w*h/140));
+  for(let i=0;i<stones;i++){
+    const big = i%7===0;
     const r = big ? 1.4+hash(i)*1.6 : 0.4+hash(i+9)*0.8;
     const c = i%4===0 ? '#e2d8bf' : i%3===0 ? '#7f7660' : '#a3987c';
     s += `<circle cx="${n(hash(i*1.7)*w)}" cy="${n(hash(i*3.1+5)*h)}" r="${n(r)}" fill="${c}" opacity="${big?0.75:0.55}"/>`;
   }
   /* ragged edge: stones spilling onto the grass instead of a hard cut line */
-  for(let i=0;i<Math.floor(w/5);i++){
+  for(let i=0;i<Math.min(10,Math.floor(w/14));i++){
     s += `<circle cx="${n(hash(i*2.3)*w)}" cy="${n(h-1+hash(i*4.1)*3)}" r="${n(0.6+hash(i)*1)}" fill="#b6a988" opacity=".7"/>`;
     s += `<circle cx="${n(hash(i*5.3+1)*w)}" cy="${n(1-hash(i*2.9)*3)}" r="${n(0.6+hash(i+3)*1)}" fill="#b6a988" opacity=".7"/>`;
   }
@@ -360,7 +367,7 @@ function beast(kind,x,y,sc,idle){
   else b =
     `<ellipse cx="${n(x)}" cy="${n(y)}" rx="${n(3.2*sc)}" ry="${n(2.3*sc)}" fill="#e7dcc6"/>
      <circle cx="${n(x+2.6*sc)}" cy="${n(y-1.7*sc)}" r="${n(1.4*sc)}" fill="#f2e9d6"/>`;
-  return `<g class="${idle===false?'':'peck'}" style="animation-delay:${(hash(x*y)*2).toFixed(1)}s">${sh}${b}</g>`;
+  return `<g>${sh}${b}</g>`;
 }
 
 /* human figure for scale */

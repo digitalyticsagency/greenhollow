@@ -481,6 +481,7 @@ function bindInput(){
    LOOP
    ===================================================================== */
 function loop(t){
+  if(window.__perfLoop) return;              // superseded by the unified frame
   rafId = requestAnimationFrame(loop);
   if(!lastT) lastT = t;
   const dt = Math.min(250, t-lastT); lastT = t;
@@ -496,35 +497,8 @@ function loop(t){
   badge.style.background = `linear-gradient(90deg, rgba(124,194,79,.28) ${pct}%, rgba(10,16,8,.86) ${pct}%)`;
 }
 
-/* animals move on their own light timer, independent of the day clock */
-let lifeLast = 0;
-setInterval(()=>{
-  const now = performance.now();
-  const dt = Math.min(0.4, (now - (lifeLast||now))/1000);
-  lifeLast = now;
-  if(typeof tickLife==='function') tickLife(dt);
-}, 120);
-
 let uiTick = 0;
-setInterval(()=>{ if(S && S.speed>0){ uiTick++; if(uiTick%3===0){ renderStats(); $('#wbadge').innerHTML = hint(); } } }, 1000);
-setInterval(()=>{ if(S && (typeof SET!=='function' || SET('autoSave'))) G.save(); }, 20000);
-/* edge panning, off by default */
-(function edgePan(){
-  let mx=0,my=0,inWorld=false;
-  const w=document.getElementById('world');
-  if(!w) return;
-  w.addEventListener('mousemove',e=>{ const r=w.getBoundingClientRect();
-    mx=e.clientX-r.left; my=e.clientY-r.top; inWorld=true; });
-  w.addEventListener('mouseleave',()=>inWorld=false);
-  setInterval(()=>{
-    if(!inWorld || typeof SET!=='function' || !SET('edgePan') || ghost) return;
-    const r=w.getBoundingClientRect(), m=48, sp=9;
-    let dx=0,dy=0;
-    if(mx<m) dx=sp; else if(mx>r.width-m) dx=-sp;
-    if(my<m) dy=sp; else if(my>r.height-m) dy=-sp;
-    if(dx||dy){ cam.x+=dx; cam.y+=dy; applyCam(); }
-  }, 30);
-})();
+
 
 /* =====================================================================
    BOOT

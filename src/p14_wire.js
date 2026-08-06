@@ -364,14 +364,4 @@ G.plant = function(id, ck){
   };
 });
 
-/* the character and the sun tick along with everything else */
-let _sunT = 0;
-setInterval(()=>{
-  const dt = 0.12;
-  if(typeof tickYou==='function') tickYou(dt);
-  if(typeof tickPeople==='function') tickPeople(dt);
-  if(typeof tickIdle==='function') tickIdle(dt);
-  _sunT++;
-  if(_sunT % 4 === 0 && typeof paintSun==='function' &&
-     (!S.settings || S.settings.sunarc !== false)) paintSun();
-}, 120);
+

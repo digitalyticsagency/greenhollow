@@ -26,32 +26,24 @@ function applyWind(){
 }
 
 /* weather particles: rain streaks, sand haze, snow */
-function weatherLayer(){
+/* Dozens of animated SVG lines repaint the whole scene; a single CSS layer
+   is one GPU-composited element instead. */
+function weatherLayer(){ return ''; }
+function syncWeatherFx(){
+  const world = document.getElementById('world');
+  if(!world) return;
+  let fx = document.getElementById('wxfx');
+  if(!fx){ fx = document.createElement('div'); fx.id='wxfx'; world.appendChild(fx); }
   const w = S.weather;
-  if(S.settings && S.settings.particles === false) return '';
+  const on = (!S.settings || S.settings.particles !== false);
   const land = LANDMAP[S.landId] || {};
-  const dusty = land.dust;
-  let s = '';
-  if(w==='rain' || w==='storm'){
-    const n0 = w==='storm' ? 150 : 80;
-    for(let i=0;i<n0;i++){
-      const x = hash(i*1.7)*WPX, y = hash(i*3.3)*HPX, len = w==='storm'?16:11;
-      s += `<line class="rainline" x1="${n(x)}" y1="${n(y)}" x2="${n(x-4)}" y2="${n(y+len)}"
-        stroke="#cfe6f5" stroke-width="1" opacity=".5" style="animation-delay:${(hash(i)*1.2).toFixed(2)}s"/>`;
-    }
+  let kind = '';
+  if(on){
+    if(w==='rain' || w==='storm') kind = w==='storm' ? 'storm' : 'rain';
+    else if(w==='frost') kind = 'snow';
+    else if(land.dust && (w==='sun'||w==='heat')) kind = 'dust';
   }
-  if(w==='frost'){
-    for(let i=0;i<70;i++)
-      s += `<circle class="snowflake" cx="${n(hash(i*2.1)*WPX)}" cy="${n(hash(i*4.4)*HPX)}" r="${(1+hash(i)*1.4).toFixed(1)}"
-        fill="#fff" opacity=".7" style="animation-delay:${(hash(i*3)*3).toFixed(2)}s"/>`;
-  }
-  if(dusty && (w==='sun'||w==='heat')){
-    for(let i=0;i<26;i++)
-      s += `<ellipse class="dust" cx="${n(hash(i*5.1)*WPX)}" cy="${n(hash(i*2.7)*HPX)}"
-        rx="${n(30+hash(i)*70)}" ry="${n(8+hash(i+2)*14)}" fill="#d8c9a0" opacity=".13"
-        style="animation-delay:${(hash(i)*6).toFixed(2)}s"/>`;
-  }
-  return s ? `<g id="wxlayer" pointer-events="none">${s}</g>` : '';
+  if(fx.dataset.kind !== kind){ fx.dataset.kind = kind; fx.className = kind ? 'wx-'+kind : ''; }
 }
 
 /* ---------------------------------------------------------------
