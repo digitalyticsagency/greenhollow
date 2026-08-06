@@ -50,7 +50,9 @@ print('pages build: %d chars, %s' % (len(html), note))
 art = '/private/tmp/claude-501/-Users-limonghosh/68773a9a-8171-4685-a5ba-87df65a27c5a/scratchpad/greenhollow-artifact.html'
 try:
     a = open(art, encoding='utf-8').read()
-    if 'goatcounter' in a:
+    # match the injected TAG, not the word: the game legitimately refers to
+    # window.goatcounter in its milestone code, which must ship everywhere
+    if 'data-goatcounter' in a or 'gc.zgo.at' in a:
         print('ERROR: analytics leaked into the artifact build', file=sys.stderr)
         sys.exit(1)
     print('artifact build clean of analytics - ok')
