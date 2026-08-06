@@ -8866,6 +8866,717 @@ G.testWeather = function(kind){
   toast(WEATHERS[kind] ? WEATHERS[kind].n : kind, '');
 };
 
+/* =====================================================================
+   OFF-GRID vs WORK-FROM-HOME
+
+   Not everyone wants a second job. At the start we ask outright, and
+   answering "no" removes the whole career system rather than leaving a
+   dead tab sitting there. It stays reversible from Settings, because
+   plenty of people change their mind three hours in.
+
+   Going off-grid is genuinely harder: no salary lands each month, but
+   the bills still do. What you get back is every waking hour for the
+   land, which is the trade the mode is actually about.
+   ===================================================================== */
+
+function wfhOn(){ return !S.settings || S.settings.wfh !== false; }
+
+/* the setting, so the choice is never a one-way door */
+(function addWfhSetting(){
+  if(SETTINGS.some(o=>o.k==='wfh')) return;
+  const i = SETTINGS.findIndex(o=>o.g==='Gameplay');
+  SETTINGS.splice(i < 0 ? 0 : i+1, 0, {
+    g:'Gameplay', k:'wfh', n:'Work from home', t:'bool', def:true,
+    d:'Off: no salary and no clients, but every hour is yours. Bills still arrive.'
+  });
+})();
+
+/* --- the question itself, asked after the house is chosen --- */
+function wfhChooser(){
+  const l  = LANDMAP[S.pendingLand] || LANDS[0];
+  const hm = HOMEMAP[S.pendingHome] || HOMES[0];
+  const p  = PROFS[0];
+  return `<h2>How will you pay for it?</h2>
+    <p class="sub">You have chosen <b>${esc(hm.name)}</b> on <b>${esc(l.name)}</b>.
+    Before you break ground: is the farm the whole plan, or do you keep a job you can
+    do from the kitchen table? You can change this later in Settings.</p>
+    <div class="wfhpick">
+      <button class="wfhcard" onclick="G.pickWfh(1)">
+        <span class="wfhic">${wfhDeskArt()}</span>
+        <b>I work from home too</b>
+        <span class="muted">A salary lands every month and clients send work.
+        Hours you bill are hours the farm does not get. Starts you as a
+        ${esc(p.name)} — ${PROFS.length} professions to switch between.</span>
+        <span class="lprice">${fmt(p.pay)}/mo to start</span>
+      </button>
+      <button class="wfhcard" onclick="G.pickWfh(0)">
+        <span class="wfhic">${wfhOffgridArt()}</span>
+        <b>Off-grid — the farm is the income</b>
+        <span class="muted">No salary, no clients, no Work tab. Rates, feed and
+        upkeep still fall due every month, so the land has to carry you.
+        Every hour of the day is yours to spend outside.</span>
+        <span class="lprice warn">Harder — bills without a wage</span>
+      </button>
+    </div>
+    <p class="sub" style="margin-top:10px">Either way you can flip
+    <b>Settings → Gameplay → Work from home</b> whenever you like.</p>`;
+}
+
+/* two small illustrations so the choice reads at a glance */
+function wfhDeskArt(){
+  return `<svg viewBox="0 0 64 44" width="64" height="44">
+    <rect x="6" y="30" width="52" height="3" rx="1.5" fill="#8a6a4a"/>
+    <rect x="10" y="33" width="3" height="9" fill="#6f543a"/>
+    <rect x="51" y="33" width="3" height="9" fill="#6f543a"/>
+    <rect x="20" y="12" width="26" height="17" rx="2" fill="#2f3a45"/>
+    <rect x="22" y="14" width="22" height="13" rx="1" fill="#6fb6d8"/>
+    <rect x="26" y="16" width="14" height="2" rx="1" fill="#bfe4f5" opacity=".8"/>
+    <rect x="26" y="20" width="10" height="2" rx="1" fill="#bfe4f5" opacity=".55"/>
+    <rect x="30" y="29" width="6" height="2" fill="#2f3a45"/>
+    <circle cx="52" cy="24" r="4" fill="#7cc24f"/>
+    <rect x="51" y="20" width="2" height="5" rx="1" fill="#5d9a3a"/>
+  </svg>`;
+}
+function wfhOffgridArt(){
+  return `<svg viewBox="0 0 64 44" width="64" height="44">
+    <path d="M4 36 Q18 28 32 33 Q46 38 60 31" stroke="#7cc24f" stroke-width="3"
+      fill="none" stroke-linecap="round"/>
+    <path d="M14 33 L22 20 L30 33 Z" fill="#5d9a3a"/>
+    <path d="M34 33 L42 16 L50 33 Z" fill="#4e8531"/>
+    <circle cx="50" cy="12" r="6" fill="#f0c14b"/>
+    <path d="M8 40 h48" stroke="#8a6a4a" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* --- rewire the opening sequence: land -> house -> this --- */
+G.pickHome = function(id){
+  S.pendingHome = id;
+  sfx('click');
+  modal(wfhChooser());
+};
+G.pickWfh = function(yes){
+  const l  = LANDMAP[S.pendingLand] || LANDS[0];
+  const hm = HOMEMAP[S.pendingHome] || HOMES[0];
+  startFarm(l, hm);
+  settingsInit();
+  S.settings.wfh = !!yes;
+  G.closeModal();
+  sfx('build');
+  if(yes){
+    log('You keep the day job. Salary lands monthly.','good');
+  } else {
+    log('Off-grid. No wage — the farm has to pay for itself.','warn');
+    if(rightTab === 'work'){ rightTab = 'insp'; }
+  }
+  syncWorkTab();
+  renderRight();
+  G.save();
+};
+
+/* --- gate the career system itself --- */
+const _salary = salary;
+salary = function(){ return wfhOn() ? _salary() : 0; };
+
+const _rollJobs = (typeof rollJobs === 'function') ? rollJobs : null;
+if(_rollJobs) rollJobs = function(){ if(!wfhOn()){ if(S.career) S.career.jobs = []; return; } return _rollJobs(); };
+
+/* off-grid gives the day back: no billable hours are ever consumed */
+const _hoursLeft = hoursLeft;
+hoursLeft = function(){ return wfhOn() ? _hoursLeft() : 24; };
+
+/* the monthly line should not claim a payday that never happened */
+const _monthly = monthlyReckoning;
+monthlyReckoning = function(){
+  if(wfhOn()) return _monthly();
+  careerInit();
+  const out = outgoings();
+  S.cash -= out.total;
+  const c = S.career;
+  if(c.loan > 0){
+    const repay = Math.min(c.loan, Math.round(c.loan*0.08));
+    if(S.cash > repay){ S.cash -= repay; c.loan -= repay; }
+  }
+  log(`Bills due: ${fmt(out.total)}. No wage — off-grid.`, S.cash > 0 ? 'warn' : 'bad');
+  toast(`Bills ${fmt(out.total)} · off-grid`, S.cash > 0 ? 'warn' : 'bad');
+  sfx('error');
+};
+
+/* --- hide the Work tab when there is no work --- */
+function syncWorkTab(){
+  const b = document.querySelector('.ptab[data-rt="work"]');
+  if(b) b.style.display = wfhOn() ? '' : 'none';
+  if(!wfhOn() && rightTab === 'work'){ rightTab = 'insp'; syncTabs(); }
+}
+
+/* if they turn it off from Settings, react immediately */
+const _setOpt = setOpt;
+setOpt = function(k, v){
+  const r = _setOpt(k, v);
+  if(k === 'wfh'){
+    syncWorkTab();
+    if(v){ log('Back on the payroll. Salary resumes next payday.','good'); }
+    else { log('Off-grid from here. The farm carries the bills.','warn'); }
+    renderRight();
+  }
+  return r;
+};
+
+/* the panel still exists for anyone who lands on it mid-transition */
+const _careerHTML = careerHTML;
+careerHTML = function(){
+  if(wfhOn()) return _careerHTML();
+  return `<div class="pcard">
+    <h3>Off-grid</h3>
+    <p class="sub">You chose to live off the land, so there is no salary, no clients
+    and no billable hours — every hour of every day goes to the farm. Rates, feed
+    and upkeep still fall due each month.</p>
+    <button class="btn" onclick="setOpt('wfh',true);rightTab='work';syncTabs();renderRight()">
+      Take on work from home</button>
+  </div>`;
+};
+
+(function wfhCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  .wfhpick{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-top:4px;}
+  @media(max-width:640px){ .wfhpick{grid-template-columns:1fr;} }
+  .wfhcard{display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+    padding:14px;border-radius:14px;text-align:left;cursor:pointer;
+    background:var(--pan2,#ffffff0d);border:1px solid var(--line,#ffffff1f);
+    transition:transform .12s ease, border-color .12s ease, background .12s ease;}
+  .wfhcard:hover{transform:translateY(-2px);border-color:var(--acc,#7cc24f);
+    background:var(--pan3,#ffffff14);}
+  .wfhcard b{font-size:14px;}
+  .wfhcard .muted{font-size:11.5px;line-height:1.45;}
+  .wfhic{display:block;margin-bottom:2px;}
+  .wfhcard .lprice{margin-top:auto;padding-top:6px;font-weight:700;font-size:12px;}
+  .wfhcard .lprice.warn{color:#f0a24b;}`;
+  document.head.appendChild(s);
+})();
+
+/* existing saves predate the question: they keep their career */
+(function migrate(){
+  if(typeof S === 'undefined' || !S) return;
+  settingsInit();
+  if(S.settings.wfh === undefined) S.settings.wfh = true;
+  setTimeout(syncWorkTab, 300);
+})();
+
+/* =====================================================================
+   ARCHITECTURE ON UPGRADE
+
+   Only seven of the fifty-two upgradeable objects changed shape when you
+   paid to improve them; the rest just got better numbers. This file gives
+   every one of them a real progression.
+
+   The idea running through it: upgrading does not sprawl, it consolidates.
+   Mk I is a rough single volume. Mk II bolts on the lean-to you would
+   actually build first. Mk III pulls it into one compact footprint with a
+   clerestory and a paved apron. Mk IV is the architectural version —
+   standing seam, glazing, solar, planting.
+
+   Living things follow the same arc differently: they grow, thicken and
+   gain the infrastructure a serious grower would add.
+   ===================================================================== */
+
+
+/* ---------- level of detail ----------
+   The tier layers are cumulative: a Mk IV shed carries its Mk II lean-to
+   and Mk III clerestory as well as its own green roof and verandah. That
+   is right visually, but on a farm of two hundred maxed objects it is a
+   lot of DOM to re-serialise every render. So the fine decoration —
+   planting tufts, apron joints, netting wires — drops out once the farm
+   is big. Structure always stays: the building never loses its shape,
+   only its garnish. */
+let ARCH_LOD = 2;
+function archLod(){
+  const nObj = (typeof S !== 'undefined' && S && S.objs) ? S.objs.length : 0;
+  return nObj > 95 ? 0 : nObj > 55 ? 1 : 2;
+}
+
+/* ---------- structural primitives ---------- */
+
+/* a lean-to bolted onto one side, lower than the main roof */
+function annex(w, h, o){
+  o = o||{};
+  const roof = o.roof || '#8a969c';
+  let s = `<rect x="${n(w*0.06)}" y="${n(h*0.10)}" width="${n(w)}" height="${n(h)}" rx="2"
+    fill="#16240c" opacity=".20"/>`;
+  s += `<rect x="0" y="0" width="${n(w)}" height="${n(h)}" rx="1.6" fill="#2a3238" opacity=".8"/>`;
+  s += `<rect x="0.8" y="0.8" width="${n(w-1.6)}" height="${n(h-1.6)}" rx="1.2" fill="${roof}"/>`;
+  /* single-pitch: light at the high edge, shade at the low */
+  s += `<rect x="0.8" y="0.8" width="${n(w-1.6)}" height="${n((h-1.6)*0.42)}" fill="#fff" opacity=".17"/>`;
+  s += `<rect x="0.8" y="${n(h*0.6)}" width="${n(w-1.6)}" height="${n(h*0.4-0.8)}" fill="#000" opacity=".20"/>`;
+  for(let i=2.4; ARCH_LOD>0 && i<w-1; i+=3.4)
+    s += `<line x1="${n(i)}" y1="1" x2="${n(i)}" y2="${n(h-1)}" stroke="#fff" stroke-opacity=".09" stroke-width="0.5"/>`;
+  s += `<rect x="0.8" y="${n(h-1.8)}" width="${n(w-1.6)}" height="1.4" fill="#000" opacity=".3"/>`;
+  return s;
+}
+
+/* clerestory monitor along the ridge — the giveaway of a serious shed */
+function monitor(w, h){
+  const mw = w*0.52, mx = (w-mw)/2, my = h*0.30, mh = Math.max(3.2, h*0.20);
+  let s = `<rect x="${n(mx+1)}" y="${n(my+1.4)}" width="${n(mw)}" height="${n(mh)}" rx="1"
+    fill="#000" opacity=".22"/>`;
+  s += `<rect x="${n(mx)}" y="${n(my)}" width="${n(mw)}" height="${n(mh)}" rx="1" fill="#6d7981"/>`;
+  s += `<rect x="${n(mx+0.7)}" y="${n(my+0.7)}" width="${n(mw-1.4)}" height="${n(mh-1.4)}" rx="0.7"
+    fill="url(#gGlass)" opacity=".92"/>`;
+  const bays = Math.max(2, Math.round(mw/7));
+  for(let i=1;i<bays;i++)
+    s += `<line x1="${n(mx+mw*i/bays)}" y1="${n(my+0.7)}" x2="${n(mx+mw*i/bays)}" y2="${n(my+mh-0.7)}"
+      stroke="#59646b" stroke-width="0.6"/>`;
+  s += `<rect x="${n(mx)}" y="${n(my)}" width="${n(mw)}" height="1" fill="#eef4f7" opacity=".85"/>`;
+  return s;
+}
+
+/* poured apron: the concrete you stand a ute on */
+function apron(x, y, w, h, r){
+  if(ARCH_LOD === 0) return '';
+  let s = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${r||2}"
+    fill="#9aa0a2" opacity=".55"/>`;
+  s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${r||2}"
+    fill="none" stroke="#7f8688" stroke-width="0.6" opacity=".7"/>`;
+  /* control joints */
+  const cols = ARCH_LOD===0 ? 1 : Math.max(1, Math.round(w/14));
+  for(let i=1;i<cols;i++)
+    s += `<line x1="${n(x+w*i/cols)}" y1="${n(y)}" x2="${n(x+w*i/cols)}" y2="${n(y+h)}"
+      stroke="#7f8688" stroke-width="0.5" opacity=".55"/>`;
+  s += `<line x1="${n(x)}" y1="${n(y+h*0.5)}" x2="${n(x+w)}" y2="${n(y+h*0.5)}"
+    stroke="#7f8688" stroke-width="0.5" opacity=".45"/>`;
+  return s;
+}
+
+/* verandah / covered walk: posts casting little shadows onto decking */
+function verandah(x, y, w, h){
+  let s = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.4" fill="#a98255"/>`;
+  s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.4" fill="#000" opacity=".12"/>`;
+  const boards = ARCH_LOD===0 ? 0 : Math.max(3, Math.round(h/2.6));
+  for(let i=1;i<boards;i++)
+    s += `<line x1="${n(x)}" y1="${n(y+h*i/boards)}" x2="${n(x+w)}" y2="${n(y+h*i/boards)}"
+      stroke="#7d5f3c" stroke-width="0.5" opacity=".7"/>`;
+  for(let i=0;i<Math.max(2,Math.round(w/10));i++){
+    const px = x + 2 + i*(w-4)/Math.max(1,Math.round(w/10)-1);
+    s += `<circle cx="${n(px+0.8)}" cy="${n(y+h-1.4)}" r="1.5" fill="#000" opacity=".22"/>`;
+    s += `<circle cx="${n(px)}" cy="${n(y+h-2)}" r="1.3" fill="#c9a577"/>`;
+  }
+  return s;
+}
+
+/* planting bed against a wall — softens the Mk IV builds */
+function planter(x, y, w, h, seed){
+  let s = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.2" fill="#6b5642"/>`;
+  s += `<rect x="${n(x+0.6)}" y="${n(y+0.6)}" width="${n(w-1.2)}" height="${n(h-1.2)}" rx="1" fill="#3f5a2a"/>`;
+  const cnt = ARCH_LOD===0 ? 0 : Math.max(2, Math.min(ARCH_LOD===1?6:14, Math.round(w/4)));
+  for(let i=0;i<cnt;i++){
+    const cx = x + 1.6 + (w-3.2)*(i+0.5)/cnt, r = 1.1 + hash(i*3.1+seed)*1.1;
+    s += `<circle cx="${n(cx)}" cy="${n(y+h*0.5)}" r="${r.toFixed(1)}" fill="#6ea63f"/>`;
+    s += `<circle cx="${n(cx-r*0.3)}" cy="${n(y+h*0.5-r*0.3)}" r="${(r*0.5).toFixed(1)}" fill="#8cc457" opacity=".8"/>`;
+  }
+  return s;
+}
+
+/* a green roof — the Mk IV signature */
+function roofGarden(x, y, w, h, seed){
+  let s = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.4" fill="#4a6b32"/>`;
+  s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h*0.4)}" rx="1.4" fill="#fff" opacity=".10"/>`;
+  const tufts = ARCH_LOD===0 ? 0 : Math.max(3, Math.min(ARCH_LOD===1?10:24, Math.round(w*h/26)));
+  for(let i=0;i<tufts;i++){
+    const cx = x+1 + hash(i*5.7+seed)*(w-2), cy = y+1 + hash(i*9.3+seed)*(h-2);
+    s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${(0.8+hash(i*2.2)*1).toFixed(1)}"
+      fill="${hash(i)>0.75?'#c7d96a':'#6ea63f'}" opacity=".9"/>`;
+  }
+  s += `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="1.4"
+    fill="none" stroke="#8c9a72" stroke-width="0.7"/>`;
+  return s;
+}
+
+/* a rainwater tank tucked beside a building */
+function miniTank(cx, cy, r){
+  let s = `<ellipse cx="${n(cx+r*0.25)}" cy="${n(cy+r*0.3)}" rx="${n(r)}" ry="${n(r*0.9)}" fill="#16240c" opacity=".22"/>`;
+  s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="url(#gTank)"/>`;
+  s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.72)}" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="0.7"/>`;
+  s += `<circle cx="${n(cx-r*0.3)}" cy="${n(cy-r*0.35)}" r="${n(r*0.3)}" fill="#fff" opacity=".28"/>`;
+  return s;
+}
+
+/* ---------- the families ---------- */
+/* Each returns extra SVG to lay over the base art for a given tier.
+   They receive the object's own width/height so they scale with footprint. */
+
+const ARCH = {
+  /* solid working buildings: sheds, workshops, processing rooms */
+  shed(w, h, t, seed, o){
+    let s = '';
+    if(t >= 1){
+      /* the lean-to you build first, plus a hardstand to work on */
+      s += apron(w*0.02, h*0.70, w*0.62, h*0.26, 2);
+      s += `<g transform="translate(${n(w*0.66)},${n(h*0.16)})">${annex(w*0.30, h*0.40, {roof:'#8a969c'})}</g>`;
+      s += miniTank(w*0.90, h*0.72, Math.min(w,h)*0.09);
+    }
+    if(t >= 2){
+      /* pulled into one compact footprint: clerestory over the main volume */
+      s += `<g transform="translate(${n(w*0.04)},${n(h*0.02)})">${monitor(w*0.60, h*0.56)}</g>`;
+      s += apron(w*0.02, h*0.70, w*0.94, h*0.26, 2);
+      s += `<rect x="${n(w*0.06)}" y="${n(h*0.60)}" width="${n(w*0.88)}" height="1.6" rx="0.8"
+        fill="#cfd6da" opacity=".8"/>`;
+      s += planter(w*0.06, h*0.90, w*0.40, h*0.07, seed);
+    }
+    if(t >= 3){
+      /* architectural: green roof over the annex, glazed end, full solar */
+      s += `<g transform="translate(${n(w*0.66)},${n(h*0.14)})">${roofGarden(0, 0, w*0.30, h*0.30, seed)}</g>`;
+      s += `<rect x="${n(w*0.08)}" y="${n(h*0.06)}" width="${n(w*0.52)}" height="${n(h*0.10)}" rx="1"
+        fill="url(#gGlass)" stroke="#5f6b72" stroke-width="0.6" opacity=".95"/>`;
+      s += verandah(w*0.06, h*0.62, w*0.56, h*0.09);
+      s += planter(w*0.52, h*0.90, w*0.42, h*0.07, seed+3);
+      s += `<circle cx="${n(w*0.90)}" cy="${n(h*0.10)}" r="2" fill="#7cc24f"/>`;
+    }
+    return s;
+  },
+
+  /* light open structures: kiosks, decks, tents, play */
+  pavilion(w, h, t, seed){
+    let s = '';
+    if(t >= 1){
+      s += verandah(w*0.08, h*0.72, w*0.84, h*0.13);
+      s += `<circle cx="${n(w*0.12)}" cy="${n(h*0.16)}" r="${n(Math.min(w,h)*0.07)}" fill="#6ea63f"/>`;
+    }
+    if(t >= 2){
+      /* a shade sail: taut fabric, not a slab. Kept translucent so the
+         thing underneath still reads through it. */
+      const sx = w*0.12, sy = h*0.10, sw = w*0.76, sh = h*0.42;
+      if(ARCH_LOD > 0){
+      s += `<path d="M${n(sx)} ${n(sy+sh*0.14)} Q${n(sx+sw*0.5)} ${n(sy-sh*0.10)} ${n(sx+sw)} ${n(sy+sh*0.14)}
+        L${n(sx+sw)} ${n(sy+sh*0.86)} Q${n(sx+sw*0.5)} ${n(sy+sh*1.10)} ${n(sx)} ${n(sy+sh*0.86)} Z"
+        fill="#e6dcc2" opacity=".34"/>`;
+      s += `<path d="M${n(sx)} ${n(sy+sh*0.14)} Q${n(sx+sw*0.5)} ${n(sy-sh*0.10)} ${n(sx+sw)} ${n(sy+sh*0.14)}
+        L${n(sx+sw)} ${n(sy+sh*0.50)} L${n(sx)} ${n(sy+sh*0.50)} Z"
+        fill="#fff" opacity=".16"/>`;
+      /* seams between fabric panels */
+      for(let k=1;k<3;k++)
+        s += `<line x1="${n(sx+sw*k/3)}" y1="${n(sy+sh*0.02)}" x2="${n(sx+sw*k/3)}" y2="${n(sy+sh*0.98)}"
+          stroke="#c9bda0" stroke-width="0.6" opacity=".55"/>`;
+      s += `<path d="M${n(sx)} ${n(sy+sh*0.14)} Q${n(sx+sw*0.5)} ${n(sy-sh*0.10)} ${n(sx+sw)} ${n(sy+sh*0.14)}"
+        fill="none" stroke="#cfc3a6" stroke-width="0.8" opacity=".8"/>`;
+      }
+      [[0.12,0.12],[0.88,0.12],[0.12,0.52],[0.88,0.52]].forEach((p,i)=>{
+        s += `<circle cx="${n(w*p[0]+0.8)}" cy="${n(h*p[1]+0.8)}" r="1.6" fill="#000" opacity=".22"/>`;
+        s += `<circle cx="${n(w*p[0])}" cy="${n(h*p[1])}" r="1.4" fill="#c9a577"/>`;
+      });
+      s += planter(w*0.08, h*0.88, w*0.36, h*0.08, seed);
+    }
+    if(t >= 3){
+      s += `<g transform="translate(${n(w*0.10)},${n(h*0.06)})">${roofGarden(0,0,w*0.80,h*0.20,seed)}</g>`;
+      s += `<rect x="${n(w*0.14)}" y="${n(h*0.30)}" width="${n(w*0.72)}" height="${n(h*0.16)}" rx="2"
+        fill="url(#gGlass)" opacity=".8" stroke="#5f6b72" stroke-width="0.6"/>`;
+      s += planter(w*0.50, h*0.88, w*0.42, h*0.08, seed+5);
+      s += `<circle class="pulse" cx="${n(w*0.90)}" cy="${n(h*0.88)}" r="2" fill="#f0c14b"/>`;
+    }
+    return s;
+  },
+
+  /* animal enclosures: better shelter, better fencing, better handling */
+  paddock(w, h, t, seed){
+    let s = '';
+    if(t >= 1){
+      /* a run-in shelter in the corner */
+      s += `<g transform="translate(${n(w*0.04)},${n(h*0.04)})">${annex(w*0.28, h*0.26, {roof:'#9aa6ac'})}</g>`;
+      s += `<rect x="${n(w*0.40)}" y="${n(h*0.86)}" width="${n(w*0.22)}" height="${n(h*0.07)}" rx="1.5" fill="#7d6a54"/>`;
+    }
+    if(t >= 2){
+      /* stock fence with proper strainer posts, and a water trough */
+      s += `<rect x="${n(w*0.03)}" y="${n(h*0.03)}" width="${n(w*0.94)}" height="${n(h*0.94)}" rx="3"
+        fill="none" stroke="#8b7c66" stroke-width="1.1" stroke-dasharray="6 3" opacity=".9"/>`;
+      [[0.03,0.03],[0.97,0.03],[0.03,0.97],[0.97,0.97]].forEach(p=>{
+        s += `<circle cx="${n(w*p[0]+0.6)}" cy="${n(h*p[1]+0.6)}" r="1.7" fill="#000" opacity=".22"/>`;
+        s += `<circle cx="${n(w*p[0])}" cy="${n(h*p[1])}" r="1.5" fill="#7d6a54"/>`;
+      });
+      s += `<rect x="${n(w*0.62)}" y="${n(h*0.86)}" width="${n(w*0.24)}" height="${n(h*0.07)}" rx="2" fill="#9fb0b8"/>`;
+      s += `<rect x="${n(w*0.63)}" y="${n(h*0.87)}" width="${n(w*0.22)}" height="${n(h*0.04)}" rx="1.5" fill="url(#gWater)"/>`;
+    }
+    if(t >= 3){
+      /* covered yard and a handling race */
+      s += `<g transform="translate(${n(w*0.04)},${n(h*0.02)})">${roofGarden(0,0,w*0.28,h*0.16,seed)}</g>`;
+      if(ARCH_LOD > 0)
+        s += `<rect x="${n(w*0.36)}" y="${n(h*0.06)}" width="${n(w*0.58)}" height="${n(h*0.26)}" rx="2"
+          fill="#c8d2d6" opacity=".45" stroke="#9aa8ad" stroke-width="0.7"/>`;
+      for(let i=1;i<4;i++)
+        s += `<line x1="${n(w*(0.36+0.58*i/4))}" y1="${n(h*0.06)}" x2="${n(w*(0.36+0.58*i/4))}" y2="${n(h*0.32)}"
+          stroke="#9aa8ad" stroke-width="0.6" opacity=".8"/>`;
+      s += apron(w*0.30, h*0.80, w*0.64, h*0.16, 2);
+      s += `<circle cx="${n(w*0.10)}" cy="${n(h*0.90)}" r="2" fill="#7cc24f"/>`;
+    }
+    return s;
+  },
+
+  /* planting: it grows, gets trellised, then gets netted and irrigated */
+  grove(w, h, t, seed){
+    let s = '';
+    if(t >= 1){
+      /* mulch rings and a drip line */
+      s += `<rect x="${n(w*0.06)}" y="${n(h*0.50)}" width="${n(w*0.88)}" height="1.2" rx="0.6"
+        fill="#5b6f8a" opacity=".55"/>`;
+      for(let i=0;i<4;i++)
+        s += `<circle cx="${n(w*(0.16+i*0.23))}" cy="${n(h*0.50)}" r="1" fill="#8fd0e8" opacity=".8"/>`;
+    }
+    if(t >= 2){
+      /* trellis posts and wires — the mark of a managed block */
+      for(let i=0;i<4;i++){
+        const px = w*(0.12+i*0.25);
+        s += `<circle cx="${n(px+0.6)}" cy="${n(h*0.90+0.6)}" r="1.5" fill="#000" opacity=".2"/>`;
+        s += `<circle cx="${n(px)}" cy="${n(h*0.90)}" r="1.3" fill="#8b7c66"/>`;
+        s += `<line x1="${n(px)}" y1="${n(h*0.14)}" x2="${n(px)}" y2="${n(h*0.90)}"
+          stroke="#8b7c66" stroke-width="0.8" opacity=".75"/>`;
+      }
+      s += `<rect x="${n(w*0.06)}" y="${n(h*0.20)}" width="${n(w*0.88)}" height="0.8" fill="#9aa8ad" opacity=".7"/>`;
+      s += `<rect x="${n(w*0.06)}" y="${n(h*0.62)}" width="${n(w*0.88)}" height="0.8" fill="#9aa8ad" opacity=".7"/>`;
+    }
+    if(t >= 3){
+      /* bird netting stretched over the whole block, plus a picking path */
+      /* the netting sheet is a full-footprint alpha layer — the single
+         most expensive thing here once farms get big */
+      if(ARCH_LOD > 0)
+        s += `<rect x="${n(w*0.04)}" y="${n(h*0.06)}" width="${n(w*0.92)}" height="${n(h*0.80)}" rx="3"
+          fill="#dfe8ec" opacity=".16" stroke="#cbd6da" stroke-width="0.7"/>`;
+      for(let i=1; ARCH_LOD>0 && i<6; i++)
+        s += `<line x1="${n(w*(0.04+0.92*i/6))}" y1="${n(h*0.06)}" x2="${n(w*(0.04+0.92*i/6))}" y2="${n(h*0.86)}"
+          stroke="#cbd6da" stroke-width="0.4" opacity=".5"/>`;
+      s += `<rect x="${n(w*0.06)}" y="${n(h*0.88)}" width="${n(w*0.88)}" height="${n(h*0.08)}" rx="1.5"
+        fill="#b7a184" opacity=".7"/>`;
+    }
+    return s;
+  },
+
+  /* water: edges get built, then planted, then usable */
+  water(w, h, t, seed){
+    let s = '';
+    if(t >= 1){
+      s += `<ellipse cx="${n(w*0.5)}" cy="${n(h*0.5)}" rx="${n(w*0.44)}" ry="${n(h*0.40)}"
+        fill="none" stroke="#8b7c66" stroke-width="1.4" opacity=".7"/>`;
+    }
+    if(t >= 2){
+      /* reed planting and a small jetty */
+      for(let i=0;i<10;i++){
+        const a = hash(i*4.1+seed)*Math.PI*2;
+        const rx = w*0.44*Math.cos(a), ry = h*0.40*Math.sin(a);
+        s += `<line x1="${n(w*0.5+rx)}" y1="${n(h*0.5+ry)}" x2="${n(w*0.5+rx*0.92)}" y2="${n(h*0.5+ry*0.92-2.4)}"
+          stroke="#6ea63f" stroke-width="0.9" stroke-linecap="round" opacity=".9"/>`;
+      }
+      s += verandah(w*0.36, h*0.06, w*0.28, h*0.14);
+    }
+    if(t >= 3){
+      s += `<rect x="${n(w*0.30)}" y="${n(h*0.02)}" width="${n(w*0.40)}" height="${n(h*0.06)}" rx="1.5"
+        fill="#a98255"/>`;
+      s += planter(w*0.06, h*0.86, w*0.34, h*0.08, seed);
+      s += planter(w*0.60, h*0.86, w*0.34, h*0.08, seed+2);
+      s += `<circle class="pulse" cx="${n(w*0.86)}" cy="${n(h*0.14)}" r="2" fill="#8fd0e8"/>`;
+    }
+    return s;
+  },
+
+  /* infrastructure: it gets bigger, doubled, then hardened and monitored */
+  infra(w, h, t, seed){
+    let s = '';
+    if(t >= 1){
+      s += apron(w*0.06, h*0.74, w*0.88, h*0.20, 2);
+    }
+    if(t >= 2){
+      s += `<rect x="${n(w*0.08)}" y="${n(h*0.10)}" width="${n(w*0.84)}" height="${n(h*0.54)}" rx="2"
+        fill="none" stroke="#9aa8ad" stroke-width="0.9" stroke-dasharray="4 2" opacity=".8"/>`;
+      s += miniTank(w*0.88, h*0.24, Math.min(w,h)*0.10);
+    }
+    if(t >= 3){
+      s += `<rect x="${n(w*0.10)}" y="${n(h*0.12)}" width="${n(w*0.34)}" height="${n(h*0.16)}" rx="1.2"
+        fill="url(#gSolar)" stroke="#3a4a55" stroke-width="0.6"/>`;
+      s += planter(w*0.06, h*0.92, w*0.40, h*0.06, seed);
+      s += `<circle class="pulse" cx="${n(w*0.88)}" cy="${n(h*0.88)}" r="2" fill="#7cc24f"/>`;
+    }
+    return s;
+  },
+};
+
+/* ---------- wiring: which object belongs to which family ---------- */
+const ARCH_FAMILY = {
+  /* working buildings */
+  shed:'shed', workshop:'shed', cellar:'shed', packing:'shed', dairy:'shed',
+  kitchen:'shed', honey_lab:'shed', gift_shop:'shed', nursery:'shed',
+  worker_cottage:'shed', ai_hub:'shed',
+  /* light structures */
+  tea_kiosk:'pavilion', deck:'pavilion', glamping:'pavilion', dome:'pavilion',
+  firepit:'pavilion', playground:'pavilion', bench:'pavilion', parking:'pavilion',
+  /* animals */
+  duck_pond:'paddock', goat_pen:'paddock', sheep:'paddock', apiary:'paddock',
+  rabbit:'paddock', fodder:'paddock',
+  /* planting */
+  orchard:'grove', berry:'grove', flowers:'grove', herb_spiral:'grove',
+  tree_native:'grove', tree_shade:'grove', tree_olive:'grove',
+  /* water */
+  pond:'water', well:'water',
+  /* infrastructure and site works */
+  wind:'infra', battery:'infra', sprinkler:'infra', compost:'infra',
+  lights:'infra', sign:'infra', gate:'infra', ring:'infra', hedge:'infra', fence:'infra',
+};
+
+let ARCH_WRAPPED = 0;
+
+/* wrap each art function so tier 0 is untouched and 1..3 gain structure */
+(function applyArchitecture(){
+  let wrapped = 0, missing = [];
+  Object.keys(ARCH_FAMILY).forEach((name, idx)=>{
+    const base = ART[name];
+    if(typeof base !== 'function'){ missing.push(name); return; }
+    const fam = ARCH[ARCH_FAMILY[name]];
+    if(!fam) return;
+    ART[name] = function(w, h, ob){
+      const out = base(w, h, ob);
+      const t = (typeof curTier === 'function') ? curTier(ob) : (ob && ob.tier) || 0;
+      if(!t) return out;
+      let extra = '';
+      ARCH_LOD = archLod();
+      try { extra = fam(w, h, t, idx*7.7, ob) || ''; }
+      catch(e){ extra = ''; }
+      return out + extra;
+    };
+    wrapped++;
+  });
+  if(missing.length) console.warn('[greenhollow] architecture: no art for', missing.join(', '));
+  ARCH_WRAPPED = wrapped;
+})();
+
+/* =====================================================================
+   DEPTH AND LIFE
+
+   Two things make a flat top-down scene read as solid: everything has to
+   sit in the same light, and everything has to breathe a little.
+
+   Light first. Individual art functions each drew their own shadow, or
+   didn't, so objects sat at inconsistent heights. drawObj is the one
+   place every object passes through, so the ground shadow is cast there
+   — one direction, one softness, scaled by how tall the thing is.
+
+   Then life. The frame budget here was hard-won: an earlier version ran
+   at 15fps because 355 elements were animating and every one carried an
+   SVG filter. So this animates with transforms only, never filters, and
+   caps how many things can move at once. Objects past the cap are still
+   drawn — they just hold still, which nobody notices in a crowd.
+   ===================================================================== */
+
+/* how tall each kind of thing stands. Drives shadow length and offset —
+   a tank throws a longer shadow than a garden bed because it is taller. */
+const HEIGHT = {
+  home:2.6, housing:2.4, hub:2.2, process:2.0, shop:1.9, tourism:1.7,
+  power:2.1, water:2.2, animal:1.2, bonus:1.4, store:1.9,
+  perennial:1.5, plot:0.5, decor:1.0, feed:0.6, rec:1.2,
+};
+function objHeight(bp){
+  if(bp.art === 'path' || bp.art === 'ring' || bp.art === 'parking') return 0;
+  if(bp.art === 'pond' || bp.art === 'duck_pond') return 0.2;
+  if(/^tree_/.test(bp.art)) return 2.4;
+  return HEIGHT[bp.cat] !== undefined ? HEIGHT[bp.cat] : (HEIGHT[bp.kind] || 1.2);
+}
+
+/* Ground shadow, cast down-right from the same upper-left sun the art
+   already assumes. Two stacked ellipses give a soft edge for far less
+   than a Gaussian blur would cost. */
+function groundShadow(o, bp){
+  const hgt = objHeight(bp);
+  if(hgt <= 0) return '';
+  const f = footprint(bp, o.rot);
+  const w = f.w*T, h = f.h*T;
+  const x = o.tx*T, y = o.ty*T;
+  /* taller things: longer throw, softer and weaker edge */
+  const off = 1.6 + hgt*1.9;
+  const grow = 1 + hgt*0.05;
+  const op  = Math.min(0.30, 0.13 + hgt*0.055);
+  const cx = x + w/2 + off*0.8, cy = y + h*0.93 + off*0.42;
+  return `<g class="obshadow" aria-hidden="true">`
+    + `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(w*0.54*grow)}" ry="${n(h*0.30*grow)}"
+        fill="#16240c" opacity="${(op*0.5).toFixed(3)}"/>`
+    + `<ellipse cx="${n(cx-off*0.25)}" cy="${n(cy-off*0.18)}" rx="${n(w*0.45)}" ry="${n(h*0.24)}"
+        fill="#16240c" opacity="${(op*0.75).toFixed(3)}"/>`
+    + `</g>`;
+}
+
+/* which objects are worth animating, and with what */
+function idleClass(bp){
+  const a = bp.art || '';
+  if(/^tree_|orchard|berry|flowers|hedge|fodder|herb_spiral/.test(a)) return 'lf-sway';
+  if(/pond|duck_pond|well|tank/.test(a))                              return 'lf-shimmer';
+  if(/lights|sign|battery|ai_hub/.test(a))                            return 'lf-glow';
+  if(/kitchen|dairy|honey_lab|packing|workshop/.test(a))              return 'lf-work';
+  if(/wind/.test(a))                                                  return 'lf-spin';
+  return '';
+}
+
+/* budget: how many objects may animate at once */
+const IDLE_CAP = 44;
+
+/* ---- hook the single place every object is drawn ---- */
+const _drawObjBase = drawObj;
+drawObj = function(o){
+  const bp = BPMAP[o.bp];
+  const inner = _drawObjBase(o);
+  if(!bp || MERGE_ROAD[o.bp]) return inner;
+
+  const shadow = (typeof SET !== 'function' || SET('shadows') !== false)
+    ? groundShadow(o, bp) : '';
+
+  /* animation is opt-in per object and rationed, so a big farm cannot
+     drag the frame rate down the way it used to */
+  let cls = '';
+  if((typeof SET !== 'function' || SET('motion') !== false) && IDLE_USED < IDLE_CAP){
+    cls = idleClass(bp);
+    if(cls){
+      IDLE_USED++;
+      /* stagger so they do not all move on the same beat */
+      const d = ((o.id ? String(o.id).length * 7 + o.tx * 13 + o.ty * 29 : 0) % 40) / 10;
+      return shadow + `<g class="lifewrap ${cls}" style="animation-delay:-${d}s">${inner}</g>`;
+    }
+  }
+  return shadow + inner;
+};
+
+/* reset the ration at the start of every full render */
+let IDLE_USED = 0;
+const _renderDepth = render;
+render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); };
+
+(function lifeCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  /* transform/opacity only — these stay on the compositor and never
+     trigger layout or an offscreen filter pass */
+  .lifewrap{ transform-origin:50% 92%; will-change:transform; }
+  .lf-sway   { animation: lfSway 6.5s ease-in-out infinite; }
+  .lf-shimmer{ animation: lfShim 5.2s ease-in-out infinite; }
+  .lf-glow   { animation: lfGlow 3.8s ease-in-out infinite; }
+  .lf-work   { animation: lfWork 4.6s ease-in-out infinite; }
+  .lf-spin   { animation: lfSpin 7s   ease-in-out infinite; }
+  .obshadow  { pointer-events:none; }
+
+  @keyframes lfSway {
+    0%,100%{ transform: rotate(-0.7deg) translateX(-0.3px); }
+    50%    { transform: rotate(0.7deg)  translateX(0.3px); } }
+  @keyframes lfShim {
+    0%,100%{ opacity:.95; } 50%{ opacity:1; } }
+  @keyframes lfGlow {
+    0%,100%{ opacity:.88; } 50%{ opacity:1; } }
+  @keyframes lfWork {
+    0%,100%{ transform: translateY(0); }
+    50%    { transform: translateY(-0.5px); } }
+  @keyframes lfSpin {
+    0%,100%{ transform: rotate(-1.4deg); }
+    50%    { transform: rotate(1.4deg); } }
+
+  /* the OS-level preference wins over our setting */
+  @media (prefers-reduced-motion: reduce){
+    .lifewrap{ animation:none !important; } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* redraw once so existing farms pick the treatment up immediately */
+setTimeout(()=>{ if(typeof render === 'function') render(); }, 260);
+
 
 </script>
 </body>
