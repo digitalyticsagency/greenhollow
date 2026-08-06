@@ -272,6 +272,10 @@ const G = {
       const d = JSON.parse(raw);
       if(!d || d.v !== 5) return false;
       S = d;
+      /* a save carrying an unknown weather key would throw on every
+         WEATHERS[S.weather] read and take the whole boot down */
+      if(!WEATHERS[S.weather]) S.weather = 'sun';
+      if(!S.prices) S.prices = {};
       Object.keys(GOODS).forEach(k=>{ if(S.prices[k]===undefined) S.prices[k]=1; });
       if(!S.auto) S.auto={}; if(!S.autoCfg) S.autoCfg={moist:0.5,reserve:10};
       if(!S.snd) S.snd={amb:true,mus:true};
