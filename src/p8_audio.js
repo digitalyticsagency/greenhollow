@@ -5,8 +5,8 @@
 const SND = (function(){
   let ac=null, master=null, sfxG=null, ambG=null, wxG=null, musG=null;
   let started=false, muted=false, noiseBuf=null;
-  let wind=null, rain=null, rainF=null, birdTimer=0, musTimer=0, musStep=0, muteHold=0;
-  const vol = {master:0.75, sfx:0.9, amb:0.35, wx:0.4, mus:0.22};
+  let wind=null, rain=null, rainF=null, rainLP=null, birdTimer=0, musTimer=0, musStep=0, muteHold=0;
+  const vol = {master:0.75, sfx:0.9, amb:0.35, wx:0.17, mus:0.22};
 
   function ctx(){
     if(ac) return ac;
@@ -81,7 +81,7 @@ const SND = (function(){
       f.type='lowpass'; f.frequency.setValueAtTime(300, c.currentTime);
       f.frequency.exponentialRampToValueAtTime(60, c.currentTime+1.8);
       g.gain.setValueAtTime(0, c.currentTime);
-      g.gain.linearRampToValueAtTime(0.5, c.currentTime+0.06);
+      g.gain.linearRampToValueAtTime(0.22, c.currentTime+0.06);
       g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+2.2);
       s.connect(f); f.connect(g); g.connect(wxG); s.start(); s.stop(c.currentTime+2.4); },
   };
@@ -115,19 +115,25 @@ const SND = (function(){
     const c=ctx(); if(!c) return;
     const wet = kind==='rain'||kind==='storm';
     if(wet && !rain){
-      const s=noiseSrc(), f=c.createBiquadFilter(), g=c.createGain();
-      f.type='bandpass'; f.frequency.value = kind==='storm'?900:1500; f.Q.value=0.4;
-      g.gain.value=0.6;
-      s.connect(f); f.connect(g); g.connect(wxG); s.start();
-      rain={s,g}; rainF=f;
+      /* rain was a bright bandpass hiss — soften it to a lowpassed patter
+         with the high end rolled off so it can sit under everything else */
+      const s=noiseSrc(), f=c.createBiquadFilter(), lp=c.createBiquadFilter(), g=c.createGain();
+      f.type='bandpass'; f.frequency.value = kind==='storm'?520:760; f.Q.value=0.25;
+      lp.type='lowpass'; lp.frequency.value = 1100; lp.Q.value=0.4;
+      g.gain.value=0.34;
+      s.connect(f); f.connect(lp); lp.connect(g); g.connect(wxG); s.start();
+      rain={s,g}; rainF=f; rainLP=lp;
     }
-    if(rainF) rainF.frequency.setTargetAtTime(kind==='storm'?800:1600, c.currentTime, 1.2);
+    if(rainF) rainF.frequency.setTargetAtTime(kind==='storm'?480:820, c.currentTime, 1.5);
+    if(rainLP) rainLP.frequency.setTargetAtTime(kind==='storm'?900:1200, c.currentTime, 1.5);
     const stw = (S&&S.settings)||{};
-    const target = (muted || stw.wx===false) ? 0 : (kind==='storm'?vol.wx:kind==='rain'?vol.wx*0.65:0);
+    const wv = stw.volWeather===undefined ? 60 : stw.volWeather;
+    const target = (muted || stw.wx===false) ? 0
+      : (kind==='storm'?vol.wx:kind==='rain'?vol.wx*0.6:0) * (wv/60);
     wxG.gain.setTargetAtTime(target, c.currentTime, 1.6);
     if(kind==='storm'){
       const boom=()=>{ if(S && S.weather==='storm' && !muted){ FX.thunder();
-        setTimeout(boom, 9000+Math.random()*16000); } };
+        setTimeout(boom, 18000+Math.random()*26000); } };
       setTimeout(boom, 2500+Math.random()*6000);
     }
   }
@@ -197,7 +203,7 @@ const SND = (function(){
     const mus2 = st.volMusic===undefined ? 22 : st.volMusic;
     vol.master = mv/100; vol.mus = mus2/100;
     if(st.amb === false) vol.amb = 0; else vol.amb = 0.35*(mv/100);
-    if(st.wx  === false) vol.wx  = 0; else vol.wx  = 0.40*(mv/100);
+    if(st.wx  === false) vol.wx  = 0; else vol.wx  = 0.17*(mv/100);
     if(st.mus === false) vol.mus = 0;
     [master, sfxG].forEach(g=> g.gain.cancelScheduledValues(c.currentTime));
     master.gain.setTargetAtTime(vol.master, c.currentTime, 0.2);

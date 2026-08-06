@@ -14,19 +14,41 @@ function blockedTile(x,y){
     return x>=o.tx && x<o.tx+f.w && y>=o.ty && y<o.ty+f.h;
   });
 }
+/* Walking on a made path is cheap; cutting across grass costs more. A* then
+   naturally follows the road when it is roughly on the way, and ignores it
+   when the detour would cost more than the shortcut — which is the judgement
+   a person actually makes. */
+let _roadSet = null, _roadStamp = -1;
+function roadLookup(){
+  if(_roadStamp === S.objs.length && _roadSet) return _roadSet;
+  _roadSet = (typeof roadTiles==='function') ? roadTiles() : new Set();
+  /* gravel rings, parking and yards count as made ground too */
+  S.objs.forEach(o=>{
+    if(!['ring','parking'].includes(o.bp)) return;
+    const f = footprint(BPMAP[o.bp], o.rot);
+    for(let x=0;x<f.w;x++) for(let y=0;y<f.h;y++) _roadSet.add((o.tx+x)+','+(o.ty+y));
+  });
+  _roadStamp = S.objs.length;
+  return _roadSet;
+}
+function stepCost(x,y){
+  const roads = roadLookup();
+  if(!roads.size) return 1;
+  return roads.has(x+','+y) ? 1 : 2.6;      // grass is 2.6x the effort of gravel
+}
 function findPath(sx,sy,gx,gy){
   const key=(x,y)=>x+','+y;
   const open=[{x:sx,y:sy,g:0,f:0,p:null}], seen={[key(sx,sy)]:0};
-  const H=(x,y)=>Math.abs(x-gx)+Math.abs(y-gy);
+  const H=(x,y)=>(Math.abs(x-gx)+Math.abs(y-gy));
   let best=null, guard=0;
-  while(open.length && guard++ < 4000){
+  while(open.length && guard++ < 9000){
     open.sort((a,b)=>a.f-b.f);
     const cur = open.shift();
     if(Math.abs(cur.x-gx)<=1 && Math.abs(cur.y-gy)<=1){ best=cur; break; }
     [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{
       const nx=cur.x+d[0], ny=cur.y+d[1];
       if(blockedTile(nx,ny)) return;
-      const g=cur.g+1, k=key(nx,ny);
+      const g=cur.g+stepCost(nx,ny), k=key(nx,ny);
       if(seen[k]!==undefined && seen[k]<=g) return;
       seen[k]=g;
       open.push({x:nx,y:ny,g,f:g+H(nx,ny),p:cur});

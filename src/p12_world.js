@@ -221,6 +221,7 @@ const SETTINGS = [
   {g:'Audio',    k:'animalSfx',  n:'Animal calls',          t:'bool', def:true},
   {g:'Audio',    k:'volMaster',  n:'Master volume',         t:'range', min:0, max:100, def:75, unit:'%'},
   {g:'Audio',    k:'volMusic',   n:'Music volume',          t:'range', min:0, max:100, def:22, unit:'%'},
+  {g:'Audio',    k:'volWeather', n:'Weather volume',        t:'range', min:0, max:100, def:45, unit:'%', d:'Rain and storm loudness.'},
 
   {g:'Assist',   k:'aiHints',    n:'AI coach',              t:'bool', def:true, d:'Unlocks at level 2.'},
   {g:'Assist',   k:'hintBadge',  n:'Task badge on the land',t:'bool', def:true},
