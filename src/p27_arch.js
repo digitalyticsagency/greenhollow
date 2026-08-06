@@ -24,6 +24,12 @@
    planting tufts, apron joints, netting wires — drops out once the farm
    is big. Structure always stays: the building never loses its shape,
    only its garnish. */
+/* Per-object upgrade art, filled in by a later part. Grouping objects into
+   families gets the buildings right but produces nonsense at the edges - a
+   hedge does not want a concrete apron, a fire circle does not want a green
+   roof. Anything named here takes precedence over its family. */
+var ARCH_SPECIAL = {};
+
 let ARCH_LOD = 2;
 function archLod(){
   const nObj = (typeof S !== 'undefined' && S && S.objs) ? S.objs.length : 0;
@@ -368,7 +374,8 @@ let ARCH_WRAPPED = 0;
       if(!t) return out;
       let extra = '';
       ARCH_LOD = archLod();
-      try { extra = fam(w, h, t, idx*7.7, ob) || ''; }
+      const spec = ARCH_SPECIAL[name];
+      try { extra = (spec ? spec(w, h, t, idx*7.7, ob) : fam(w, h, t, idx*7.7, ob)) || ''; }
       catch(e){ extra = ''; }
       return out + extra;
     };
