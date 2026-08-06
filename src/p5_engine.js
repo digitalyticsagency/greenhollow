@@ -260,10 +260,12 @@ function render(){
   if(ghost){
     const f = footprint(ghost.bp, ghost.rot);
     for(let x=FARM.x;x<FARM.x+FARM.w;x++) for(let y=FARM.y;y<FARM.y+FARM.h;y++){}
-    g += `<g class="gridlay">`;
+    const showGrid = (typeof SET!=='function') || SET('grid');
+    if(showGrid) g += `<g class="gridlay">`;
+    if(showGrid){
     for(let x=FARM.x;x<=FARM.x+FARM.w;x++) g += `<line x1="${x*T}" y1="${FARM.y*T}" x2="${x*T}" y2="${(FARM.y+FARM.h)*T}" stroke="#fff" stroke-opacity=".13" stroke-width="1"/>`;
     for(let y=FARM.y;y<=FARM.y+FARM.h;y++) g += `<line x1="${FARM.x*T}" y1="${y*T}" x2="${(FARM.x+FARM.w)*T}" y2="${y*T}" stroke="#fff" stroke-opacity=".13" stroke-width="1"/>`;
-    g += `</g>`;
+    g += `</g>`; }
     const bad = overlaps(ghost.tx, ghost.ty, f, ghost.moving) || S.cash < (ghost.moving?0:ghost.bp.cost);
     const fake = {id:-1, bp:ghost.bp.id, tx:ghost.tx, ty:ghost.ty, rot:ghost.rot,
       crop:null, stage:0.6, water:.6, animals:2, ready:0, store:(ghost.bp.cap||0)*0.6, cap:ghost.bp.cap};
@@ -409,7 +411,9 @@ function advanceDay(){
         grew++;
       }
       /* pests */
-      if(!o.pest && Math.random() < 0.05*(1 - Math.min(0.8, st.ducks*0.12))) o.pest = 1;
+      const pestK = (typeof SET==='function' ? SET('pestRate')/50 : 1) *
+                    (typeof diff==='function' ? diff().pest : 1);
+      if(!o.pest && Math.random() < 0.05*pestK*(1 - Math.min(0.8, st.ducks*0.12))) o.pest = 1;
     }
     if(bp.kind==='plot') dailySoil(o);
     if(bp.kind==='perennial'){

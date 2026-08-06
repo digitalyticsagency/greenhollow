@@ -122,7 +122,8 @@ const SND = (function(){
       rain={s,g}; rainF=f;
     }
     if(rainF) rainF.frequency.setTargetAtTime(kind==='storm'?800:1600, c.currentTime, 1.2);
-    const target = muted ? 0 : (kind==='storm'?vol.wx:kind==='rain'?vol.wx*0.65:0);
+    const stw = (S&&S.settings)||{};
+    const target = (muted || stw.wx===false) ? 0 : (kind==='storm'?vol.wx:kind==='rain'?vol.wx*0.65:0);
     wxG.gain.setTargetAtTime(target, c.currentTime, 1.6);
     if(kind==='storm'){
       const boom=()=>{ if(S && S.weather==='storm' && !muted){ FX.thunder();
@@ -191,20 +192,33 @@ const SND = (function(){
     }
     if(muteHold){ clearTimeout(muteHold); muteHold=0; }
     if(ac.state==='suspended') ac.resume();
+    const st = (S&&S.settings)||{};
+    const mv = st.volMaster===undefined ? 75 : st.volMaster;
+    const mus2 = st.volMusic===undefined ? 22 : st.volMusic;
+    vol.master = mv/100; vol.mus = mus2/100;
+    if(st.amb === false) vol.amb = 0; else vol.amb = 0.35*(mv/100);
+    if(st.wx  === false) vol.wx  = 0; else vol.wx  = 0.40*(mv/100);
+    if(st.mus === false) vol.mus = 0;
     [master, sfxG].forEach(g=> g.gain.cancelScheduledValues(c.currentTime));
     master.gain.setTargetAtTime(vol.master, c.currentTime, 0.2);
     sfxG.gain.setTargetAtTime(vol.sfx, c.currentTime, 0.1);
     ambG.gain.cancelScheduledValues(c.currentTime);
     musG.gain.cancelScheduledValues(c.currentTime);
-    ambG.gain.setTargetAtTime(S&&S.snd&&S.snd.amb===false?0:vol.amb, c.currentTime, 0.8);
-    musG.gain.setTargetAtTime(S&&S.snd&&S.snd.mus===false?0:vol.mus, c.currentTime, 1.2);
+    ambG.gain.setTargetAtTime(vol.amb, c.currentTime, 0.8);
+    musG.gain.setTargetAtTime(vol.mus, c.currentTime, 1.2);
     scheduleBird();
     if(S) setWeather(S.weather);
   }
 
   return {
     unlock, applyMix,
-    play(name){ if(muted||!started) return; const f=FX[name]; if(f) try{ f(); }catch(e){} },
+    play(name){
+      if(muted||!started) return;
+      const st = (S&&S.settings)||{};
+      if(st.sfx === false) return;
+      if(st.animalSfx === false && ['cluck','bleat','bee'].includes(name)) return;
+      const f=FX[name]; if(f) try{ f(); }catch(e){}
+    },
     weather(k){ if(started) setWeather(k); },
     setMuted(m){ muted=m; applyMix(); },
     isMuted(){ return muted; },

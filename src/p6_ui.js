@@ -131,10 +131,10 @@ function renderBuild(){
         poor?`<hr><span class="warn">You need ${fmt(b.cost-S.cash)} more</span>`:
         `<hr><span class="tg">${b.tip}</span>`);
     return `<div class="bitem${locked?' locked':''}${poor&&!locked?' poor':''}${ghost&&ghost.bp.id===b.id?' sel':''}"
-      ${locked?'':`onclick="G.pick('${b.id}')"`} data-tip="${esc(tipHtml)}">
+      onclick="${locked?`G.pickLocked('${b.id}')`:`G.pick('${b.id}')`}" data-tip="${esc(tipHtml)}">
       <span class="bth">${thumb(b)}</span>
       <span class="bmeta"><b>${b.name}</b><span class="sub">${b.w}×${b.h} · ${kindLabel(b)}</span></span>
-      ${locked?`<span class="lockb">Lv ${b.lvl}</span>`:`<span class="cost">${fmt(b.cost)}</span>`}
+      ${locked?`<span class="lockb">🔒 Lv ${b.lvl}</span>`:`<span class="cost">${fmt(b.cost)}</span>`}
     </div>`;
   }).join('') || '<div class="empty">Nothing here yet.</div>';
 }

@@ -269,7 +269,8 @@ function switchProf(id){
 function careerDay(){
   careerInit();
   const c = S.career;
-  c.hours = HOURS_PER_DAY * (1 - c.burnout*0.25);
+  const hd = (typeof SET==='function' ? SET('hoursDay') : HOURS_PER_DAY);
+  c.hours = hd * (typeof SET==='function' && !SET('burnout') ? 1 : (1 - c.burnout*0.25));
   c.jobs.forEach(j=>j.left--);
   c.jobs = c.jobs.filter(j=>j.left>0);
   rollJobs();

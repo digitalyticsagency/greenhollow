@@ -219,7 +219,8 @@ function dailyHusbandry(o){
     o.sick = 1; log(`Illness in the ${bp.name}. Treat it before it spreads.`,'bad');
   }
   /* healthy, happy, uncrowded stock breeds */
-  if(!o.sick && o.animals < E.cap(o) && herdHappy(o) > 0.7 && o.care > 0.55 && Math.random() < 0.1){
+  const breedK = (typeof SET==='function' ? SET('breedRate')/50 : 1);
+  if(!o.sick && o.animals < E.cap(o) && herdHappy(o) > 0.7 && o.care > 0.55 && Math.random() < 0.1*breedK){
     o.animals++; syncHerd(o);
     log(`A ${bp.animal} was born in the ${bp.name}.`,'good');
     toast(`New ${bp.animal} born!`,'good');
