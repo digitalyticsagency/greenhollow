@@ -178,10 +178,21 @@ function beeBody(x, y, sc){
 }
 
 /* ---------- where a species wants to be when it is out ---------- */
-/* Ducks belong on the water; everything else uses the whole yard. */
-function outdoorRegion(m){
-  if(m.kind === 'duck') return pondRect(m.w, m.h);
-  return { x: 7, y: 7, w: m.w-14, h: m.h-14 };
+/* Ducks belong on the water, bees around the hives, everything else on
+   the grass. All three are ellipses rather than rectangles because the
+   art underneath them is an ellipse - a rectangular region puts animals
+   in the bare corners of the footprint, looking like they got out. */
+function outdoorEllipse(m){
+  if(m.kind === 'duck'){
+    const p = pondRect(m.w, m.h);
+    return { cx:p.x + p.w/2, cy:p.y + p.h/2, rx:(p.w/2)*0.82, ry:(p.h/2)*0.78 };
+  }
+  return { cx:m.w/2, cy:m.h/2, rx:(m.w/2)*0.84, ry:(m.h/2)*0.84 };
+}
+/* a point picked evenly inside that ellipse */
+function pointInEllipse(g){
+  const t = Math.random()*Math.PI*2, r = Math.sqrt(Math.random());
+  return { x: g.cx + Math.cos(t)*g.rx*r, y: g.cy + Math.sin(t)*g.ry*r };
 }
 
 /* ---------- rework the mind model to cover all of them ---------- */
@@ -200,17 +211,21 @@ if(typeof chooseAct === 'function'){
       a.gy = b.y + 6 + Math.random()*Math.max(2, b.h - 12);
       return;
     }
-    const r = outdoorRegion(m);
+    const g = outdoorEllipse(m);
     const others = m.list.filter(o=>o !== a && !o.inside);
     if(others.length && Math.random() < 0.62){
-      a.gx = others[Math.floor(Math.random()*others.length)].x + (Math.random()-0.5)*26;
-      a.gy = others[Math.floor(Math.random()*others.length)].y + (Math.random()-0.5)*20;
+      /* one companion, not two - picking the index twice chose a
+         different animal for x than for y and aimed at neither */
+      const t = others[Math.floor(Math.random()*others.length)];
+      a.gx = t.x + (Math.random()-0.5)*26;
+      a.gy = t.y + (Math.random()-0.5)*20;
     } else {
-      a.gx = r.x + Math.random()*r.w;
-      a.gy = r.y + Math.random()*r.h;
+      const p = pointInEllipse(g);
+      a.gx = p.x; a.gy = p.y;
     }
-    a.gx = Math.max(r.x, Math.min(r.x + r.w, a.gx));
-    a.gy = Math.max(r.y, Math.min(r.y + r.h, a.gy));
+    const goal = { x:a.gx, y:a.gy };
+    clampToEllipse(goal, g.cx, g.cy, g.rx, g.ry);
+    a.gx = goal.x; a.gy = goal.y;
   };
 }
 

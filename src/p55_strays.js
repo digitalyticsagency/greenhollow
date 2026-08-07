@@ -22,10 +22,33 @@
 /* Belt and braces: chooseAct already aims inside the pen, but a clamp
    after the fact is the only thing that cannot be defeated by some future
    behaviour that sets a goal without thinking about bounds. */
+/* patch() draws the grass as a wobbly ellipse inscribed in the pen's
+   footprint, so the four corners of the rectangle are bare ground. A
+   rectangular clamp therefore parks animals in those corners, off the
+   green, which is exactly what "the animals are outside" looks like on a
+   wide paddock. Everything outdoors is held to the ellipse instead.
+   0.84 keeps them clear of the wobble, which dips to 0.88 of the radius. */
+function clampToEllipse(p, cx, cy, rx, ry){
+  rx = Math.max(4, rx); ry = Math.max(4, ry);
+  const dx = (p.x - cx)/rx, dy = (p.y - cy)/ry;
+  const d = Math.hypot(dx, dy);
+  if(d <= 1) return;
+  p.x = cx + (dx/d)*rx;
+  p.y = cy + (dy/d)*ry;
+}
+function grassEllipse(m){
+  return { cx:m.w/2, cy:m.h/2, rx:(m.w/2)*0.84, ry:(m.h/2)*0.84 };
+}
 function clampToPen(m, a){
-  const pad = 6;
-  a.x = Math.max(pad, Math.min(m.w - pad, a.x));
-  a.y = Math.max(pad, Math.min(m.h - pad, a.y));
+  if(a.inside){
+    /* the shed floor really is a rectangle */
+    const b = m.box, pad = 5;
+    a.x = Math.max(b.x+pad, Math.min(b.x+b.w-pad, a.x));
+    a.y = Math.max(b.y+pad, Math.min(b.y+b.h-pad, a.y));
+    return;
+  }
+  const g = (typeof outdoorEllipse === 'function') ? outdoorEllipse(m) : grassEllipse(m);
+  clampToEllipse(a, g.cx, g.cy, g.rx, g.ry);
 }
 
 /* ---------- 2. who is loose ---------- */
