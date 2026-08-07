@@ -37,7 +37,7 @@ function droneArt(){
         <line x1="0" y1="0" x2="${x*0.75}" y2="${y*0.75}" stroke="#3d4a52" stroke-width="1.8"/>
         <circle cx="${x}" cy="${y}" r="6" fill="#8fb6cc" opacity=".28" class="fl-rotor"/>
         <circle cx="${x}" cy="${y}" r="2" fill="#5f6b73"/>`).join('')}
-      <rect class="fl-cargo" x="-4" y="4" width="8" height="0" rx="1.5" fill="#7cc24f"/>
+      <rect class="fl-cargo" x="-4" y="4" width="8" height="6" rx="1.5" fill="#7cc24f"/>
     </g></g>`;
 }
 function robotArt(){
@@ -238,8 +238,11 @@ G.runAiNow = function(){
   @keyframes flBump{0%,100%{transform:translateY(0)}50%{transform:translateY(-1px)}}
   .fl-robot,.fl-seeder,.fl-van{transform-box:fill-box;transform-origin:center bottom;animation:flBump .28s ease-in-out infinite;}
   /* the drone lowers a line and lifts a crate while it works */
-  .fl .fl-cargo{transition:height .3s, y .3s;}
-  .fl.carrying .fl-cargo{height:6px;}
+  /* the crate grows down from the drone's belly. scaleY composites;
+     animating the rect's height would repaint it every frame instead. */
+  .fl .fl-cargo{transform-box:fill-box;transform-origin:center top;
+    transform:scaleY(0);transition:transform .3s ease-out;}
+  .fl.carrying .fl-cargo{transform:scaleY(1);}
   .fl.working .fl-body{animation-duration:.5s;}
   @keyframes flSeed{0%{opacity:0;transform:translate(0,0)}40%{opacity:.9}100%{opacity:0;transform:translate(6px,7px)}}
   .fl.working .fl-seed circle{animation:flSeed .6s linear infinite;}

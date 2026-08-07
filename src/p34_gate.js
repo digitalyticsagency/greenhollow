@@ -236,7 +236,7 @@ function ownerPanelHTML(){
   <div class="pcard">
     <h3>What to improve</h3>
     <p class="sub">Read from your actual save, ordered by what it is costing you.</p>
-    ${an.map(a=>`<div class="oadv" style="border-left-color:${sev[a.sev]}">
+    ${an.map(a=>`<div class="oadv" style="--sev:${sev[a.sev]}">
       <b>${a.t}</b><span>${a.d}</span></div>`).join('')}
   </div>
   <div class="pcard">
@@ -322,8 +322,13 @@ renderRight = function(){
   #rightBody .pcard .tl b{white-space:nowrap;}
   .ochips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
   .ochip{background:rgba(255,255,255,.07);border-radius:7px;padding:3px 8px;font-size:11px;}
-  .oadv{border-left:3px solid #7cc24f;padding:7px 0 7px 10px;margin-bottom:9px;}
-  .oadv b{display:block;font-size:12.5px;margin-bottom:2px;}
+  .oadv{padding:7px 0;margin-bottom:9px;border-bottom:1px solid rgba(255,255,255,.06);}
+  .oadv:last-of-type{border-bottom:none;}
+  /* severity reads from a small dot beside the heading rather than a
+     slab down the side - same information, less of a template tell */
+  .oadv b{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:2px;}
+  .oadv b::before{content:'';width:6px;height:6px;border-radius:50%;
+    background:var(--sev,#7cc24f);flex:0 0 auto;}
   .oadv span{font-size:11.5px;color:#b9c4ae;line-height:1.5;}
   `;
   document.head.appendChild(s);
