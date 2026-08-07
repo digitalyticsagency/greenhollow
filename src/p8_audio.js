@@ -86,6 +86,18 @@ const SND = (function(){
              setTimeout(()=>tone(b*0.8, 0.09, 'square', 0.04, null, b*0.6), 80); },
     bleat(){ tone(320, 0.3, 'sawtooth', 0.045, null, 250); },
     bee(){ tone(220, 0.5, 'sawtooth', 0.02, null, 210); },
+    /* the rest of the yard. Kept small and soft - these fire often, so
+       anything with a sharp attack becomes irritating within a minute. */
+    moo(){ const b = 155 + Math.random()*20;
+           tone(b, 0.55, 'sawtooth', 0.055, null, b*0.72);
+           setTimeout(()=>tone(b*0.86, 0.35, 'sine', 0.03, null, b*0.7), 260); },
+    quack(){ const b = 380 + Math.random()*70;
+             tone(b, 0.09, 'square', 0.045, null, b*0.6);
+             setTimeout(()=>tone(b*0.9, 0.08, 'square', 0.035, null, b*0.55), 110); },
+    oink(){ const b = 240 + Math.random()*40;
+            tone(b, 0.12, 'sawtooth', 0.05, null, b*1.6);
+            setTimeout(()=>tone(b*1.1, 0.10, 'sawtooth', 0.035, null, b*0.6), 130); },
+    thump(){ tone(120, 0.10, 'sine', 0.05, null, 90); },
     /* Thunder, shaped by how far away the strike was. Every strike used to
        sound identical - one soft low rumble - which made lightning feel
        like weather wallpaper rather than something happening nearby.
