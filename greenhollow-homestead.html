@@ -16294,14 +16294,21 @@ if(typeof monthlyReckoning === 'function'){
   };
 }
 
-/* a target you can actually click */
+/* A target you can actually hit.
+
+   This has to listen on pointerdown, not click. The world's pan handler
+   takes pointer capture on pointerdown, and the browser then never fires
+   a click at all - verified by logging the whole event sequence over the
+   hull: pointerdown, mousedown, pointerup, mouseup, and no click. A click
+   listener here silently never ran. */
 setTimeout(()=>{
-  document.addEventListener('click', (e)=>{
+  document.addEventListener('pointerdown', (e)=>{
     if(!S || !S.ufo) return;
     const el = document.getElementById('ufo');
     if(!el) return;
     const b = el.getBoundingClientRect();
-    /* generous hit box - this is meant to be fun, not fiddly */
+    if(!b.width) return;
+    /* generous hit box - this is meant to be a moment, not a test of aim */
     if(e.clientX >= b.left-14 && e.clientX <= b.right+14 &&
        e.clientY >= b.top-14  && e.clientY <= b.bottom+14){
       e.preventDefault(); e.stopPropagation();
