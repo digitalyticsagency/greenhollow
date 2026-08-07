@@ -1635,14 +1635,45 @@ const SND = (function(){
              setTimeout(()=>tone(b*0.8, 0.09, 'square', 0.04, null, b*0.6), 80); },
     bleat(){ tone(320, 0.3, 'sawtooth', 0.045, null, 250); },
     bee(){ tone(220, 0.5, 'sawtooth', 0.02, null, 210); },
-    thunder(){ const c=ctx(); if(!c) return;
-      const s=noiseSrc(), f=c.createBiquadFilter(), g=c.createGain();
-      f.type='lowpass'; f.frequency.setValueAtTime(300, c.currentTime);
-      f.frequency.exponentialRampToValueAtTime(60, c.currentTime+1.8);
-      g.gain.setValueAtTime(0, c.currentTime);
-      g.gain.linearRampToValueAtTime(0.22, c.currentTime+0.06);
-      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+2.2);
-      s.connect(f); f.connect(g); g.connect(wxG); s.start(); s.stop(c.currentTime+2.4); },
+    /* Thunder, shaped by how far away the strike was. Every strike used to
+       sound identical - one soft low rumble - which made lightning feel
+       like weather wallpaper rather than something happening nearby.
+       dist runs 0 (overhead) to 1 (across the valley). */
+    thunder(dist){ const c=ctx(); if(!c) return;
+      const d = Math.max(0, Math.min(1, dist===undefined ? 0.6 : dist));
+      const t = c.currentTime;
+      const near = 1 - d;
+
+      /* the initial crack: only a close strike has one, and it is brief,
+         bright and hard-edged */
+      if(near > 0.35){
+        const cs = noiseSrc(), hp = c.createBiquadFilter(), cg = c.createGain();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(900 + near*2200, t);
+        hp.frequency.exponentialRampToValueAtTime(320, t + 0.22);
+        cg.gain.setValueAtTime(0, t);
+        cg.gain.linearRampToValueAtTime(0.30 * near, t + 0.004);
+        cg.gain.exponentialRampToValueAtTime(0.001, t + 0.30 + near*0.2);
+        cs.connect(hp); hp.connect(cg); cg.connect(wxG);
+        cs.start(t); cs.stop(t + 0.6);
+      }
+
+      /* the body: closer strikes are tighter and louder, distant ones
+         longer, softer and rolled further off at the top */
+      const len = 1.6 + d*2.8;
+      const s = noiseSrc(), f = c.createBiquadFilter(), g = c.createGain();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(120 + near*520, t);
+      f.frequency.exponentialRampToValueAtTime(40 + d*30, t + len*0.85);
+      f.Q.value = 0.7;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.10 + near*0.20, t + 0.05 + d*0.14);
+      /* two swells so it rolls rather than fading flat */
+      g.gain.exponentialRampToValueAtTime(0.04 + near*0.08, t + len*0.42);
+      g.gain.linearRampToValueAtTime(0.06 + near*0.10, t + len*0.58);
+      g.gain.exponentialRampToValueAtTime(0.001, t + len);
+      s.connect(f); f.connect(g); g.connect(wxG);
+      s.start(t); s.stop(t + len + 0.2); },
   };
 
   /* --- ambient wind bed + birds --- */
@@ -1778,12 +1809,12 @@ const SND = (function(){
 
   return {
     unlock, applyMix,
-    play(name){
+    play(name, arg){
       if(muted||!started) return;
       const st = (S&&S.settings)||{};
       if(st.sfx === false) return;
       if(st.animalSfx === false && ['cluck','bleat','bee'].includes(name)) return;
-      const f=FX[name]; if(f) try{ f(); }catch(e){}
+      const f=FX[name]; if(f) try{ f(arg); }catch(e){}
     },
     weather(k){ if(started) setWeather(k); },
     setMuted(m){ muted=m; applyMix(); },
@@ -8909,8 +8940,10 @@ lightningStrike = function(){
   flash.classList.add('strike'); bolt.classList.add('strike');
   if(typeof SND!=='undefined'){
     /* thunder arrives after the flash, farther away means longer and softer */
-    const dist = 0.15 + Math.random()*1.1;
-    setTimeout(()=>SND.play('thunder'), dist*900);
+    /* 0 is overhead, 1 is across the valley. The delay and the sound are
+       driven by the same number, so a long wait always means a soft roll. */
+    const dist = Math.random();
+    setTimeout(()=>SND.play('thunder', dist), 90 + dist*1900);
   }
   setTimeout(()=>{ bolt.innerHTML=''; }, 1300);
 };

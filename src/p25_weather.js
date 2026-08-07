@@ -297,8 +297,10 @@ lightningStrike = function(){
   flash.classList.add('strike'); bolt.classList.add('strike');
   if(typeof SND!=='undefined'){
     /* thunder arrives after the flash, farther away means longer and softer */
-    const dist = 0.15 + Math.random()*1.1;
-    setTimeout(()=>SND.play('thunder'), dist*900);
+    /* 0 is overhead, 1 is across the valley. The delay and the sound are
+       driven by the same number, so a long wait always means a soft roll. */
+    const dist = Math.random();
+    setTimeout(()=>SND.play('thunder', dist), 90 + dist*1900);
   }
   setTimeout(()=>{ bolt.innerHTML=''; }, 1300);
 };
