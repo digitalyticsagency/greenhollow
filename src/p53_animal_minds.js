@@ -57,6 +57,10 @@ function shelterBox(w, h){
   return { x: w*0.07, y: h*0.07, w: sw, h: sh };
 }
 
+/* Most species get the same shelter rectangle; a hive is its own
+   shelter, so p54 overrides this for bees. */
+function shelterBoxFor(kind, w, h){ return shelterBox(w, h); }
+
 /* the deterministic spot an animal stands when it has no other idea.
    paddock() and the mind model both call this, so the drawn position
    and the simulated position are the same number. */
@@ -233,14 +237,21 @@ const SMART_LINES = [
 const FOLLOW_LINES = ['*in line*','…where?','*trots after*','*keeping up*','*watching him*','…','*shuffle*','*follows*'];
 const LEARNED_LINES = ['…the gate?','*watching*','*copies him*','Oh!','*thinking*','…same hour.'];
 
+/* Which pens the mind model walks, and how many head are in one.
+   Both are overridden in p54 so ducks, bees and the charm-only rabbit
+   hutch join in without widening animalPens(), which the economy uses
+   to decide who eats. */
+function stockPens(){ return animalPens().filter(o=>(o.animals||0) > 0); }
+function penHeadCount(o){ return o.animals || 0; }
+
 function mindFor(o){
   const bp = BPMAP[o.bp], f = footprint(bp, o.rot);
   const w = f.w*T, h = f.h*T;
-  const cnt = o.animals || 0;
+  const cnt = penHeadCount(o);
   let m = MINDS.get(o.id);
   if(m && m.cnt === cnt && m.w === w) return m;
   const kind = penSpecies(o);
-  m = { id:o.id, cnt, w, h, kind, box:shelterBox(w,h), list:[], trail:[], proc:null, nextProc:0 };
+  m = { id:o.id, cnt, w, h, kind, box:shelterBoxFor(kind, w, h), list:[], trail:[], proc:null, nextProc:0 };
   for(let i=0;i<cnt;i++){
     const p = baseSpot(i, o.id*3.7, w, h);
     m.list.push({ i, bx:p.x, by:p.y, x:p.x, y:p.y, gx:p.x, gy:p.y,
@@ -352,7 +363,7 @@ function tickMinds(dt){
   const step = MIND_T; MIND_T = 0;
 
   const night = (typeof isNight === 'function') ? isNight() : false;
-  const pens = animalPens().filter(o=>(o.animals||0) > 0);
+  const pens = stockPens();
   const now = Date.now();
 
   pens.forEach(o=>{
@@ -385,12 +396,11 @@ function tickMinds(dt){
       if(kid && Math.abs(dx) > 2) g.style.setProperty('--face', dx < 0 ? '-1' : '1');
       g.classList.toggle('a-inside', a.inside);
       g.classList.toggle('a-smart', !!a.smart);
+      if(a.smart && typeof markSmart === 'function') markSmart(g);
       g.classList.toggle('a-moving', d > 2);
     });
 
-    /* hide whoever is under a roof you have not lifted */
-    const roofOff = (typeof SET === 'function') && SET('roofOff');
-    el.classList.toggle('roof-off', !!roofOff);
+    /* the roof class is applied in p55, outside the panic guard */
   });
 
   /* somebody says something every so often */
@@ -421,7 +431,7 @@ function tickAnimalDay(){
   if(LAST_NIGHT === null){ LAST_NIGHT = night; return; }
   if(night === LAST_NIGHT) return;
   LAST_NIGHT = night;
-  const pens = animalPens().filter(o=>(o.animals||0) > 0);
+  const pens = stockPens();
   if(!pens.length) return;
   MINDS.forEach(m=>m.list.forEach(a=>{ a.until = 0; }));
   if(typeof log === 'function'){
@@ -501,10 +511,6 @@ if(typeof shedInteriors === 'function'){
   .pen-animal.a-inside{ opacity:0; transition:opacity .35s; }
   .ob.roof-off .pen-animal.a-inside{ opacity:1; }
 
-  /* the clever one reads as clever */
-  .pen-animal.a-smart > *{ filter:none; }
-  .pen-animal.a-smart::after{ content:''; }
-  .a-smart-halo{ fill:#bfe3ff; opacity:.5; }
 
   @media (prefers-reduced-motion: reduce){
     .pen-animal{ transition:none; }
