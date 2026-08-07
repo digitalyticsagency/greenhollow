@@ -15356,11 +15356,15 @@ if(typeof beast === 'function'){
 
 /* ---------- a cow to put in the barn ---------- */
 if(typeof BP !== 'undefined' && Array.isArray(BP) && !BP.some(b=>b.id==='cow_pasture')){
+  /* Field names matter here: the list filters on cat==='animal' (singular),
+     stocking needs buy:, and the panel reads desc:/tip:. Getting any of
+     them wrong makes the blueprint invisible or unusable. */
   BP.push({
-    id:'cow_pasture', name:'Dairy pasture', art:'cow_pasture', cat:'animals', kind:'animal',
-    w:5, h:4, cost:1400, lvl:3, animal:'cow', cap:4, qty:3, cycle:2.2, per:1.6,
-    good:'milk', feed:9, charm:6,
-    d:'Four dairy cows on good grass. The heaviest feeder on the farm and the best return.',
+    id:'cow_pasture', name:'Dairy pasture', art:'cow_pasture', cat:'animal', kind:'animal',
+    w:5, h:4, cost:1400, lvl:4,
+    animal:'cow', cap:4, buy:240, good:'milk', per:2, cycle:1, feed:3.0, charm:6,
+    desc:'Grazing for up to 4 dairy cows. Milked every day.',
+    tip:'The heaviest feeder on the farm and the best daily return. Do not buy stock until the feed store can keep up.',
   });
   if(typeof BPMAP === 'object') BPMAP.cow_pasture = BP[BP.length-1];
 }
