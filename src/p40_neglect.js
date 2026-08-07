@@ -364,3 +364,70 @@ if(typeof showGate === 'function'){
     return r;
   };
 }
+
+/* =====================================================================
+   THE CODE ALSO OPENS THE MARKET
+
+   Without this, someone who enters the code still has to wait for day
+   12 to see the biggest thing in the game — which defeats the point of
+   handing them a code at all. Unlocking now starts a market straight
+   away, lets you open one whenever you like, and refreshes the sideshow
+   each market day rather than once per market.
+   ===================================================================== */
+
+/* open a market on demand */
+G.startMarketNow = function(){
+  if(typeof marketInit !== 'function') return;
+  marketInit();
+  if(S.market.active) return G.openMarket();
+  S.market.next = S.day;
+  marketStart();
+};
+
+/* the "no market on" screen gains a way in once unlocked */
+if(typeof G.openMarket === 'function'){
+  const _openMarket = G.openMarket;
+  G.openMarket = function(){
+    marketInit();
+    if(!S.market.active && S.unlocked){
+      return modal(`<h2>Farmers market</h2>
+        <p class="sub">The next one comes round on day ${S.market.next}. You have full access,
+        so you can also open one now — judging, the sideshow and the relief fund.</p>
+        <div class="mfoot">
+          <button class="btn" onclick="G.startMarketNow()">Open the market now</button>
+          <button class="btn ghost" onclick="G.closeModal()">Wait for it</button>
+        </div>`);
+    }
+    return _openMarket.apply(this, arguments);
+  };
+}
+
+/* with full access the sideshow refreshes daily instead of once a market */
+if(typeof marketDayTick === 'function'){
+  const _marketDayTick = marketDayTick;
+  marketDayTick = function(){
+    const wasDay = S.market ? S.market.day : 0;
+    const r = _marketDayTick.apply(this, arguments);
+    if(S.unlocked && S.market && S.market.active && S.market.day !== wasDay){
+      S.market.played = {};          /* another go at the games each day */
+    }
+    return r;
+  };
+}
+
+/* and unlocking starts one immediately */
+if(typeof G.tryUnlock === 'function'){
+  const _tryUnlockMarket = G.tryUnlock;
+  G.tryUnlock = function(){
+    const before = (typeof PLAY !== 'undefined') ? PLAY.unlocked : false;
+    const r = _tryUnlockMarket.apply(this, arguments);
+    const now = (typeof PLAY !== 'undefined') ? PLAY.unlocked : false;
+    if(!before && now){
+      marketInit();
+      S.market.next = S.day;
+      if(!S.market.active) marketStart();
+      log('Full market access — judging, sideshow and the relief fund, whenever you want them.', 'gold', 'farm');
+    }
+    return r;
+  };
+}
