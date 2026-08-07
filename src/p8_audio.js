@@ -65,6 +65,16 @@ const SND = (function(){
     coin(){ [1046,1318,1568].forEach((f,i)=> setTimeout(()=>tone(f, 0.2, 'triangle', 0.15), i*55)); },
     sell(){ [784,988,1174,1568].forEach((f,i)=> setTimeout(()=>tone(f, 0.24, 'sine', 0.13), i*60)); },
     level(){ [523,659,784,1046,1318].forEach((f,i)=> setTimeout(()=>tone(f, 0.42, 'triangle', 0.17), i*95)); },
+    /* the all-clear after a scare: a warm major phrase with a low root
+       under it. Deliberately gentle rather than a fanfare - it is relief,
+       not a victory. */
+    huddle(){
+      [523.25, 659.25, 783.99, 1046.50, 987.77, 783.99].forEach((f,i)=>
+        setTimeout(()=>tone(f, 0.9, 'triangle', 0.13), i*180));
+      setTimeout(()=>tone(261.63, 2.4, 'sine', 0.10), 120);   // root underneath
+      setTimeout(()=>tone(392.00, 2.2, 'sine', 0.07), 420);   // fifth
+    },
+    fright(){ tone(320, 0.14, 'triangle', 0.10, null, 180); },
     error(){ tone(196, 0.2, 'square', 0.11, null, 130); },
     click(){ noiseHit(0.05, 2400, 1400, 0.1, 1.6); },
     rotate(){ noiseHit(0.09, 1100, 2200, 0.13, 1.2); },
