@@ -229,18 +229,15 @@ if(typeof GOODS === 'object' && !GOODS.milk){
 
 ART.cow_pasture = (w,h,ob)=>{
   const cnt = ob ? Math.min(4, ob.animals||0) : 2;
-  let s = (typeof paddock === 'function') ? paddock(w,h,'cow',0,7,0.92) : patch(w,h,'#7fa64e',12,1);
-  /* a run-in shelter along the top */
-  s += `<g transform="translate(${n(w*0.06)},${n(h*0.05)})">${
-    (typeof annex==='function') ? annex(w*0.34, h*0.26, {roof:'#9aa6ac'}) : ''}</g>`;
+  /* The cows used to be drawn here, outside paddock(), which quietly kept
+     them out of everything that addresses stock by pen - the panic, the
+     shed, and now their own minds. They go through paddock like every
+     other species, and the run-in shelter comes with it. */
+  let s = (typeof paddock === 'function') ? paddock(w,h,'cow',cnt,7,1.15)
+                                          : patch(w,h,'#7fa64e',12,1);
   /* a water trough, because a dairy cow drinks more than anything else here */
   s += `<rect x="${n(w*0.66)}" y="${n(h*0.10)}" width="${n(w*0.26)}" height="${n(h*0.09)}" rx="2" fill="#9fb0b8"/>`;
   s += `<rect x="${n(w*0.67)}" y="${n(h*0.11)}" width="${n(w*0.24)}" height="${n(h*0.05)}" rx="1.5" fill="url(#gWater)"/>`;
-  for(let i=0;i<cnt;i++){
-    const cx = w*(0.24 + (i%2)*0.42), cy = h*(0.52 + Math.floor(i/2)*0.28);
-    s += `<g class="a3 a3-graze" style="animation-delay:-${(i*1.9).toFixed(1)}s">${
-      beast('cow', cx, cy, 1.15, true)}</g>`;
-  }
   if(ob && ob.ready>0) s += `<circle class="pulse" cx="${n(w-6)}" cy="6" r="3.4" fill="#f0c14b"/>`;
   return s;
 };
