@@ -58,7 +58,8 @@ function idleClass(bp){
   /* Only motion that a real farm actually shows. A turbine mast does not
      rock and a shed does not bob, so neither gets a whole-object
      transform - their life comes from working detail instead. */
-  if(/^tree_|orchard|berry|flowers|hedge|fodder|herb_spiral/.test(a)) return 'lf-sway';
+  /* Plants sway through the .sway class on their foliage alone, wired to
+     the real wind - rotating the whole group moved the bed and soil too. */
   if(/pond|duck_pond|well/.test(a))                                   return 'lf-shimmer';
   if(/lights|sign/.test(a))                                           return 'lf-glow';
   return '';
@@ -109,14 +110,10 @@ render = function(){ IDLE_USED = 0; return _renderDepth.apply(this, arguments); 
   /* transform/opacity only — these stay on the compositor and never
      trigger layout or an offscreen filter pass */
   .lifewrap{ transform-origin:50% 92%; will-change:transform; }
-  .lf-sway   { animation: lfSway 6.5s ease-in-out infinite; }
   .lf-shimmer{ animation: lfShim 5.2s ease-in-out infinite; }
   .lf-glow   { animation: lfGlow 3.8s ease-in-out infinite; }
   .obshadow  { pointer-events:none; }
 
-  @keyframes lfSway {
-    0%,100%{ transform: rotate(-0.7deg) translateX(-0.3px); }
-    50%    { transform: rotate(0.7deg)  translateX(0.3px); } }
   @keyframes lfShim {
     0%,100%{ opacity:.95; } 50%{ opacity:1; } }
   @keyframes lfGlow {

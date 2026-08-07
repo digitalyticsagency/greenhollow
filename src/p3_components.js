@@ -213,36 +213,54 @@ ART.orchard = (w,h,ob)=>{
   let s = patch(w,h,'#82ac57',21,1);
   const cols=Math.max(2,Math.round(w/26)), rows=Math.max(2,Math.round(h/26));
   const ripe = ob && ob.stage>=1;
+  /* One sway group per band rather than one per tree. Swaying every
+     canopy individually looked marginally better and cost 48 animated
+     nodes per orchard - eighteen orchards measured 928 nodes and 48fps.
+     Three bands with staggered delays keeps the block from moving as one
+     slab for 3 nodes instead of 48. */
+  const bands = [[],[],[]];
   for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
     const cx = (w/cols)*(i+0.5), cy = (h/rows)*(j+0.5);
-    s += canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, false);
+    bands[(i+j)%3].push(canopy(cx, cy, Math.min(w/cols,h/rows)*0.42, 'url(#gCanopy)', i*3+j, false));
     if(ripe) for(let k=0;k<3;k++){
       const a=k*2.2+i;
-      s += `<circle cx="${n(cx+Math.cos(a)*6)}" cy="${n(cy+Math.sin(a)*5)}" r="1.7" fill="#e2603a"/>`;
+      bands[(i+j)%3].push(`<circle cx="${n(cx+Math.cos(a)*6)}" cy="${n(cy+Math.sin(a)*5)}" r="1.7" fill="#e2603a"/>`);
     }
   }
+  /* emit each band as one swaying group, staggered so the block does not
+     move as a single slab */
+  bands.forEach((b, k)=>{
+    if(!b.length) return;
+    s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px;animation-delay:-${(k*1.7).toFixed(1)}s">`
+       + b.join('') + `</g>`;
+  });
   if(ripe) s += `<circle class="pulse" cx="${n(w-5)}" cy="5" r="3" fill="#f0c14b"/>`;
   return s;
 };
 ART.berry = (w,h,ob)=>{
   let s = bedArt(w,h,null,2);
   const ripe = ob && ob.stage>=1;
+  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<14;i++){
     const x=4+hash(i*1.9)*(w-8), y=4+hash(i*3.1+2)*(h-8);
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(2.4+hash(i)*1.2)}" fill="#3f7a32"/>`;
     if(ripe) s += `<circle cx="${n(x+1)}" cy="${n(y-1)}" r="1.1" fill="#5a4a9c"/>`;
   }
+  s += `</g>`;
   if(ripe) s += `<circle class="pulse" cx="${n(w-5)}" cy="5" r="3" fill="#f0c14b"/>`;
   return s;
 };
 ART.flowers = (w,h)=>{
   let s = patch(w,h,'#8cb35f',33,1);
   const cols=['#dd6f9c','#efb43c','#9b6fc4','#e2603a','#f2e07a','#5fb0d4','#fff6e0'];
+  /* the heads catch the wind; the strip they are planted in does not */
+  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
     s += `<circle cx="${n(x)}" cy="${n(y+0.6)}" r="${n(1.5+hash(i)*1.1)}" fill="#3f7a32" opacity=".5"/>`;
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.4+hash(i)*1.1)}" fill="${cols[i%7]}"/>`;
   }
+  s += `</g>`;
   return s;
 };
 ART.compost = (w,h)=>{
@@ -323,10 +341,12 @@ ART.apiary = (w,h,ob)=>{
 ART.rabbit = (w,h,ob)=> paddock(w,h,'rabbit', ob?Math.min(6,ob.animals||0):2, 27, 0.9);
 ART.fodder = (w,h)=>{
   let s = patch(w,h,'#b5bd68',31,1);
+  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.floor(w*h/26);i++){
     const x=3+hash(i*1.4)*(w-6);
     s += `<path d="M${n(x)} ${n(h-4)} q ${n((hash(i)-0.5)*3)} -6 ${n((hash(i+2)-0.5)*4)} -9" stroke="#c9c26a" stroke-width="1.1" fill="none"/>`;
   }
+  s += `</g>`;
   return s;
 };
 
