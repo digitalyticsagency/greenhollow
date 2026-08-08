@@ -59,6 +59,11 @@ function newState(){
   return st;
 }
 
+/* How many head in this pen are actually present to be milked, shorn or
+   collected from. Overridden in p55: an animal that is loose in the yard
+   is not in the pen, so it does not earn. */
+function earningHead(o){ return o.animals; }
+
 function place(bpId, tx, ty, rot, free){
   const bp = BPMAP[bpId];
   const o = {id:S.nid++, bp:bpId, tx, ty, rot:rot||0};
@@ -439,7 +444,7 @@ function advanceDay(){
       dailyHusbandry(o);
       if(o.prog >= 1){
         o.prog = 0;
-        o.ready += Math.max(1, Math.round(E.per(o) * o.animals * yieldMul(o)));
+        o.ready += Math.max(1, Math.round(E.per(o) * earningHead(o) * yieldMul(o)));
       }
     }
     if(bp.kind==='process' && o.recipe>=0 && o.ready===0){

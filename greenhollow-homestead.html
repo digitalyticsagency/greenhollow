@@ -2885,6 +2885,11 @@ function newState(){
   return st;
 }
 
+/* How many head in this pen are actually present to be milked, shorn or
+   collected from. Overridden in p55: an animal that is loose in the yard
+   is not in the pen, so it does not earn. */
+function earningHead(o){ return o.animals; }
+
 function place(bpId, tx, ty, rot, free){
   const bp = BPMAP[bpId];
   const o = {id:S.nid++, bp:bpId, tx, ty, rot:rot||0};
@@ -3265,7 +3270,7 @@ function advanceDay(){
       dailyHusbandry(o);
       if(o.prog >= 1){
         o.prog = 0;
-        o.ready += Math.max(1, Math.round(E.per(o) * o.animals * yieldMul(o)));
+        o.ready += Math.max(1, Math.round(E.per(o) * earningHead(o) * yieldMul(o)));
       }
     }
     if(bp.kind==='process' && o.recipe>=0 && o.ready===0){
@@ -17306,7 +17311,8 @@ function releaseStray(o, m, a){
   if(st.length >= MAX_STRAYS) return false;
   if(st.some(s=>s.pen === o.id && s.i === a.i)) return false;
   const wx = o.tx*T + a.x, wy = o.ty*T + a.y;
-  st.push({ pen:o.id, i:a.i, kind:m.kind, x:wx, y:wy, gx:wx, gy:wy, until:0 });
+  st.push({ pen:o.id, i:a.i, kind:m.kind, x:wx, y:wy, gx:wx, gy:wy, until:0,
+             day:(S.day||0), t:Date.now() });
   a.away = true;
   const pool = STRAY_OUT[m.kind] || ['…'];
   if(typeof speak === 'function') speak({x:wx, y:wy}, pool[Math.floor(Math.random()*pool.length)]);
@@ -17492,8 +17498,25 @@ function updateStrayHud(){
   }
   el.textContent = c
     ? `Carrying a ${c.kind} — put it back`
-    : `${st.length} animal${st.length===1?'':'s'} loose — round up`;
+    : `${st.length} animal${st.length===1?'':'s'} loose — round up${looseFor(st)}`;
   el.className = c ? 'carrying' : '';
+  /* sit above the bottom bar rather than at a guessed offset - the bar is
+     32px on mobile and absent on a wide window */
+  const bar = document.getElementById('mobtabs');
+  let lift = 16;
+  if(bar){ const r = bar.getBoundingClientRect();
+           if(r.height && r.bottom > window.innerHeight - 4) lift = r.height + 14; }
+  el.style.bottom = lift + 'px';
+}
+
+/* how long the longest-loose one has been out. They never wander home by
+   themselves, so this only goes up until you fetch it. */
+function looseFor(st){
+  if(!st.length) return '';
+  const oldest = st.reduce((a,b)=> (a.day||0) <= (b.day||0) ? a : b);
+  const days = Math.max(0, (S.day||0) - (oldest.day||0));
+  if(days <= 0) return '';
+  return days === 1 ? ' · out since yesterday' : ` · out ${days} days`;
 }
 
 /* put whatever you are carrying back in the pen it came from */
@@ -17511,43 +17534,28 @@ function sendCarriedHome(){
 }
 
 function updateCarryBadge(){
-  let el = document.getElementById('carrybadge');
-  const c = carrying();
-  if(!c){ if(el) el.remove(); return; }
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'carrybadge';
-    document.body.appendChild(el);
-  }
-  el.textContent = `Carrying a ${c.kind} — click its pen`;
-}
-
-/* Minds are runtime-only and rebuilt on load, but S.strays persists. Without
-   this the pen redraws the head that is standing out in the yard, so after a
-   reload you have the same duck twice. Caught by clearing MINDS and
-   rebuilding: away flags came back [false x6] with a stray still in the save. */
-if(typeof mindFor === 'function'){
-  const _mindForStray = mindFor;
-  mindFor = function(o){
-    const had = MINDS.has(o.id);
-    const m = _mindForStray.apply(this, arguments);
-    if(!had && m){
-      strayList().forEach(s=>{ if(s.pen === o.id && m.list[s.i]) m.list[s.i].away = true; });
-      if(S.carry && S.carry.pen === o.id && m.list[S.carry.i]) m.list[S.carry.i].away = true;
-    }
-    return m;
-  };
+  /* The button carries this message now; a second floating badge saying
+     the same thing just covered more of the farm. */
+  const el = document.getElementById('carrybadge');
+  if(el) el.remove();
 }
 
 /* ---------- 5. a loose animal does not earn ---------- */
 /* Without this the whole thing is cosmetic. An animal that is out is not
    in the pen being milked. */
-if(typeof penHeadCount === 'function'){
-  const _penHeadStray = penHeadCount;
-  penHeadCount = function(o){ return _penHeadStray.apply(this, arguments); };
+function strayCountFor(penId){
+  return strayList().filter(s=>s.pen === penId).length
+       + ((S.carry && S.carry.pen === penId) ? 1 : 0);
 }
-function strayCountFor(penId){ return strayList().filter(s=>s.pen === penId).length
-  + ((S.carry && S.carry.pen === penId) ? 1 : 0); }
+/* This is the part that makes an escape cost something. Until now the
+   claim that a loose animal does not earn was not actually implemented -
+   strayCountFor existed and nothing called it, and the pen was still paid
+   for the head standing out in the yard. */
+if(typeof earningHead === 'function'){
+  earningHead = function(o){
+    return Math.max(0, (o.animals || 0) - strayCountFor(o.id));
+  };
+}
 
 /* ---------- 6. the roof must work even mid-storm ---------- */
 /* The mind loop returns early while the stock are panicking, and the
@@ -17631,6 +17639,24 @@ if(typeof tickAnimalDay === 'function'){
 })();
 
 /* ---------- handles ---------- */
+/* They stay out until you fetch them, so say so once a day rather than
+   only at the moment it happens - an escape you missed is otherwise a
+   silent, permanent drain on that pen's output. */
+if(typeof advanceDay === 'function'){
+  const _advanceDayStray = advanceDay;
+  advanceDay = function(){
+    const r = _advanceDayStray.apply(this, arguments);
+    const st = strayList();
+    if(st.length && typeof log === 'function'){
+      const kinds = [...new Set(st.map(s=>s.kind))].join(' and ');
+      log(`Still out: ${st.length} ${kinds}. ${st.length===1?'It is':'They are'} earning nothing until you bring ${st.length===1?'it':'them'} in.`, 'bad', 'farm');
+    }
+    updateStrayHud();
+    return r;
+  };
+}
+window.addEventListener('resize', ()=>{ try{ updateStrayHud(); }catch(e){} });
+
 G.letOut = function(penId){
   const pens = (typeof stockPens === 'function') ? stockPens() : [];
   const o = penId ? S.objs.find(x=>x.id===penId) : pens[0];
