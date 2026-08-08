@@ -18641,6 +18641,737 @@ if(typeof tickUfo === 'function'){
   document.head.appendChild(s);
 })();
 
+/* =====================================================================
+   ANIMALS DO NOT SPEAK ENGLISH
+
+   Until now the stock said things like "Good grass here", "I ate the
+   fence" and "Trough is empty", and the clever one delivered whole
+   sentences. That is a person in an animal costume.
+
+   Two changes.
+
+   First, a tongue. Every species gets its own syllables and its own way
+   of inflecting them, and every utterance is generated rather than
+   picked off a list - so a hungry chicken and a sleepy chicken make
+   recognisably different noises, and no two are quite the same. Meaning
+   travels by pictogram instead of words: an animal that wants feed shows
+   a grain, not the sentence "I am hungry". An animal thinking shows the
+   thing it is thinking about. Two animals of the same species answer
+   each other; two of different species mostly do not understand one
+   another, and say so.
+
+   Second, a mind worth having. Each animal carries five needs that drift
+   on their own - food, water, rest, company, curiosity - a mood that
+   falls out of whichever need is loudest, and a bond with one particular
+   other animal that it will cross the pen to stand next to. What it does
+   and what it says both come from that, so the pen is legible: an animal
+   at the feeder is there because it is hungry, and it sounds hungry.
+   ===================================================================== */
+
+/* ---------- 1. the tongue ---------- */
+/* soft: contented, close-range. loud: carrying calls. purr: contact
+   noise made when touching or settled. Every species gets all three so
+   the generator never has to special-case anything. */
+const TONGUE = {
+  chicken:{ soft:['bok','buk','brk','bup'],      loud:['BAWK','BOK'],   purr:'brrrrr',  trill:'bugurk' },
+  duck:   { soft:['quak','wak','wek'],           loud:['QUACK','WAAK'], purr:'mrrp',    trill:'quaquaqua' },
+  sheep:  { soft:['baa','bah','meh'],            loud:['BAAA','MAAA'],  purr:'mmmh',    trill:'baa-aa-aa' },
+  goat:   { soft:['meh','maa','neh'],            loud:['MEHHH','NAAA'], purr:'hmmn',    trill:'meh-eh-eh' },
+  cow:    { soft:['moo','mrr','hmm'],            loud:['MOOO','MRRAA'], purr:'hrrrmm',  trill:'moo-oo-oo' },
+  rabbit: { soft:['*sniff*','*nose twitch*'],    loud:['*THUMP*'],      purr:'*purr*',  trill:'*thump thump*' },
+  bee:    { soft:['bzz','bzt','vzz'],            loud:['BZZZT'],        purr:'bzzzzz',  trill:'bzz-bzz-bzz' },
+};
+
+/* what an animal is thinking about, shown as the thing itself */
+const PICTO = {
+  food:'🌾', water:'💧', rest:'😴', company:'🫂', curious:'❓', alarm:'❗',
+  cold:'🌧️', warm:'☀️', play:'🌀', bond:'💛', gate:'🚪', human:'🧍', pest:'🐛',
+};
+
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function rep(sy, n, join){ return new Array(n).fill(sy).join(join === undefined ? ' ' : join); }
+
+/* Build an utterance. The mood decides length, volume and punctuation -
+   which is most of what carries emotion in an animal call. */
+function utter(kind, mood){
+  const T = TONGUE[kind] || TONGUE.sheep;
+  const s = () => pick(T.soft);
+  switch(mood){
+    case 'alarm':    return pick(T.loud) + (Math.random()<0.5 ? '!' : '!!');
+    case 'hungry':   return rep(s(), 2 + (Math.random()<0.4?1:0)) + '!';
+    case 'thirsty':  return s() + ' ' + s() + '?';
+    case 'curious':  return s() + '?';
+    case 'social':   return Math.random()<0.4 ? T.trill : s() + ' ' + s() + (Math.random()<0.5?'?':'!');
+    case 'sleepy':   return Math.random()<0.5 ? T.purr : s() + '…';
+    case 'play':     return pick(T.loud).toLowerCase() + '! ' + s() + '!';
+    case 'affection':return T.purr;
+    case 'confused': return s() + '…?';
+    default:         return Math.random()<0.28 ? T.purr : rep(s(), 1 + (Math.random()<0.45?1:0));
+  }
+}
+
+/* the call, plus the thing it is about - only sometimes, so the pen is
+   not a wall of emoji */
+function utterWith(kind, mood, need){
+  const line = utter(kind, mood);
+  const p = PICTO[need];
+  if(!p) return line;
+  return Math.random() < 0.55 ? line + ' ' + p : line;
+}
+
+/* ---------- 2. the mind ---------- */
+/* Needs drift up on their own and are pushed down by doing the matching
+   thing. Whichever is highest is what the animal is currently about. */
+const NEEDS = ['food','water','rest','company','curious'];
+/* Tuned against a measurement, not a guess: at the first values every
+   need sat pinned at 1.0 after 300 ticks, so mood was just "whichever
+   need happened to be a hair higher" - noise wearing a model's clothes.
+   A need now takes a few minutes to build and a few seconds of doing the
+   right thing to clear. */
+const NEED_DRIFT = { food:0.0042, water:0.0050, rest:0.0026, company:0.0038, curious:0.0034 };
+const NEED_EASE  = 0.20;
+const NEED_MOOD  = { food:'hungry', water:'thirsty', rest:'sleepy', company:'social', curious:'curious' };
+/* the indoor and outdoor activity that answers each need */
+/* Each species does its own version of answering a need - a chicken
+   scratches where a cow grazes, and the log reads better for it. */
+const NEED_ACT = {
+  food:    { out:'grazing',         in:'at the feed' },
+  water:   { out:'at the water',    in:'at the drinker' },
+  rest:    { out:'resting',         in:'bedded down' },
+  company: { out:'with the others', in:'huddled up' },
+  curious: { out:'investigating',   in:'nosing about' },
+};
+const FEED_VERB = { chicken:'scratching', duck:'dabbling', bee:'foraging',
+                    rabbit:'nibbling', goat:'browsing' };
+function actFor(kind, need, inside){
+  const base = NEED_ACT[need][inside ? 'in' : 'out'];
+  if(need === 'food' && !inside && FEED_VERB[kind]) return FEED_VERB[kind];
+  return base;
+}
+
+function seedMind(m, a){
+  if(a.need) return;
+  a.need = {};
+  NEEDS.forEach(k=>{ a.need[k] = Math.random()*0.4; });
+  a.mood = 'content';
+  /* one particular friend, not a general fondness for everyone */
+  if(m.list.length > 1){
+    let b = a.i;
+    while(b === a.i) b = Math.floor(Math.random()*m.list.length);
+    a.bond = b;
+  } else a.bond = -1;
+
+  /* line is generated on read, so it is fresh every time and cannot be
+     overwritten with English by the older code that still assigns to it */
+  Object.defineProperty(a, 'line', {
+    get(){ return utterWith(m.kind, a.mood, a.topNeed); },
+    set(){ /* deliberately ignored - animals do not take dictation */ },
+    configurable: true,
+  });
+}
+
+if(typeof mindFor === 'function'){
+  const _mindForTongue = mindFor;
+  mindFor = function(o){
+    const m = _mindForTongue.apply(this, arguments);
+    if(m) m.list.forEach(a=>seedMind(m, a));
+    return m;
+  };
+}
+
+function topNeedOf(a){
+  let best = 'food', v = -1;
+  NEEDS.forEach(k=>{ if(a.need[k] > v){ v = a.need[k]; best = k; } });
+  return v > 0.36 ? best : null;
+}
+
+/* ---------- 3. what an animal decides to do ---------- */
+/* Keeps p57's one-out-of-the-shed rule; adds the needs on top, so the
+   activity chosen is the one that answers whatever it most wants. */
+if(typeof chooseAct === 'function'){
+  chooseAct = function(m, a, night){
+    seedMind(m, a);
+    const penWantsIn = !!S.shed || night;
+    const wantIn = penWantsIn ? (a.i !== turnHolder(m)) : false;
+    a.inside = wantIn;
+
+    const need = topNeedOf(a);
+    a.topNeed = need;
+    a.mood = need ? NEED_MOOD[need] : (Math.random()<0.2 ? 'play' : 'content');
+    a.act   = need ? actFor(m.kind, need, wantIn)
+                   : (wantIn ? 'settled' : 'about the paddock');
+    a.doing = !!need;          /* read by the need tick to know it is being answered */
+    a.until = Date.now() + 4000 + Math.random()*9000;
+
+    if(wantIn){
+      const b = m.box;
+      a.gx = b.x + 6 + Math.random()*Math.max(2, b.w - 12);
+      a.gy = b.y + 6 + Math.random()*Math.max(2, b.h - 12);
+      return;
+    }
+
+    const g = outdoorEllipse(m);
+    /* company and bonds send an animal to a specific other animal;
+       everything else sends it somewhere in the field */
+    let target = null;
+    if(need === 'company' || (a.bond >= 0 && Math.random() < 0.35)){
+      const f = m.list[a.bond];
+      if(f && !f.away && !f.inside) target = f;
+    }
+    if(!target && Math.random() < 0.4){
+      const others = m.list.filter(o=>o !== a && !o.inside && !o.away);
+      if(others.length) target = pick(others);
+    }
+    if(target){
+      a.gx = target.x + (Math.random()-0.5)*24;
+      a.gy = target.y + (Math.random()-0.5)*18;
+    } else {
+      const pt = pointInEllipse(g);
+      a.gx = pt.x; a.gy = pt.y;
+    }
+    const goal = { x:a.gx, y:a.gy };
+    clampToEllipse(goal, g.cx, g.cy, g.rx, g.ry);
+    a.gx = goal.x; a.gy = goal.y;
+  };
+}
+
+/* ---------- 4. needs actually move ---------- */
+let NEED_T = 0;
+if(typeof tickMinds === 'function'){
+  const _tickMindsNeeds = tickMinds;
+  tickMinds = function(dt){
+    const r = _tickMindsNeeds.apply(this, arguments);
+    if(!S || S.speed === 0) return r;
+    NEED_T += dt;
+    if(NEED_T < 0.5) return r;
+    const step = NEED_T; NEED_T = 0;
+
+    (typeof stockPens === 'function' ? stockPens() : []).forEach(o=>{
+      const m = MINDS.get(o.id); if(!m) return;
+      const fed = !o.hungry;
+      m.list.forEach(a=>{
+        if(!a.need) seedMind(m, a);
+        NEEDS.forEach(k=>{
+          a.need[k] = Math.min(1, a.need[k] + NEED_DRIFT[k]*step);
+        });
+        /* doing the thing answers the need it belongs to */
+        /* doing the thing is enough - it does not also have to have
+           arrived at a particular pixel */
+        const cur = a.topNeed;
+        if(cur && a.doing) a.need[cur] = Math.max(0, a.need[cur] - NEED_EASE*step);
+        /* under a roof is rest whatever else it is doing */
+        if(a.inside) a.need.rest = Math.max(0, a.need.rest - NEED_EASE*0.5*step);
+        /* an empty feed store means food never gets answered - the pen
+           gets audibly hungrier, which is the warning */
+        if(!fed) a.need.food = Math.min(1, a.need.food + 0.02*step);
+        /* standing next to the friend is what company is for */
+        const f = a.bond >= 0 ? m.list[a.bond] : null;
+        if(f && !f.away && Math.hypot(f.x-a.x, f.y-a.y) < 22)
+          a.need.company = Math.max(0, a.need.company - 0.07*step);
+      });
+    });
+    return r;
+  };
+}
+
+/* ---------- 5. they answer each other ---------- */
+/* Same species: a proper exchange. Different species: the second animal
+   makes its own noise and does not know what the first one meant. */
+let ANSWER_T = 0;
+function tickAnswers(dt){
+  ANSWER_T -= dt;
+  if(ANSWER_T > 0) return;
+  ANSWER_T = 5 + Math.random()*7;
+  const pens = (typeof stockPens === 'function' ? stockPens() : []);
+  if(!pens.length) return;
+  const o = pick(pens);
+  const m = MINDS.get(o.id); if(!m || m.list.length < 2) return;
+  const speakers = m.list.filter(a=>!a.away && !a.inside);
+  if(speakers.length < 2) return;
+
+  const A = pick(speakers);
+  /* prefer the one it is bonded to, if that one is out */
+  const bonded = (A.bond >= 0) ? m.list[A.bond] : null;
+  const B = (bonded && !bonded.away && !bonded.inside && bonded !== A)
+          ? bonded : pick(speakers.filter(x=>x !== A));
+  if(!B) return;
+
+  const wx = o.tx*T, wy = o.ty*T;
+  const mood = A.mood || 'social';
+  if(typeof speak === 'function') speak({x:wx + A.x, y:wy + A.y}, utterWith(m.kind, mood, A.topNeed));
+  setTimeout(()=>{
+    if(typeof speak !== 'function') return;
+    const near = Math.hypot(A.x-B.x, A.y-B.y) < 60;
+    /* an answer if it heard, a contact purr if they are touching */
+    const reply = near && Math.random() < 0.4 ? utter(m.kind, 'affection')
+                                              : utter(m.kind, 'social');
+    speak({x:wx + B.x, y:wy + B.y}, reply);
+  }, 1100 + Math.random()*700);
+}
+
+/* across the fence, nobody understands anybody */
+let CROSS_T = 0;
+function tickCrossTalk(dt){
+  CROSS_T -= dt;
+  if(CROSS_T > 0) return;
+  CROSS_T = 16 + Math.random()*18;
+  const pens = (typeof stockPens === 'function' ? stockPens() : []);
+  if(pens.length < 2) return;
+  const a = pick(pens);
+  const b = pick(pens.filter(p=>p.id !== a.id));
+  if(!b) return;
+  const ka = penSpecies(a), kb = penSpecies(b);
+  if(ka === kb) return;
+  const ca = penCentre(a), cb = penCentre(b);
+  if(Math.hypot(ca.x-cb.x, ca.y-cb.y) > 420) return;   /* out of earshot */
+  if(typeof speak === 'function'){
+    speak(ca, utter(ka, 'social'));
+    setTimeout(()=>{ speak(cb, utter(kb, 'confused') + ' ' + PICTO.curious); }, 1200);
+  }
+}
+
+/* the whole pen answering at once - a farm sounds like this at dawn */
+let CHORUS_T = 40;
+function tickChorus(dt){
+  CHORUS_T -= dt;
+  if(CHORUS_T > 0) return;
+  CHORUS_T = 55 + Math.random()*70;
+  const pens = (typeof stockPens === 'function' ? stockPens() : []);
+  if(!pens.length) return;
+  const o = pick(pens);
+  const m = MINDS.get(o.id); if(!m) return;
+  const out = m.list.filter(a=>!a.away && !a.inside);
+  if(out.length < 3) return;
+  const wx = o.tx*T, wy = o.ty*T;
+  out.slice(0, 4).forEach((a, k)=>{
+    setTimeout(()=>{
+      if(typeof speak === 'function') speak({x:wx + a.x, y:wy + a.y}, utter(m.kind, k===0?'social':'content'));
+    }, k * 520);
+  });
+  const v = ANIMAL_VOICE[m.kind];
+  if(v && typeof SND !== 'undefined') SND.play(v.sfx);
+}
+
+const _tickPeopleTongue = tickPeople;
+tickPeople = function(dt){
+  const r = _tickPeopleTongue.apply(this, arguments);
+  if(S && S.speed !== 0){
+    try{ tickAnswers(dt); tickCrossTalk(dt); tickChorus(dt); }catch(e){}
+  }
+  return r;
+};
+
+/* ---------- 6. retire every English line still in the game ---------- */
+/* These are all const bindings, so they are mutated in place rather than
+   reassigned. Doing it here in one block means the old tables stay
+   readable as history instead of being edited away. */
+(function silenceEnglish(){
+  /* the clever one thinks in pictures, not sentences */
+  if(typeof SMART_LINES !== 'undefined'){
+    SMART_LINES.length = 0;
+    SMART_LINES.push('💭 🚪','💭 🌧️','💭 🌾 ☀️','💭 🧍 🌾','💭 🚪 ❓','💭 💧','💭 🌾 🌾','💭 🫂');
+  }
+  if(typeof FOLLOW_LINES !== 'undefined'){
+    FOLLOW_LINES.length = 0;
+    FOLLOW_LINES.push('…','❓','💛','*follows*','…❓','🫂');
+  }
+  if(typeof LEARNED_LINES !== 'undefined'){
+    LEARNED_LINES.length = 0;
+    LEARNED_LINES.push('💭 ❓','💭 🚪','…💭','💭 🌾');
+  }
+  /* strays */
+  if(typeof STRAY_OUT === 'object'){
+    Object.keys(STRAY_OUT).forEach(k=>{
+      STRAY_OUT[k] = [utter(k,'alarm'), utter(k,'curious') + ' ' + PICTO.gate, utter(k,'social')];
+    });
+  }
+  if(typeof STRAY_HOME !== 'undefined'){
+    STRAY_HOME.length = 0;
+    STRAY_HOME.push('💛','🫂','…','😌');
+  }
+  /* the status voices - keep the sound, drop the English */
+  if(typeof ANIMAL_VOICE === 'object'){
+    Object.keys(ANIMAL_VOICE).forEach(k=>{
+      const v = ANIMAL_VOICE[k];
+      v.ok     = [utter(k,'content'), utter(k,'content'), utter(k,'affection')];
+      v.hungry = [utter(k,'hungry') + ' ' + PICTO.food, utter(k,'hungry'), utter(k,'alarm') + ' ' + PICTO.food];
+      v.dirty  = [utter(k,'confused'), utter(k,'content') + ' 🙁'];
+    });
+  }
+  /* the storm panic */
+  if(typeof PANIC_CRY === 'object'){
+    Object.keys(PANIC_CRY).forEach(k=>{
+      PANIC_CRY[k] = [utter(k,'alarm') + ' 😱', utter(k,'alarm') + ' 😨', utter(k,'alarm') + ' ' + PICTO.alarm];
+    });
+  }
+  if(typeof PANIC_CALL === 'object'){
+    Object.keys(PANIC_CALL).forEach(k=>{
+      PANIC_CALL[k] = [utter(k,'curious'), utter(k,'sleepy'), utter(k,'confused')];
+    });
+  }
+  /* the shed activities in p53/p54 pair a name with an English line;
+     the name is for the log, the line is what gets spoken - so only the
+     line needs replacing, and the getter on a.line already handles it */
+})();
+
+/* ---------- handles ---------- */
+G.tongue = function(kind){
+  kind = kind || 'sheep';
+  return ['content','curious','social','hungry','thirsty','sleepy','play','alarm','affection','confused']
+    .map(mo => mo + ': ' + utter(kind, mo));
+};
+G.minds = function(){
+  const out = [];
+  (typeof stockPens === 'function' ? stockPens() : []).forEach(o=>{
+    const m = MINDS.get(o.id); if(!m) return;
+    m.list.slice(0,3).forEach(a=>{
+      out.push({ pen:o.bp, i:a.i, mood:a.mood, wants:a.topNeed, act:a.act,
+                 bond:a.bond, says:a.line,
+                 needs:Object.keys(a.need||{}).reduce((z,k)=>(z[k]=+a.need[k].toFixed(2),z),{}) });
+    });
+  });
+  return out;
+};
+
+/* =====================================================================
+   STREET LAMPS, A FENCE THAT HOLDS, AND TEN THINGS TO DO
+
+   Three things.
+
+   1. Lamp posts down the western boundary, dark by day and lit at night,
+      each throwing a warm pool on the track. They run on the farm's own
+      power, so a night with a flat battery is a dark night.
+
+   2. The escape rule is cancelled. Nothing gets out any more. Stock are
+      held inside their pen at all times and the random escape roll is
+      gone; anything already loose when this build loads is walked home
+      on the first tick rather than stranded.
+
+   3. Ten actions, one for each thing the farm is made of - growing,
+      water, power, animals, craft, trade, land, home, AI and leisure.
+      Each costs something, each has a cooldown measured in days, and
+      each does something you can see happen.
+   ===================================================================== */
+
+/* ---------- 1. nothing gets out ---------- */
+/* The stray machinery stays in the file: the pick-up, the carry and the
+   put-back are still the right behaviour if anything ever does get out
+   (the UFO, a future event). What is switched off is the farm rolling
+   dice to release one on its own. */
+if(typeof tickStrayChance === 'function'){
+  tickStrayChance = function(){ /* escapes are off - the fence holds */ };
+}
+
+/* walk home anything that was already loose when this build loaded */
+(function bringThemAllIn(){
+  const doIt = ()=>{
+    if(typeof S === 'undefined' || !S) return;
+    const st = (S.strays || []);
+    if(!st.length && !S.carry) return;
+    st.forEach(s=>{
+      const m = (typeof MINDS !== 'undefined') ? MINDS.get(s.pen) : null;
+      if(m && m.list[s.i]) m.list[s.i].away = false;
+    });
+    if(S.carry){
+      const m = (typeof MINDS !== 'undefined') ? MINDS.get(S.carry.pen) : null;
+      if(m && m.list[S.carry.i]) m.list[S.carry.i].away = false;
+    }
+    S.strays = []; S.carry = null;
+    if(typeof updateStrayHud === 'function') updateStrayHud();
+    if(typeof updateCarryBadge === 'function') updateCarryBadge();
+    if(typeof render === 'function') render();
+    if(typeof log === 'function') log('The fences have been made good. Nothing is getting out now.', 'good', 'farm');
+  };
+  setTimeout(doIt, 900);
+})();
+
+/* ---------- 2. lamp posts along the western boundary ---------- */
+const LAMP_GAP = 5;                     /* tiles between posts */
+
+function lampPositions(){
+  const out = [];
+  if(typeof FARM === 'undefined') return out;
+  const x = (FARM.x + 0.55) * T;        /* just inside the western fence */
+  for(let ty = FARM.y + 2; ty < FARM.y + FARM.h - 1; ty += LAMP_GAP){
+    out.push({ x, y: (ty + 0.5) * T });
+  }
+  return out;
+}
+
+function lampsLit(){
+  const night = (typeof isNight === 'function') ? isNight() : false;
+  if(!night) return false;
+  /* they are on the farm's own supply - no power, no light */
+  if(typeof S !== 'undefined' && S && typeof S.powerBal === 'number' && S.powerBal < -4) return false;
+  return true;
+}
+
+function lampArt(){
+  const ps = lampPositions();
+  if(!ps.length) return '';
+  const lit = lampsLit();
+  let s = `<g id="lamps" class="${lit ? 'lit' : ''}">`;
+  ps.forEach((p, i)=>{
+    s += `<g class="lamp" transform="translate(${n(p.x)},${n(p.y)})" style="--d:${(i*0.7).toFixed(1)}s">`;
+    /* the pool on the ground goes down first so the post sits in it */
+    s += `<ellipse class="lamp-pool" cx="2" cy="6" rx="30" ry="12" fill="#ffd98a" opacity="0"/>`;
+    s += `<ellipse class="lamp-pool2" cx="2" cy="6" rx="17" ry="7" fill="#fff0c4" opacity="0"/>`;
+    /* base and post, lit from the upper left as everything else is */
+    s += `<ellipse cx="1.5" cy="5" rx="4.4" ry="1.8" fill="#16240c" opacity=".3"/>`;
+    s += `<rect x="-2.4" y="0" width="4.8" height="3" rx="1.2" fill="#3f4a52"/>`;
+    s += `<rect x="-1.1" y="-26" width="2.2" height="27" rx="1.1" fill="#55616b"/>`;
+    s += `<rect x="-1.1" y="-26" width="0.9" height="27" rx="0.45" fill="#7d8994"/>`;
+    /* the arm and the head */
+    s += `<path d="M0 -26 q0 -5 6 -5" fill="none" stroke="#55616b" stroke-width="2.1"/>`;
+    s += `<path d="M2.6 -31.4 h7.2 l-1.5 4.6 h-4.2 Z" fill="#46525c"/>`;
+    s += `<ellipse class="lamp-bulb" cx="6.2" cy="-26.4" rx="3.1" ry="1.5" fill="#ffe9a8" opacity=".25"/>`;
+    /* the cone of light down to the ground */
+    s += `<path class="lamp-cone" d="M3.4 -26 L9 -26 L26 6 L-16 6 Z" fill="#ffd98a" opacity="0"/>`;
+    s += `</g>`;
+  });
+  return s + '</g>';
+}
+
+/* drawn under the people layer so the family walk through the light */
+if(typeof peopleLayer === 'function'){
+  const _peopleLayerLamps = peopleLayer;
+  peopleLayer = function(){ return lampArt() + _peopleLayerLamps.apply(this, arguments); };
+}
+
+/* flip them at dusk and dawn without a full redraw */
+let LAMP_STATE = null;
+function tickLamps(){
+  const el = document.getElementById('lamps');
+  if(!el) return;
+  const lit = lampsLit();
+  if(lit === LAMP_STATE) return;
+  LAMP_STATE = lit;
+  el.classList.toggle('lit', lit);
+  if(typeof log === 'function')
+    log(lit ? 'The lamps along the west track came on.' : 'The lamps went out with the sunrise.', '', 'home');
+}
+
+/* ---------- 3. ten actions ---------- */
+/* One for each part of the farm. Every one costs something real, has a
+   cooldown in days so it cannot be spammed, and states plainly what it
+   did. Nothing here is a no-op button. */
+function cdLeft(id){
+  S.actCd = S.actCd || {};
+  const until = S.actCd[id] || 0;
+  return Math.max(0, until - (S.day || 0));
+}
+function setCd(id, days){ S.actCd = S.actCd || {}; S.actCd[id] = (S.day || 0) + days; }
+
+const ACTIONS = [
+{ id:'compost_tea', cat:'Grow', name:'Brew compost tea', cost:60, cd:4,
+  desc:'A barrel of steeped compost, watered onto every bed. Crops come on faster for a few days.',
+  can:()=> S.objs.some(o=>BPMAP[o.bp].kind==='plot'),
+  why:'No beds to water.',
+  run(){ let k=0; S.objs.forEach(o=>{ if(BPMAP[o.bp].kind==='plot' && o.crop){ o.stage=Math.min(1,o.stage+0.18); k++; } });
+         S.growBoost=(S.day||0)+4;
+         return `Fed ${k} bed${k===1?'':'s'}. Everything growing has come on a stage.`; } },
+
+{ id:'divert_roof', cat:'Water', name:'Divert the roof runoff', cost:120, cd:6,
+  desc:'Re-plumb the downpipes into the tanks. A one-off catch now, and rain fills faster afterwards.',
+  can:()=> true,
+  run(){ const cap = 297 + (S.waterCap||0); const add = Math.min(90, Math.max(0, cap - S.water));
+         S.water = Math.min(cap, S.water + add); S.rainBonus = 1.35;
+         return `Caught ${Math.round(add)}L off the roofs. Rain fills the tanks faster from now on.`; } },
+
+{ id:'shed_load', cat:'Power', name:'Shed the non-essential load', cost:0, cd:2,
+  desc:'Drop everything that is not keeping food cold or water moving. Buys you a night on a flat battery.',
+  can:()=> true,
+  run(){ S.powerBal = (S.powerBal||0) + 6; S.loadShed=(S.day||0)+1;
+         return 'Non-essential circuits off. Six kilowatts back on the balance until tomorrow.'; } },
+
+{ id:'vet_round', cat:'Animals', name:'Call the vet out', cost:180, cd:5,
+  desc:'A proper health round. Clears illness and puts condition back on every animal you own.',
+  can:()=> (typeof stockPens==='function') && stockPens().length>0,
+  why:'You have no stock.',
+  run(){ let cured=0, seen=0;
+         S.objs.forEach(o=>{ if(BPMAP[o.bp].kind!=='animal' || !o.animals) return;
+           seen += o.animals; if(o.sick){ o.sick=0; cured++; }
+           o.care=Math.min(1,(o.care||0.5)+0.3);
+           (o.herd||[]).forEach(a=>{ a.health=Math.min(1,a.health+0.35); a.happy=Math.min(1,a.happy+0.2); }); });
+         return `${seen} head seen${cured?`, ${cured} pen${cured===1?'':'s'} treated`:''}. Condition is up across the farm.`; } },
+
+{ id:'workshop_day', cat:'Craft', name:'A day in the workshop', cost:0, cd:3,
+  desc:'Turn raw produce into something worth more. Uses whatever is in the store.',
+  can:()=> Object.keys(S.store||{}).some(k=>(S.store[k]||0) >= 4),
+  why:'Nothing in the store worth working up.',
+  run(){ let made=0, val=0;
+         Object.keys(S.store).forEach(k=>{ const q=S.store[k]||0; if(q<4) return;
+           const use=Math.min(q, 12); S.store[k]=q-use;
+           const gain=Math.round(use*sellPrice(k)*0.85); val+=gain; made+=use; });
+         if(!made) return 'Nothing worth working up today.';
+         earn(val, Math.round(val/25));
+         return `Worked up ${made} units into finished goods. ${fmt(val)} on the books.`; } },
+
+{ id:'standing_order', cat:'Trade', name:'Take a standing order', cost:0, cd:7,
+  desc:'A buyer commits to a fixed price for a week. Steady money, whatever the market does.',
+  can:()=> true,
+  run(){ const pay = 120 + Math.round((S.lvl||1)*45);
+         S.standing = { until:(S.day||0)+7, pay };
+         return `Signed for seven days at ${fmt(pay)} a day, paid each morning.`; } },
+
+{ id:'survey', cat:'Land', name:'Survey the ground', cost:90, cd:10,
+  desc:'Walk the property with a soil probe. Finds the good ground, and sometimes something else.',
+  can:()=> true,
+  run(){ let msg = 'Soil mapped. The beds you already have are on the best of it.';
+         S.objs.forEach(o=>{ if(BPMAP[o.bp].kind==='plot'){ o.soil=Math.min(1,(o.soil||0.5)+0.15); } });
+         if(Math.random() < 0.35){ const find = 200 + Math.round(Math.random()*500);
+           earn(find, 8); msg += ` Turned up an old cache while you were at it — ${fmt(find)}.`; }
+         return msg; } },
+
+{ id:'sunday_lunch', cat:'Home', name:'Put on a proper lunch', cost:70, cd:5,
+  desc:'Everyone at the table at the same time. It matters more than it sounds.',
+  can:()=> (S.family||[]).length > 0,
+  why:'Nobody home.',
+  run(){ (S.family||[]).forEach(p=>{ p.mood=Math.min(1,(p.mood||0.6)+0.3); p.act='having lunch'; });
+         S.morale=Math.min(1,(S.morale||0.6)+0.25);
+         if(typeof speak==='function' && S.family[0]) speak(S.family[0], 'Everyone in!');
+         return 'The whole house sat down together. Spirits are up.'; } },
+
+{ id:'retrain_ai', cat:'AI', name:'Retrain the hub', cost:250, cd:6,
+  desc:'Feed the season\'s data back into the control hub. It makes better calls afterwards.',
+  can:()=> S.objs.some(o=>o.bp==='ai_hub'),
+  why:'You need a control hub first.',
+  run(){ S.aiTuned = Math.min(3, (S.aiTuned||0) + 1);
+         return `Hub retrained (tuning ${S.aiTuned}/3). Automation wastes less water and power.`; } },
+
+{ id:'day_off', cat:'Leisure', name:'Take the day off', cost:0, cd:6,
+  desc:'Down tools. Nothing gets done and everyone is better for it.',
+  can:()=> true,
+  run(){ (S.family||[]).forEach(p=>{ p.mood=Math.min(1,(p.mood||0.6)+0.4); });
+         S.morale=Math.min(1,(S.morale||0.6)+0.35); S.restDay=(S.day||0)+1;
+         (typeof stockPens==='function' ? stockPens() : []).forEach(o=>{
+           const m=MINDS.get(o.id); if(m) m.list.forEach(a=>{ if(a.need) a.need.company=Math.max(0,a.need.company-0.4); }); });
+         return 'Tools down. Everyone spent the day out on the land instead of working it.'; } },
+];
+
+function runAction(id){
+  const a = ACTIONS.find(x=>x.id===id); if(!a) return;
+  if(cdLeft(id) > 0){ toast(`Not for another ${cdLeft(id)} day${cdLeft(id)===1?'':'s'}`,'bad'); return; }
+  if(a.can && !a.can()){ toast(a.why || 'Cannot do that yet','bad'); return; }
+  if(a.cost > (S.cash||0)){ toast('Not enough in the account','bad'); return; }
+  if(a.cost){ S.cash -= a.cost; }
+  const msg = a.run();
+  setCd(id, a.cd);
+  if(typeof log === 'function') log(msg, 'good', 'farm');
+  if(typeof toast === 'function') toast(a.name + ' — done', 'good');
+  if(typeof sfx === 'function') sfx('build');
+  if(typeof ui === 'function') ui();
+  if(typeof render === 'function') render();
+  G.save();
+  G.openActions();
+}
+
+G.runAction = runAction;
+G.openActions = function(){
+  const rows = ACTIONS.map(a=>{
+    const cd = cdLeft(a.id);
+    const blocked = (a.can && !a.can());
+    const poor = a.cost > (S.cash||0);
+    const off = cd > 0 || blocked || poor;
+    /* the reason goes in the tooltip - putting the whole sentence on the
+       button made it wide enough to sit on top of the description */
+    const note = cd > 0 ? `${cd}d` : blocked ? 'not yet' : poor ? 'too dear' : '';
+    const why  = cd > 0 ? `Ready in ${cd} day${cd===1?'':'s'}`
+               : blocked ? (a.why || 'Not available yet')
+               : poor ? `Costs ${fmt(a.cost)}` : '';
+    return `<div class="actrow${off?' off':''}">
+      <div class="actmain">
+        <div class="acttop"><span class="actcat">${a.cat}</span><b>${a.name}</b></div>
+        <div class="actdesc">${a.desc}</div>
+      </div>
+      <div class="actside">
+        <div class="actcost">${a.cost ? fmt(a.cost) : 'free'}</div>
+        <button class="btn sm" ${off?'disabled':''} title="${why}"
+          onclick="G.runAction('${a.id}')">${off ? note : 'Do it'}</button>
+        ${off && why ? `<div class="actwhy">${why}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  modal(`<h2>Things you can do</h2>
+    <p class="sub">One for each part of the place. Each has a cooldown, so pick what the farm needs this week.</p>
+    <div class="actlist">${rows}</div>
+    <div class="mfoot"><button class="btn ghost" onclick="G.closeModal()">Close</button></div>`);
+};
+
+/* the standing order pays each morning while it runs */
+if(typeof advanceDay === 'function'){
+  const _advDayAct = advanceDay;
+  advanceDay = function(){
+    const r = _advDayAct.apply(this, arguments);
+    const so = S.standing;
+    if(so && (S.day||0) <= so.until){
+      earn(so.pay, 3);
+      log(`Standing order paid ${fmt(so.pay)}.`, 'gold', 'money');
+      if((S.day||0) === so.until) log('The standing order has run its course.', '', 'money');
+    }
+    return r;
+  };
+}
+
+/* ---------- the button that opens it ---------- */
+(function actionsButton(){
+  const make = ()=>{
+    if(document.getElementById('actbtn')) return;
+    const b = document.createElement('button');
+    b.id = 'actbtn'; b.type = 'button';
+    b.title = 'Things you can do';
+    b.innerHTML = '<span>✦</span>';
+    b.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); G.openActions(); });
+    document.body.appendChild(b);
+  };
+  setTimeout(make, 700);
+})();
+
+const _tickPeopleLamps = tickPeople;
+tickPeople = function(dt){
+  const r = _tickPeopleLamps.apply(this, arguments);
+  try{ tickLamps(); }catch(e){}
+  return r;
+};
+
+(function lampCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #lamps .lamp-pool,#lamps .lamp-pool2,#lamps .lamp-cone,#lamps .lamp-bulb{
+    transition: opacity .9s ease; }
+  #lamps.lit .lamp-pool { opacity:.20; animation: lampFlicker 6s ease-in-out infinite; animation-delay:var(--d); }
+  #lamps.lit .lamp-pool2{ opacity:.30; }
+  #lamps.lit .lamp-cone { opacity:.09; }
+  #lamps.lit .lamp-bulb { opacity:1; }
+  @keyframes lampFlicker{ 0%,100%{ opacity:.20 } 47%{ opacity:.24 } 52%{ opacity:.17 } }
+
+  #actbtn{ position:fixed; left:14px; bottom:74px; width:44px; height:44px; border-radius:50%;
+    border:0; cursor:pointer; z-index:8500; background:#3f6d3a; color:#eaf7e2;
+    font-size:19px; line-height:1; box-shadow:0 3px 10px rgba(0,0,0,.4); }
+  #actbtn:hover{ filter:brightness(1.12); }
+
+  .actlist{ max-height:56vh; overflow:auto; margin:10px 0 4px; }
+  .actrow{ display:flex; gap:12px; align-items:flex-start; padding:10px 4px;
+    border-bottom:1px solid rgba(255,255,255,.07); }
+  .actrow.off{ opacity:.5; }
+  .actmain{ flex:1; min-width:0; }
+  .acttop{ display:flex; gap:8px; align-items:baseline; }
+  .actcat{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; opacity:.65; }
+  .actdesc{ font-size:12px; opacity:.78; margin-top:2px; line-height:1.35; }
+  .actside{ text-align:right; flex:0 0 auto; }
+  .actcost{ font-size:12px; opacity:.8; margin-bottom:4px; }
+  .actside{ max-width:132px; }
+  .actwhy{ font-size:10.5px; opacity:.62; margin-top:4px; line-height:1.25; }
+  .btn.sm{ padding:5px 10px; font-size:12px; }
+  @media (prefers-reduced-motion: reduce){ #lamps.lit .lamp-pool{ animation:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- handles ---------- */
+G.lamps = function(){ return { posts:lampPositions().length, lit:lampsLit(), night:isNight() }; };
+G.actions = function(){ return ACTIONS.map(a=>({id:a.id, cat:a.cat, cost:a.cost, cd:cdLeft(a.id), ok:!a.can||a.can()})); };
+
 
 </script>
 
