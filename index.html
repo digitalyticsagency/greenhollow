@@ -17314,6 +17314,13 @@ function releaseStray(o, m, a){
     log(`One of the ${m.kind}s is out. It will not earn a thing until it is back in - pick it up and carry it home.`, 'bad', 'farm');
   if(typeof toast === 'function') toast('An animal is loose', 'bad');
   if(typeof SND !== 'undefined') SND.play('error');
+  /* Without this the stray exists in state but has no element, so the
+     hit test finds nothing and clicking it does nothing at all. The
+     G.letOut() test helper called render() itself, which is exactly why
+     this passed testing and failed in play - the same hole that made the
+     UFO unshootable. */
+  if(typeof render === 'function') render();
+  updateStrayHud();
   return true;
 }
 
@@ -17378,7 +17385,8 @@ function strayLayer(){
   let s = '';
   st.forEach((x, k)=>{
     s += `<g class="stray" data-si="${k}" transform="translate(${n(x.x)},${n(x.y)})">`;
-    s += `<circle class="strayring" r="9" cx="0" cy="0" fill="none" stroke="#e8b23c" stroke-width="1.6"/>`;
+    s += `<circle class="strayring" r="11" cx="0" cy="0" fill="none" stroke="#e8b23c" stroke-width="2"/>`;
+    s += `<path class="straypin" d="M0 -15 l4.5 -7 h-9 Z" fill="#e8b23c"/>`;
     s += (x.kind === 'bee' && typeof beeBody === 'function')
        ? beeBody(0,0,1) : beast(x.kind, 0, 0, STRAY_SC[x.kind] || 1);
     s += `</g>`;
@@ -17402,7 +17410,7 @@ function pickUpStray(k){
   if(typeof toast === 'function') toast(`Carrying the ${s.kind} — click its pen to put it back`, '');
   if(typeof log === 'function') log(`You picked up the ${s.kind}. Click a pen to put it back.`, '', 'farm');
   if(typeof render === 'function') render();
-  updateCarryBadge();
+  updateCarryBadge(); updateStrayHud();
 }
 
 function dropInto(o){
@@ -17427,7 +17435,7 @@ function dropInto(o){
   if(typeof log === 'function') log(`The ${c.kind} is back in its pen.`, 'good', 'farm');
   if(typeof toast === 'function') toast('Back where it belongs', 'good');
   if(typeof render === 'function') render();
-  updateCarryBadge();
+  updateCarryBadge(); updateStrayHud();
   return true;
 }
 
@@ -17452,8 +17460,8 @@ setTimeout(()=>{
       if(!el) continue;
       const b = el.getBoundingClientRect();
       if(!b.width) continue;
-      if(e.clientX >= b.left-10 && e.clientX <= b.right+10 &&
-         e.clientY >= b.top-10  && e.clientY <= b.bottom+10){
+      if(e.clientX >= b.left-18 && e.clientX <= b.right+18 &&
+         e.clientY >= b.top-18  && e.clientY <= b.bottom+18){
         e.preventDefault(); e.stopPropagation();
         pickUpStray(k);
         return;
@@ -17461,6 +17469,46 @@ setTimeout(()=>{
     }
   }, true);
 }, 500);
+
+/* A control that does not require aiming at a moving animal. If one is
+   loose you get a button; press it and the nearest stray is picked up,
+   or if you are already carrying one it goes home. Clicking the animal
+   still works - this is the floor, not the replacement. */
+function updateStrayHud(){
+  let el = document.getElementById('strayhud');
+  const st = strayList();
+  const c = carrying();
+  if(!st.length && !c){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('button');
+    el.id = 'strayhud';
+    el.type = 'button';
+    el.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(carrying()){ sendCarriedHome(); return; }
+      if(strayList().length) pickUpStray(0);
+    });
+    document.body.appendChild(el);
+  }
+  el.textContent = c
+    ? `Carrying a ${c.kind} — put it back`
+    : `${st.length} animal${st.length===1?'':'s'} loose — round up`;
+  el.className = c ? 'carrying' : '';
+}
+
+/* put whatever you are carrying back in the pen it came from */
+function sendCarriedHome(){
+  const c = carrying(); if(!c) return false;
+  const o = (S.objs||[]).find(x=>x.id === c.pen)
+         || (typeof stockPens === 'function' ? stockPens() : []).find(x=>penSpecies(x) === c.kind);
+  if(!o){                                   /* its pen was demolished while it was out */
+    S.carry = null;
+    if(typeof log === 'function') log(`The ${c.kind} has nowhere to go back to.`, 'bad', 'farm');
+    updateStrayHud(); updateCarryBadge();
+    return false;
+  }
+  return dropInto(o);
+}
 
 function updateCarryBadge(){
   let el = document.getElementById('carrybadge');
@@ -17539,6 +17587,7 @@ if(typeof tickMinds === 'function'){
     });
     tickStrayChance(dt);
     tickStrays(dt);
+    updateStrayHud();
     return r;
   };
 }
@@ -17565,6 +17614,13 @@ if(typeof tickAnimalDay === 'function'){
   .stray{ cursor:grab; }
   .strayring{ opacity:.75; animation: strayPulse 1.5s ease-in-out infinite; }
   @keyframes strayPulse{ 0%,100%{ opacity:.35; r:9; } 50%{ opacity:.85; r:10.5; } }
+  #strayhud{ position:fixed; left:50%; bottom:112px; transform:translateX(-50%);
+    background:#e8b23c; color:#2a2410; font:600 13px/1.2 system-ui,-apple-system,sans-serif;
+    padding:9px 16px; border-radius:999px; z-index:9001; cursor:pointer; border:0;
+    box-shadow:0 3px 10px rgba(0,0,0,.35); }
+  #strayhud.carrying{ background:#8fce6b; }
+  #strayhud:hover{ filter:brightness(1.06); }
+  .straypin{ animation: strayPulse 1.5s ease-in-out infinite; }
   #carrybadge{ position:fixed; left:50%; bottom:74px; transform:translateX(-50%);
     background:#e8b23c; color:#2a2410; font:600 13px/1.2 system-ui,-apple-system,sans-serif;
     padding:8px 14px; border-radius:999px; z-index:9000; pointer-events:none;
@@ -17592,7 +17648,7 @@ G.roundUp = function(){
   const st = strayList();
   st.forEach(s=>{ const m = MINDS.get(s.pen); if(m && m.list[s.i]) m.list[s.i].away = false; });
   S.strays = []; S.carry = null;
-  updateCarryBadge();
+  updateCarryBadge(); updateStrayHud();
   if(typeof render === 'function') render();
   return 'all back in';
 };
