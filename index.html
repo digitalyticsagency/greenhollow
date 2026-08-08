@@ -19372,6 +19372,675 @@ tickPeople = function(dt){
 G.lamps = function(){ return { posts:lampPositions().length, lit:lampsLit(), night:isNight() }; };
 G.actions = function(){ return ACTIONS.map(a=>({id:a.id, cat:a.cat, cost:a.cost, cd:cdLeft(a.id), ok:!a.can||a.can()})); };
 
+/* =====================================================================
+   THE REAL REASON ANIMALS LOOKED LIKE THEY WERE OUT, AND A LIGHT YOU BUY
+
+   1. Every previous audit I ran on containment measured a.x - the
+      simulated position - and it was always clean, so I kept reporting
+      that nothing was outside. That was the wrong number. What is drawn
+      is the animal's BASE position plus a CSS translate, and render()
+      wipes the translate. Measured: 3 of 8 base positions off the grass,
+      the worst 1.27x the ellipse radius, and every translate reading
+      "(cleared)" straight after a render. So on every redraw the whole
+      pen snapped into the bare corners of the footprint and sat there
+      until the next tick moved them back.
+
+      baseSpot() sampled the footprint rectangle. The grass is an
+      ellipse. It now samples the ellipse, and translates are re-applied
+      the instant a render finishes so there is no snap at all.
+
+   2. The lamps along the west boundary are gone. A yard light is a thing
+      you buy and put where you want it, on the Land shelf, and it draws
+      a little power like everything else.
+   ===================================================================== */
+
+/* ---------- 1. base positions belong on the grass ---------- */
+/* Deterministic, so paddock() and the mind model still agree, but polar
+   inside the ellipse instead of uniform across the rectangle. sqrt on
+   the radius keeps them evenly spread rather than bunched at the middle. */
+if(typeof baseSpot === 'function'){
+  baseSpot = function(i, seed, w, h){
+    const t = hash(i*2.3 + seed) * Math.PI * 2;
+    const r = Math.sqrt(hash(i*5.7 + seed));
+    return { x: w/2 + Math.cos(t) * (w/2) * 0.80 * r,
+             y: h/2 + Math.sin(t) * (h/2) * 0.80 * r };
+  };
+}
+
+/* Put every animal back where the simulation says it is, immediately
+   after the DOM is rebuilt. Without this there is a visible jump on
+   every redraw even with the base positions fixed. */
+function reapplyAnimalPositions(){
+  if(typeof MINDS === 'undefined') return;
+  MINDS.forEach((m, id)=>{
+    const el = document.querySelector(`.ob[data-id="${id}"]`);
+    if(!el) return;
+    m.list.forEach(a=>{
+      const g = el.querySelector(`.pen-animal[data-ai="${a.i}"]`);
+      if(!g) return;
+      g.style.translate = `${n(a.x - a.bx)}px ${n(a.y - a.by)}px`;
+      g.classList.toggle('a-inside', !!a.inside);
+      g.classList.toggle('a-away', !!a.away);
+    });
+  });
+}
+if(typeof render === 'function'){
+  const _renderReapply = render;
+  render = function(){
+    const r = _renderReapply.apply(this, arguments);
+    try{ reapplyAnimalPositions(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- 2. no more lamps on the boundary ---------- */
+if(typeof lampPositions === 'function'){
+  lampPositions = function(){ return []; };     /* nothing auto-placed */
+}
+
+/* ---------- 3. a yard light you buy and place ---------- */
+if(typeof BP !== 'undefined' && typeof BPMAP === 'object' && !BPMAP.yard_light){
+  const light = {
+    id:'yard_light', name:'Yard light', art:'yard_light', cat:'land',
+    w:1, h:1, cost:140, lvl:2, kind:'bonus', power:-0.4, charm:3,
+    desc:'A pole light on a photocell. Comes on at dusk, off at first light.',
+    tip:'Put them where you walk after dark. They draw a little power, so a flat battery means a dark yard.',
+  };
+  BP.push(light); BPMAP.yard_light = light;
+}
+
+/* the art: dark by day, a warm pool and a cone after dusk */
+if(typeof ART === 'object'){
+  ART.yard_light = (w, h)=>{
+    const cx = w*0.5, base = h*0.86;
+    let s = '';
+    /* pool first so the post stands in it */
+    s += `<ellipse class="yl-pool"  cx="${n(cx+1)}" cy="${n(base+1)}" rx="${n(w*0.95)}" ry="${n(h*0.40)}" fill="#ffd98a" opacity="0"/>`;
+    s += `<ellipse class="yl-pool2" cx="${n(cx+1)}" cy="${n(base+1)}" rx="${n(w*0.55)}" ry="${n(h*0.23)}" fill="#fff0c4" opacity="0"/>`;
+    s += `<path class="yl-cone" d="M${n(cx-1)} ${n(base-26)} L${n(cx+5)} ${n(base-26)} L${n(cx+w*0.8)} ${n(base+2)} L${n(cx-w*0.5)} ${n(base+2)} Z" fill="#ffd98a" opacity="0"/>`;
+    /* contact shadow, then the post, lit upper-left as everything is */
+    s += `<ellipse cx="${n(cx+1.4)}" cy="${n(base)}" rx="4.4" ry="1.8" fill="#16240c" opacity=".3"/>`;
+    s += `<rect x="${n(cx-2.4)}" y="${n(base-3)}" width="4.8" height="3.4" rx="1.3" fill="#3f4a52"/>`;
+    s += `<rect x="${n(cx-1.1)}" y="${n(base-29)}" width="2.2" height="27" rx="1.1" fill="#55616b"/>`;
+    s += `<rect x="${n(cx-1.1)}" y="${n(base-29)}" width="0.9" height="27" rx="0.45" fill="#7d8994"/>`;
+    s += `<path d="M${n(cx)} ${n(base-29)} q0 -5 6 -5" fill="none" stroke="#55616b" stroke-width="2.1"/>`;
+    s += `<path d="M${n(cx+2.6)} ${n(base-34.4)} h7.2 l-1.5 4.6 h-4.2 Z" fill="#46525c"/>`;
+    s += `<ellipse class="yl-bulb" cx="${n(cx+6.2)}" cy="${n(base-29.4)}" rx="3.1" ry="1.5" fill="#ffe9a8" opacity=".25"/>`;
+    return s;
+  };
+}
+
+/* they switch themselves on and off. A class on the object group rather
+   than a redraw, so dusk costs nothing. */
+let YL_STATE = null;
+function tickYardLights(){
+  const lit = (typeof lampsLit === 'function') ? lampsLit() : false;
+  if(lit === YL_STATE) return;
+  YL_STATE = lit;
+  let n0 = 0;
+  (S.objs || []).forEach(o=>{
+    if((BPMAP[o.bp] || {}).art !== 'yard_light') return;
+    const el = document.querySelector(`.ob[data-id="${o.id}"]`);
+    if(el){ el.classList.toggle('yl-on', lit); n0++; }
+  });
+  if(n0 && typeof log === 'function')
+    log(lit ? `The yard lights came on.` : `The yard lights went off with the sun.`, '', 'home');
+}
+/* re-apply after a redraw, same reason as the animals */
+if(typeof render === 'function'){
+  const _renderYl = render;
+  render = function(){
+    const r = _renderYl.apply(this, arguments);
+    const lit = (typeof lampsLit === 'function') ? lampsLit() : false;
+    (S.objs || []).forEach(o=>{
+      if((BPMAP[o.bp] || {}).art !== 'yard_light') return;
+      const el = document.querySelector(`.ob[data-id="${o.id}"]`);
+      if(el) el.classList.toggle('yl-on', lit);
+    });
+    return r;
+  };
+}
+
+const _tickPeopleYl = tickPeople;
+tickPeople = function(dt){
+  const r = _tickPeopleYl.apply(this, arguments);
+  try{ tickYardLights(); }catch(e){}
+  return r;
+};
+
+(function yardLightCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  .ob .yl-pool,.ob .yl-pool2,.ob .yl-cone,.ob .yl-bulb{ transition:opacity .9s ease; }
+  .ob.yl-on .yl-pool { opacity:.22; animation: ylFlicker 6s ease-in-out infinite; }
+  .ob.yl-on .yl-pool2{ opacity:.32; }
+  .ob.yl-on .yl-cone { opacity:.10; }
+  .ob.yl-on .yl-bulb { opacity:1; }
+  @keyframes ylFlicker{ 0%,100%{ opacity:.22 } 47%{ opacity:.26 } 52%{ opacity:.18 } }
+  @media (prefers-reduced-motion: reduce){ .ob.yl-on .yl-pool{ animation:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- handles ---------- */
+G.penCheck = function(){
+  const out = [];
+  (typeof stockPens === 'function' ? stockPens() : []).forEach(o=>{
+    const m = MINDS.get(o.id); if(!m) return;
+    const g = outdoorEllipse(m);
+    let simOff = 0, baseOff = 0, drawnOff = 0;
+    const el = document.querySelector(`.ob[data-id="${o.id}"]`);
+    m.list.forEach(a=>{
+      if(Math.hypot((a.x-g.cx)/g.rx, (a.y-g.cy)/g.ry) > 1.001) simOff++;
+      if(Math.hypot((a.bx-g.cx)/g.rx, (a.by-g.cy)/g.ry) > 1.001) baseOff++;
+      if(el){
+        const q = el.querySelector(`.pen-animal[data-ai="${a.i}"]`);
+        const t = q && q.style.translate;
+        if(!t) drawnOff++;                    /* no translate = sitting on base */
+      }
+    });
+    out.push({ pen:o.bp, head:m.list.length, simOff, baseOff, noTranslate:drawnOff });
+  });
+  return out;
+};
+
+/* =====================================================================
+   PEOPLE WITH SOMETHING GOING ON
+
+   The family had a routine - a clock that said where to stand at what
+   hour - and a personality that decided how they phrased things. What
+   they did not have was any reason for any of it.
+
+   Now each person carries five needs that drift on their own, a mood
+   that comes out of them, and a memory of the last thing that actually
+   happened on the farm. A need that gets loud enough overrides the
+   timetable and sends them somewhere specific: a tired adult to the
+   bench, a lonely one to the fire circle, a child that has had enough of
+   being sensible to the play area, where it genuinely plays - on the
+   swing, down the slide, in and out of the cubby, each with its own
+   movement rather than the standing-about-shuffle everyone shares.
+
+   And in spring and autumn a fisherman walks up from the road, sits on
+   the bank of your pond for the day, and fishes. He is not yours and he
+   does not work for you. He just likes the pond.
+   ===================================================================== */
+
+/* ---------- 1. needs ---------- */
+const H_NEEDS = ['food','rest','social','purpose','play'];
+const H_DRIFT_ADULT = { food:0.0038, rest:0.0030, social:0.0026, purpose:0.0032, play:0.0009 };
+const H_DRIFT_CHILD = { food:0.0046, rest:0.0038, social:0.0034, purpose:0.0006, play:0.0075 };
+const H_EASE = 0.22;
+
+function isChild(p){ return p && p.role === 'child'; }
+
+function seedPerson(p){
+  if(p.need) return;
+  p.need = {};
+  H_NEEDS.forEach(k=>{ p.need[k] = Math.random()*0.35; });
+  p.mood = 0.65;
+  p.memory = null;
+}
+
+function topHumanNeed(p){
+  let best = null, v = 0.42;                 /* below this nothing is pressing */
+  H_NEEDS.forEach(k=>{ if(p.need[k] > v){ v = p.need[k]; best = k; } });
+  return best;
+}
+
+/* what object in the world answers a given need */
+function placeFor(need, p){
+  const find = (arts)=> (S.objs||[]).filter(o=>arts.indexOf((BPMAP[o.bp]||{}).art) >= 0);
+  let pool = [];
+  if(need === 'play')   pool = find(['playground']);
+  if(need === 'rest')   pool = find(['bench','deck','firepit']);
+  if(need === 'social') pool = find(['firepit','deck','bench']);
+  if(!pool.length) return null;
+  const o = pool[Math.floor(hash((p.id||'x').length * 3.1 + (S.day||0)) * pool.length)] || pool[0];
+  const f = footprint(BPMAP[o.bp], o.rot);
+  return { o, x:(o.tx + f.w/2)*T, y:(o.ty + f.h*0.62)*T, f };
+}
+
+/* the play area is big enough to have places in it, so a child heading
+   there picks a piece of equipment rather than the middle of the lawn */
+const PLAY_SPOTS = [
+  { k:'swing',  dx:0.22, dy:0.40, act:'on the swing' },
+  { k:'slide',  dx:0.62, dy:0.34, act:'down the slide' },
+  { k:'cubby',  dx:0.84, dy:0.58, act:'in the cubby' },
+  { k:'run',    dx:0.45, dy:0.70, act:'tearing about' },
+];
+
+/* which piece of equipment, and where it is. Rotates every nine seconds
+   so a child works through the swing, the slide and the cubby rather
+   than standing on one of them all afternoon. */
+function playSpotFor(p, spot){
+  const pick = PLAY_SPOTS[Math.floor(hash((p.id||'c').length*7.7 + Math.floor(Date.now()/9000)) * PLAY_SPOTS.length)];
+  p.playKind = pick.k;
+  return { x:(spot.o.tx + spot.f.w*pick.dx)*T,
+           y:(spot.o.ty + spot.f.h*pick.dy)*T,
+           act:pick.act };
+}
+
+/* ---------- 2. needs steer the routine ---------- */
+if(typeof routine === 'function'){
+  const _routineBase = routine;
+  routine = function(p){
+    seedPerson(p);
+    const base = _routineBase.apply(this, arguments);
+    /* the clock still wins for sleeping and eating - a child does not
+       get to skip bedtime because it fancies the swing */
+    if(base && /asleep|breakfast|dinner|lunch|pyjamas|being read/.test(base.act || '')) return base;
+    if(S.weather === 'storm') return base;
+
+    const need = topHumanNeed(p);
+    p.topNeed = need;
+
+    /* The routine already sends children to the play area in the
+       afternoon with a generic 'playing' act, which satisfied the need
+       on the spot - so they never actually used the equipment. If there
+       is a play area, that act becomes a specific piece of it. */
+    if(isChild(p) && base && base.act === 'playing'){
+      const pg = placeFor('play', p);
+      if(pg) return playSpotFor(p, pg);
+    }
+
+    if(!need) return base;
+
+    const spot = placeFor(need, p);
+    if(!spot) return base;
+
+    if(need === 'play' && isChild(p)) return playSpotFor(p, spot);
+    p.playKind = null;
+    return { x:spot.x, y:spot.y, act: need === 'rest' ? 'sitting a while' : 'sitting together' };
+  };
+}
+
+/* ---------- 3. the needs move, and the mood follows ---------- */
+let H_T = 0;
+function tickHumanNeeds(dt){
+  H_T += dt;
+  if(H_T < 0.5) return;
+  const step = H_T; H_T = 0;
+  const all = (S.family||[]).concat(S.workers||[]);
+  all.forEach(p=>{
+    seedPerson(p);
+    const drift = isChild(p) ? H_DRIFT_CHILD : H_DRIFT_ADULT;
+    H_NEEDS.forEach(k=>{ p.need[k] = Math.min(1, p.need[k] + drift[k]*step); });
+
+    const a = p.act || '';
+    if(/breakfast|dinner|lunch|eating/.test(a))       p.need.food    = Math.max(0, p.need.food - H_EASE*step);
+    if(/asleep|sitting|resting|fire/.test(a))         p.need.rest    = Math.max(0, p.need.rest - H_EASE*step);
+    if(/together|read|dinner|fire/.test(a))           p.need.social  = Math.max(0, p.need.social - H_EASE*step);
+    if(/working|mending|feeding|watering|harvest/.test(a)) p.need.purpose = Math.max(0, p.need.purpose - H_EASE*step);
+    if(/swing|slide|cubby|tearing about/.test(a))     p.need.play    = Math.max(0, p.need.play - H_EASE*1.4*step);
+
+    /* mood is the inverse of how much is going unmet, nudged by morale */
+    let unmet = 0; H_NEEDS.forEach(k=>{ unmet += p.need[k]; });
+    const target = Math.max(0, Math.min(1, 1 - unmet/H_NEEDS.length)) * 0.7 + (S.morale || 0.6) * 0.3;
+    p.mood = p.mood + (target - p.mood) * Math.min(1, 0.25*step);
+  });
+}
+
+/* what a person is thinking about shows up in the log the same way the
+   animals' needs do, so you can tell why they wandered off */
+if(typeof ACT_WORDING === 'object'){
+  ACT_WORDING['on the swing']    = p => `${p.name} got on the swing.`;
+  ACT_WORDING['down the slide']  = p => `${p.name} went down the slide, repeatedly.`;
+  ACT_WORDING['in the cubby']    = p => `${p.name} disappeared into the cubby.`;
+  ACT_WORDING['tearing about']   = p => `${p.name} is tearing about the play area.`;
+  ACT_WORDING['sitting a while'] = p => `${p.name} sat down for a bit.`;
+  ACT_WORDING['sitting together']= p => `${p.name} went to sit with the others.`;
+}
+
+/* ---------- 4. children actually play ---------- */
+/* A class per piece of equipment, so a swing swings and a slide slides
+   instead of everyone doing the same idle shuffle. */
+function paintPlay(){
+  const all = (S.family||[]).concat(S.workers||[]);
+  all.forEach(p=>{
+    const el = document.querySelector(`[data-p="${p.id}"]`);
+    if(!el) return;
+    const a = p.act || '';
+    el.classList.toggle('pl-swing',  a === 'on the swing');
+    el.classList.toggle('pl-slide',  a === 'down the slide');
+    el.classList.toggle('pl-cubby',  a === 'in the cubby');
+    el.classList.toggle('pl-run',    a === 'tearing about');
+    el.classList.toggle('pl-sit',    a === 'sitting a while' || a === 'sitting together');
+  });
+}
+
+/* ---------- 5. the fisherman ---------- */
+/* Spring and autumn, on a farm that has a pond. He arrives after dawn,
+   sits on the bank all day and goes home at dusk. */
+const FISH_SEASONS = [0, 2];              /* spring, autumn */
+
+function pondObj(){
+  return (S.objs||[]).find(o=>(BPMAP[o.bp]||{}).art === 'pond');
+}
+function fishingDay(){
+  if(FISH_SEASONS.indexOf(S.season) < 0) return false;
+  if(!pondObj()) return false;
+  /* he does not come every day - roughly one day in three, but the same
+     days for a given save rather than flickering */
+  return hash((S.day||0) * 1.7 + 4.2) < 0.34;
+}
+
+function fisherInit(){
+  const on = fishingDay();
+  const f = (typeof dayFrac === 'function') ? dayFrac() : 0.5;
+  const daytime = f > 0.26 && f < 0.82;
+  if(!on || !daytime){ S.fisher = null; return; }
+  if(S.fisher) return;
+  const p = pondObj(); if(!p) return;
+  const ft = footprint(BPMAP[p.bp], p.rot);
+  /* on the bank, south-west corner, facing the water */
+  S.fisher = {
+    x:(p.tx + ft.w*0.18)*T, y:(p.ty + ft.h*0.86)*T,
+    pond:p.id, t:0, bite:0, caught:0, said:0,
+    fx:(p.tx + ft.w*0.42)*T, fy:(p.ty + ft.h*0.52)*T,   /* where the float sits */
+  };
+  if(typeof log === 'function')
+    log('Someone has walked up from the road and settled on the pond bank with a rod.', '', 'home');
+}
+
+const FISH_LINES = ['Morning.','Not biting yet.','Lovely spot, this.','Had a big one here last year.',
+                    'Mind if I stop a while?','Water is clear today.'];
+const FISH_CATCH = ['Got one!','There we are.','That is a keeper.'];
+
+function tickFisher(dt){
+  fisherInit();
+  const fr = S.fisher; if(!fr) return;
+  fr.t += dt;
+  /* the float sits, then dips */
+  fr.bite -= dt;
+  if(fr.bite <= 0 && Math.random() < dt*0.06){
+    fr.bite = 2.2;
+    fr.caught++;
+    const el = document.getElementById('fisher');
+    if(el){ el.classList.remove('biting'); void el.offsetWidth; el.classList.add('biting'); }
+    if(typeof speak === 'function') speak({x:fr.x, y:fr.y}, FISH_CATCH[Math.floor(Math.random()*FISH_CATCH.length)]);
+    if(typeof SND !== 'undefined') SND.play('water');
+  }
+  fr.said -= dt;
+  if(fr.said <= 0 && Math.random() < dt*0.05){
+    fr.said = 22 + Math.random()*20;
+    if(typeof speak === 'function') speak({x:fr.x, y:fr.y}, FISH_LINES[Math.floor(Math.random()*FISH_LINES.length)]);
+  }
+  const el = document.getElementById('fisher');
+  if(el) el.setAttribute('transform', `translate(${n(fr.x)},${n(fr.y)})`);
+}
+
+function fisherLayer(){
+  const fr = S.fisher; if(!fr) return '';
+  const dx = fr.fx - fr.x, dy = fr.fy - fr.y;
+  let s = `<g id="fisher" class="npc" transform="translate(${n(fr.x)},${n(fr.y)})">`;
+  /* the line and float go down first so he sits in front of them */
+  s += `<g class="fish-tackle">`;
+  s += `<line x1="3" y1="-14" x2="${n(dx)}" y2="${n(dy)}" stroke="#e8e2cf" stroke-width="0.7" opacity=".85"/>`;
+  s += `<ellipse class="fish-ripple" cx="${n(dx)}" cy="${n(dy)}" rx="5" ry="2" fill="none" stroke="#dff3ff" stroke-width="1" opacity=".5"/>`;
+  s += `<circle class="fish-float" cx="${n(dx)}" cy="${n(dy)}" r="1.9" fill="#e8543f"/>`;
+  s += `</g>`;
+  /* the rod, angled out over the water */
+  s += `<g class="fish-rod"><line x1="0" y1="-6" x2="4" y2="-16" stroke="#8a6a42" stroke-width="1.3"/></g>`;
+  /* him: sitting, so shorter than a standing figure, with a hat */
+  s += `<ellipse cx="1" cy="3" rx="5" ry="2" fill="#16240c" opacity=".3"/>`;
+  s += `<rect x="-4" y="-9" width="8" height="9" rx="3" fill="#5b6f52"/>`;
+  s += `<rect x="-5.5" y="-2" width="4" height="4" rx="1.6" fill="#3f4a5a"/>`;
+  s += `<circle cx="0" cy="-12" r="2.9" fill="#e2b98f"/>`;
+  s += `<ellipse cx="0" cy="-14" rx="5.2" ry="1.5" fill="#8a7c4e"/>`;
+  s += `<ellipse cx="0" cy="-15.2" rx="2.6" ry="1.6" fill="#8a7c4e"/>`;
+  s += `<text class="nlab" y="-22" text-anchor="middle">Fisherman</text>`;
+  s += `</g>`;
+  return s;
+}
+
+if(typeof peopleLayer === 'function'){
+  const _peopleLayerFish = peopleLayer;
+  peopleLayer = function(){ return _peopleLayerFish.apply(this, arguments) + fisherLayer(); };
+}
+
+/* ---------- 6. wire in ---------- */
+const _tickPeopleHuman = tickPeople;
+tickPeople = function(dt){
+  const r = _tickPeopleHuman.apply(this, arguments);
+  if(S && S.speed !== 0){
+    try{ tickHumanNeeds(dt); tickFisher(dt); paintPlay(); }catch(e){}
+  }
+  return r;
+};
+
+(function playCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  /* each piece of equipment moves differently - that is the whole point */
+  .npc.pl-swing .youbob{ transform-box:fill-box; transform-origin:50% 0%;
+    animation: plSwing 2.1s ease-in-out infinite; }
+  @keyframes plSwing{ 0%,100%{ transform:rotate(-15deg) } 50%{ transform:rotate(15deg) } }
+
+  .npc.pl-slide .youbob{ animation: plSlide 2.6s ease-in infinite; }
+  @keyframes plSlide{
+    0%   { transform:translate(0,-13px) rotate(-8deg); }
+    45%  { transform:translate(11px,7px) rotate(10deg); }
+    55%  { transform:translate(11px,7px) rotate(10deg); opacity:1 }
+    70%  { transform:translate(11px,7px) rotate(0deg); opacity:0 }
+    71%  { transform:translate(0,-13px) rotate(-8deg); opacity:0 }
+    100% { transform:translate(0,-13px) rotate(-8deg); opacity:1 } }
+
+  .npc.pl-cubby .youbob{ animation: plPeek 3.4s ease-in-out infinite; }
+  @keyframes plPeek{ 0%,38%{ transform:translateY(0); opacity:1 }
+                     50%,84%{ transform:translateY(7px); opacity:.15 }
+                     100%{ transform:translateY(0); opacity:1 } }
+
+  .npc.pl-run .youbob{ animation: plRun .5s ease-in-out infinite; }
+  @keyframes plRun{ 0%,100%{ transform:translateY(0) rotate(-4deg) }
+                    50%    { transform:translateY(-4px) rotate(4deg) } }
+
+  .npc.pl-sit .youbob{ animation:none; transform:translateY(3px) scale(1,.9); }
+
+  /* the fisherman */
+  #fisher .fish-float{ animation: fishBob 3.1s ease-in-out infinite; }
+  @keyframes fishBob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(1.4px) } }
+  #fisher .fish-ripple{ animation: fishRipple 3.4s ease-out infinite; }
+  @keyframes fishRipple{ 0%{ transform:scale(.4); opacity:.55 } 100%{ transform:scale(2.4); opacity:0 } }
+  #fisher.biting .fish-float{ animation: fishBite .5s ease-in-out 3; }
+  @keyframes fishBite{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(4px) } }
+  #fisher.biting .fish-rod{ transform-box:fill-box; transform-origin:0 100%;
+    animation: fishStrike .5s ease-out 1; }
+  @keyframes fishStrike{ 0%{ transform:rotate(0) } 40%{ transform:rotate(-22deg) } 100%{ transform:rotate(0) } }
+
+  @media (prefers-reduced-motion: reduce){
+    .npc.pl-swing .youbob,.npc.pl-slide .youbob,.npc.pl-cubby .youbob,.npc.pl-run .youbob,
+    #fisher .fish-float,#fisher .fish-ripple{ animation:none !important; } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- handles ---------- */
+G.people = function(){
+  return (S.family||[]).concat(S.workers||[]).map(p=>({
+    name:p.name, role:p.role, act:p.act, wants:p.topNeed,
+    mood:+(p.mood||0).toFixed(2), trait:(typeof traitOf==='function')?traitOf(p).n:'?',
+    needs:Object.keys(p.need||{}).reduce((z,k)=>(z[k]=+p.need[k].toFixed(2),z),{}),
+  }));
+};
+G.fisher = function(){ return { season:S.season, isFishingDay:fishingDay(), pond:!!pondObj(), fisher:S.fisher }; };
+G.callFisher = function(){
+  const p = pondObj(); if(!p) return 'no pond on the farm';
+  S.fisher = null; S.season = FISH_SEASONS[0];
+  fisherInit(); render();
+  return S.fisher ? 'he is on the bank' : 'not a fishing hour - try midday';
+};
+
+/* =====================================================================
+   THE ANIMALS WERE NEVER WHERE THE SIMULATION THOUGHT
+
+   This is the actual cause of "the animals are outside their boundary",
+   and I missed it three times because every audit I wrote measured a.x -
+   the simulated position - which was always clean.
+
+   An animal is drawn at a base point and then moved with a CSS
+   translate of (a.x - a.bx). paddock() picked the base with
+   baseSpot(i, SEED) using the artwork's seed - 7 for a coop, 15 for
+   sheep, 23 for an apiary. mindFor() picked a.bx with
+   baseSpot(i, o.id*3.7). Two different seeds, two different points, so
+   the delta was measured from an origin the element does not have.
+
+   Measured across seven pens: 39 of 40 animals rendered more than 10px
+   from their simulated position, worst case 140px in a pasture 200px
+   wide. That is an animal standing most of a pen away from where the
+   containment logic believes it is, which is exactly what it looked
+   like.
+
+   The fix is to stop guessing. Each drawn animal now carries the base it
+   was actually drawn at, and the position writer reads that instead of
+   assuming. Ducks and bees get the same treatment - their art never used
+   baseSpot at all.
+   ===================================================================== */
+
+/* ---------- 1. every drawn animal declares its own base ---------- */
+if(typeof paddock === 'function'){
+  paddock = function(w, h, kind, cnt, seed, sc){
+    const b = shelterBox(w, h);
+    let s = patch(w,h,'#84ad57',seed,1);
+    s += `<rect x="1.5" y="1.5" width="${n(w-3)}" height="${n(h-3)}" rx="2.5" fill="none" stroke="#00000033" stroke-width="2.6"/>`;
+    s += `<rect x="1.5" y="1.5" width="${n(w-3)}" height="${n(h-3)}" rx="2.5" fill="none" stroke="#a8814f" stroke-width="1.3"/>`;
+    for(let x=2;x<w-2;x+=11){ s += `<rect x="${n(x-1)}" y="0" width="2" height="4" rx="1" fill="#7d5931"/>`;
+                              s += `<rect x="${n(x-1)}" y="${n(h-4)}" width="2" height="4" rx="1" fill="#7d5931"/>`; }
+    for(let y=2;y<h-2;y+=11){ s += `<rect x="0" y="${n(y-1)}" width="4" height="2" rx="1" fill="#7d5931"/>`;
+                              s += `<rect x="${n(w-4)}" y="${n(y-1)}" width="4" height="2" rx="1" fill="#7d5931"/>`; }
+    s += `<g class="shed-in">${shedFittings(kind, b)}</g>`;
+
+    const cx = w/2, cy = h/2;
+    for(let i=0;i<cnt;i++){
+      const p = baseSpot(i, seed, w, h);
+      const dx = (cx - p.x) * 0.82, dy = (cy - p.y) * 0.82;
+      /* data-bx / data-by are the whole point: the position writer reads
+         these rather than recomputing a base from a different seed */
+      s += `<g class="pen-animal a3 a3-graze" data-ai="${i}" data-bx="${n(p.x)}" data-by="${n(p.y)}"
+        style="--hx:${n(dx)}px; --hy:${n(dy)}px;
+        animation-delay:-${(hash(i*7.1+seed)*3).toFixed(1)}s">${beast(kind, p.x, p.y, sc||1)}</g>`;
+    }
+    s += shedRoof(b);
+    return s;
+  };
+}
+
+/* ducks: their art placed them on the water and never used baseSpot */
+if(typeof ART === 'object' && ART.duck_pond){
+  ART.duck_pond = (w,h,ob)=>{
+    const cnt = ob ? Math.min(8, ob.animals||0) : 3;
+    const p = pondRect(w,h), b = shelterBox(w,h);
+    let s = patch(w,h,'#84ad57',19,1);
+    s += `<g transform="translate(${n(p.x)},${n(p.y)})">${water(p.w, p.h, 19)}</g>`;
+    s += `<ellipse cx="${n(p.x+p.w*0.5)}" cy="${n(p.y)}" rx="${n(p.w*0.34)}" ry="4" fill="#9c8557" opacity=".55"/>`;
+    s += `<g class="shed-in">${duckHouseFittings(b)}</g>`;
+    const cx = w/2, cy = h/2;
+    for(let i=0;i<cnt;i++){
+      /* on the water, and declared, so the mind and the drawing agree */
+      const t  = hash(i*2.9+19)*Math.PI*2, r = Math.sqrt(hash(i*4.3+19));
+      const bx = p.x + p.w/2 + Math.cos(t)*(p.w/2)*0.78*r;
+      const by = p.y + p.h/2 + Math.sin(t)*(p.h/2)*0.74*r;
+      const hx = (cx - bx)*0.82, hy = (cy - by)*0.82;
+      s += `<g class="pen-animal a3" data-ai="${i}" data-bx="${n(bx)}" data-by="${n(by)}"
+        style="--hx:${n(hx)}px; --hy:${n(hy)}px;
+        animation-delay:-${(hash(i*7.1+19)*3).toFixed(1)}s">${beast('duck', bx, by, 0.9)}</g>`;
+    }
+    s += shedRoof(b);
+    if(ob && ob.ready>0) s += `<circle class="pulse" cx="${n(w-6)}" cy="6" r="3.4" fill="#f0c14b"/>`;
+    return s;
+  };
+}
+
+/* bees: same problem, same fix */
+if(typeof ART === 'object' && ART.apiary){
+  const _apiaryPrev = ART.apiary;
+  ART.apiary = (w,h,ob)=>{
+    let s = _apiaryPrev(w,h,ob);
+    /* strip the bees the previous wrapper added and re-emit them with a
+       declared base */
+    s = s.replace(/<g class="pen-animal"[\s\S]*?<\/g><\/g>/g, '');
+    const head = ob ? Math.min(8, ob.animals || 0) : 3;
+    const row = (typeof hiveRow === 'function') ? hiveRow(w,h) : {x:3,y:h/2-7,w:w-6,h:14};
+    for(let i=0;i<head;i++){
+      const bx = row.x + 4 + hash(i*2.9+23)*Math.max(4, row.w-8);
+      const by = row.y + row.h/2 + (hash(i*4.3+23)-0.5)*h*0.5;
+      s += `<g class="pen-animal" data-ai="${i}" data-bx="${n(bx)}" data-by="${n(by)}"
+        style="--hx:0px; --hy:0px; animation-delay:-${(hash(i*7.1+23)*3).toFixed(1)}s">${
+        beeBody(bx, by, 1)}</g>`;
+    }
+    return s;
+  };
+}
+
+/* ---------- 2. the mind adopts the base that was drawn ---------- */
+/* Read once per element, then cached on the animal. If the element is
+   not in the DOM yet the old value stands until the next sync, which is
+   at most one frame. */
+function syncAnimalTransforms(){
+  if(typeof MINDS === 'undefined') return;
+  MINDS.forEach((m, id)=>{
+    const el = document.querySelector(`.ob[data-id="${id}"]`);
+    if(!el) return;
+    m.list.forEach(a=>{
+      const g = el.querySelector(`.pen-animal[data-ai="${a.i}"]`);
+      if(!g) return;
+      const bx = parseFloat(g.dataset.bx), by = parseFloat(g.dataset.by);
+      if(!isNaN(bx) && !isNaN(by)){
+        /* first sight of the real base: move the animal there rather than
+           teleporting it, so a reload does not scatter the pen */
+        if(a.bx !== bx || a.by !== by){
+          if(a._based){ a.x += (bx - a.bx); a.y += (by - a.by); }
+          else { a.x = bx; a.y = by; a._based = true; }
+          a.bx = bx; a.by = by;
+        }
+      }
+      g.style.translate = `${n(a.x - a.bx)}px ${n(a.y - a.by)}px`;
+      g.classList.toggle('a-inside', !!a.inside);
+      g.classList.toggle('a-away', !!a.away);
+    });
+  });
+}
+
+if(typeof reapplyAnimalPositions === 'function'){
+  reapplyAnimalPositions = function(){ syncAnimalTransforms(); };
+}
+
+const _tickPeopleSync = tickPeople;
+tickPeople = function(dt){
+  const r = _tickPeopleSync.apply(this, arguments);
+  if(S && S.speed !== 0){ try{ syncAnimalTransforms(); }catch(e){} }
+  return r;
+};
+
+/* ---------- 3. an audit that measures what is on screen ---------- */
+/* The old one compared a.x against the ellipse and always passed. This
+   one reads the rendered rectangle, which is the only number that
+   matters. */
+G.penCheck = function(){
+  const out = [];
+  (typeof stockPens === 'function' ? stockPens() : []).forEach(o=>{
+    const m = MINDS.get(o.id); if(!m) return;
+    const el = document.querySelector(`.ob[data-id="${o.id}"]`);
+    if(!el){ out.push({pen:o.bp, note:'not drawn'}); return; }
+    const pr = el.getBoundingClientRect();
+    const f  = footprint(BPMAP[o.bp], o.rot);
+    const scale = pr.width / (f.w*T);
+    let worstErr = 0, outsidePen = 0;
+    m.list.forEach(a=>{
+      const g = el.querySelector(`.pen-animal[data-ai="${a.i}"]`);
+      if(!g || a.away) return;
+      const r = g.getBoundingClientRect();
+      const lx = (r.left + r.width/2 - pr.left)/scale;
+      const ly = (r.top  + r.height/2 - pr.top )/scale;
+      worstErr = Math.max(worstErr, Math.hypot(lx-a.x, ly-a.y));
+      if(lx < 0 || ly < 0 || lx > f.w*T || ly > f.h*T) outsidePen++;
+    });
+    out.push({ pen:o.bp, head:m.list.length,
+               worstDrawErrPx: Math.round(worstErr),
+               renderedOutsidePen: outsidePen });
+  });
+  return out;
+};
+
 
 </script>
 
