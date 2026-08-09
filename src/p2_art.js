@@ -376,17 +376,23 @@ function beast(kind,x,y,sc,idle){
 }
 
 /* human figure for scale */
-function person(x,y,sc,shirt,hat){
+/* The body parts carry classes now so CSS can pose the figure - fold the
+   legs to sit, tuck an arm - without person() having to branch into a
+   second whole drawing. `prop` is a sixth optional argument appended at
+   the end; all five existing call sites stop at `hat`, so nothing else
+   needed touching. */
+function person(x,y,sc,shirt,hat,prop){
   sc=sc||1;
-  let s = `<ellipse cx="${n(x+1.6*sc)}" cy="${n(y+9*sc)}" rx="${n(4.4*sc)}" ry="${n(1.8*sc)}" fill="#16240c" opacity=".32"/>`;
-  s += `<rect x="${n(x-2.2*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
-  s += `<rect x="${n(x+0.4*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
-  s += `<rect x="${n(x-3*sc)}" y="${n(y-2.4*sc)}" width="${n(6*sc)}" height="${n(5.6*sc)}" rx="${n(2.2*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<rect x="${n(x-4.8*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<rect x="${n(x+2.9*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<circle cx="${n(x)}" cy="${n(y-4.6*sc)}" r="${n(2.9*sc)}" fill="#e2b98f"/>`;
-  s += `<path d="M${n(x-2.9*sc)} ${n(y-4.9*sc)} a ${n(2.9*sc)} ${n(2.9*sc)} 0 0 1 ${n(5.8*sc)} 0 z" fill="#4a3a2c"/>`;
-  if(hat){ s += `<ellipse cx="${n(x)}" cy="${n(y-5.2*sc)}" rx="${n(5*sc)}" ry="${n(2.2*sc)}" fill="${hat}"/>
-                 <circle cx="${n(x)}" cy="${n(y-6*sc)}" r="${n(2.3*sc)}" fill="${hat}"/>`; }
+  let s = `<ellipse class="pr-shadow" cx="${n(x+1.6*sc)}" cy="${n(y+9*sc)}" rx="${n(4.4*sc)}" ry="${n(1.8*sc)}" fill="#16240c" opacity=".32"/>`;
+  s += `<rect class="pr-leg pr-leg-l" x="${n(x-2.2*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
+  s += `<rect class="pr-leg pr-leg-r" x="${n(x+0.4*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
+  s += `<rect class="pr-torso" x="${n(x-3*sc)}" y="${n(y-2.4*sc)}" width="${n(6*sc)}" height="${n(5.6*sc)}" rx="${n(2.2*sc)}" fill="${shirt||'#c8583f'}"/>`;
+  s += `<rect class="pr-arm pr-arm-l" x="${n(x-4.8*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
+  s += `<rect class="pr-arm pr-arm-r" x="${n(x+2.9*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
+  s += `<circle class="pr-head" cx="${n(x)}" cy="${n(y-4.6*sc)}" r="${n(2.9*sc)}" fill="#e2b98f"/>`;
+  s += `<path class="pr-hair" d="M${n(x-2.9*sc)} ${n(y-4.9*sc)} a ${n(2.9*sc)} ${n(2.9*sc)} 0 0 1 ${n(5.8*sc)} 0 z" fill="#4a3a2c"/>`;
+  if(hat){ s += `<g class="pr-hat"><ellipse cx="${n(x)}" cy="${n(y-5.2*sc)}" rx="${n(5*sc)}" ry="${n(2.2*sc)}" fill="${hat}"/>
+                 <circle cx="${n(x)}" cy="${n(y-6*sc)}" r="${n(2.3*sc)}" fill="${hat}"/></g>`; }
+  if(prop) s += prop;
   return s;
 }
