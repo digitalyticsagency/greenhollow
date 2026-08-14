@@ -1,27 +1,32 @@
 /* =====================================================================
-   ALIGNMENT GUIDES, SNAPPING, AND MIRRORED LAYOUTS
+   ALIGNMENT GUIDES AND MIRRORED LAYOUTS
 
    Placing by eye on a 40px grid means a row of six things is six chances
    to be one tile out, and you only notice once it is all down. Two aids:
 
    GUIDES. While something is on the cursor, any existing object whose
-   edge lines up with the ghost's draws a dashed line through both. If an
-   edge is within a tile of lining up, the ghost snaps to it - so a run
-   ends up straight because it wanted to, not because you counted. Hold
-   Shift to place freely.
+   edge lines up with the ghost's draws a dashed line through both. That
+   is all they do - they tell you when you are lined up and otherwise stay
+   out of the way.
+
+   THERE WAS ALSO POSITIONAL SNAPPING HERE, AND IT WAS A MISTAKE. It moved
+   the ghost onto any edge within one tile. But placement is already
+   snapped - the pointer maps to whole tiles - so "within one tile" is not
+   a tolerance, it is the next square along. The effect was that you could
+   not leave a one-tile gap beside anything, which is a completely normal
+   thing to want, and because it ran on every render it pulled the ghost
+   back every time you nudged it off. Removed. The grid is the snap; the
+   guides are the feedback.
 
    MIRROR. A saved layout can be flipped left-to-right or top-to-bottom
    before it is stamped, which is what you want for the far side of a
    drive or the opposite corner of a yard. Press F while stamping, or use
    the buttons in the Layouts panel.
 
-   Snapping happens inside render(), which is called on every pointer move
-   while placing, so the ghost is corrected before it is ever drawn rather
-   than jumping after the fact.
    ===================================================================== */
 
-let ALIGN_OFF = false;            /* held while Shift is down */
-const SNAP_TILES = 1;             /* how close an edge has to be to catch */
+/* kept so alignEdges() reads the same, but nothing is disabled any more:
+   the guides never take control, so there is nothing to hold a key for */
 
 /* every edge worth lining up with: the sides of things already placed */
 function alignEdges(skipId){
@@ -34,28 +39,6 @@ function alignEdges(skipId){
     ys.push({v:o.ty, o}, {v:o.ty + f.h, o});
   });
   return {xs, ys};
-}
-
-/* move the ghost onto the nearest edge if one is close enough */
-function snapGhost(){
-  if(!ghost || ALIGN_OFF) return null;
-  const f = footprint(ghost.bp, ghost.rot);
-  const {xs, ys} = alignEdges(ghost.moving);
-  const near = (list, a, b)=>{
-    let best = null;
-    list.forEach(e=>{
-      [[a, 0], [b, -1]].forEach(([edge, off])=>{
-        const d = Math.abs(e.v - edge);
-        if(d <= SNAP_TILES && d > 0 && (!best || d < best.d)) best = {d, delta:e.v - edge, v:e.v};
-      });
-    });
-    return best;
-  };
-  const bx = near(xs, ghost.tx, ghost.tx + f.w);
-  const by = near(ys, ghost.ty, ghost.ty + f.h);
-  if(bx) ghost.tx += bx.delta;
-  if(by) ghost.ty += by.delta;
-  return {bx, by, f};
 }
 
 /* the dashed lines, drawn through everything that now lines up */
@@ -78,9 +61,6 @@ function alignGuides(){
 if(typeof render === 'function'){
   const _renderAlign = render;
   render = function(){
-    /* correct the ghost before the frame is built, so it is drawn in the
-       snapped position rather than moving after it appears */
-    try{ if(ghost) snapGhost(); }catch(e){}
     const r = _renderAlign.apply(this, arguments);
     try{
       const old = document.getElementById('aligns');
@@ -98,9 +78,6 @@ if(typeof render === 'function'){
     return r;
   };
 }
-
-window.addEventListener('keydown', e=>{ if(e.key === 'Shift') ALIGN_OFF = true; });
-window.addEventListener('keyup',   e=>{ if(e.key === 'Shift') ALIGN_OFF = false; });
 
 /* ---------- mirroring a saved layout ---------- */
 
@@ -172,8 +149,7 @@ G.alignAudit = function(){
   const e = alignEdges(0);
   return {
     edgesTracked: { x:e.xs.length, y:e.ys.length },
-    snapWithinTiles: SNAP_TILES,
-    shiftDisables: ALIGN_OFF ? 'held now' : 'hold Shift to place freely',
+    positionalSnapping: 'removed - it prevented one-tile gaps',
     ghostActive: !!ghost,
     guidesDrawn: ghost ? (alignGuides().match(/<line/g)||[]).length : 0,
     stampFlipBound: typeof G.flipStamp === 'function',
