@@ -287,6 +287,14 @@ function farmUsage(){
   }, 0);
   return {used, total: FARM.w*FARM.h, pct: used/(FARM.w*FARM.h)};
 }
+/* Land is the only thing every income figure in the game is divided by,
+   which makes it the one sink worth having: money converts into capacity
+   rather than into a fine. It was capped at four parcels totalling
+   $30,250 - seven percent of a played save's $442,951, after which there
+   was nothing left to buy at all. Twelve parcels on the same 1.85 curve
+   runs to about $4.5m, so earning keeps meaning something for a long
+   time without anything being taken away. */
+const EXPAND_MAX = 12;
 function expandCost(){
   const n0 = S.expansions||0;
   return Math.round(2400 * Math.pow(1.85, n0));
@@ -294,7 +302,22 @@ function expandCost(){
 function canExpand(){
   /* the world canvas grows to suit in expandFarm(), so the only real
      limit is how many parcels the neighbours will sell */
-  return (S.expansions||0) < 4;
+  return (S.expansions||0) < EXPAND_MAX;
+}
+/* later parcels are bigger, so the price curve buys visibly more ground
+   rather than the same 4x3 strip at ten times the money */
+function expandSize(){
+  const n0 = S.expansions||0;
+  return n0 >= 8 ? {w:6,h:5} : n0 >= 4 ? {w:5,h:4} : {w:4,h:3};
+}
+
+/* The panel used to say "4x3 more tiles", which reads as twelve. A parcel
+   extends the property along two sides, so the actual gain is
+   (w+aw)*(h+ah) - w*h - on a 21x14 block that is 122 tiles, not 12. The
+   old copy understated it by a factor of ten. */
+function expandGain(){
+  const sz = expandSize();
+  return (FARM.w + sz.w) * (FARM.h + sz.h) - FARM.w * FARM.h;
 }
 function expandFarm(){
   if(!canExpand()) return toast('No more adjoining land for sale','bad'), sfx('error');
@@ -303,7 +326,7 @@ function expandFarm(){
   S.cash -= c;
   S.expansions = (S.expansions||0) + 1;
   /* grow the fenced area; the world canvas grows with it if needed */
-  const addW = 4, addH = 3;
+  const sz = expandSize(), addW = sz.w, addH = sz.h;
   if(FARM.x + FARM.w + addW > WT-3){ WT += addW+2; WPX = WT*T; }
   if(FARM.y + FARM.h + addH > HT-3){ HT += addH+2; HPX = HT*T; }
   FARM.w += addW; FARM.h += addH;
@@ -380,9 +403,10 @@ function tintHorizon(){
          <div class="statrow"><span>Your land is</span><b>${Math.round(u.pct*100)}% built</b></div>
          <div class="bar"><i style="transform:scaleX(${Math.min(1,u.pct).toFixed(3)});background:linear-gradient(90deg,#8a6a4a,#c9a06a)"></i></div>
          <div class="muted" style="margin:6px 0">The neighbour will sell you the adjoining paddock —
-         4×3 more tiles. Council rates go up with everything you own.</div>
+         about ${expandGain()} more tiles, taking you to ${FARM.w+expandSize().w}×${FARM.h+expandSize().h}.
+         Council rates go up with everything you own.</div>
          <button class="btn wide" ${S.cash<c?'disabled':''} onclick="expandFarm()"
-           data-tip="${esc(`<b>Buy adjoining land</b>Adds 4×3 tiles to your property.<hr><div class="tl"><span>Price</span><span class="tk">${fmt(c)}</span></div><div class="tl"><span>Expansions used</span><b>${S.expansions||0} of 4</b></div><hr><span class="tg">Each parcel costs 85% more than the last.</span>`)}">
+           data-tip="${esc(`<b>Buy adjoining land</b>Extends the property on two sides, adding about ${expandGain()} tiles.<hr><div class="tl"><span>Price</span><span class="tk">${fmt(c)}</span></div><div class="tl"><span>Expansions used</span><b>${S.expansions||0} of ${EXPAND_MAX}</b></div><hr><span class="tg">Each parcel costs 85% more than the last.</span>`)}">
            Buy adjoining land — ${fmt(c)}</button>`
       : `<div class="eyebrow">Land</div><div class="muted">You own everything the neighbours will part with.</div>`;
     list.appendChild(div);
