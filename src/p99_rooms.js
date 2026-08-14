@@ -131,9 +131,11 @@ function assignRooms(){
     }
   } else spare = rooms;
 
-  /* extra adults take a spare room before it becomes anything else */
+  /* extra adults take a spare room before it becomes anything else.
+     owner is recorded so the person can actually be sent to it - without
+     it the plan knew whose room it was and nothing else did. */
   const extra = grownups.filter(g=>g.role === 'adult');
-  extra.forEach((g,i)=>{ if(spare[i]){ spare[i].use='adult'; spare[i].label=`${g.name}'s room`; } });
+  extra.forEach((g,i)=>{ if(spare[i]){ spare[i].use='adult'; spare[i].owner=g.id; spare[i].label=`${g.name}'s room`; } });
   spare = spare.slice(extra.length);
 
   const roles = ['office','guest','store'];
