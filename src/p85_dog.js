@@ -38,7 +38,7 @@ G.buyDog = function(){
   sfx('build');
   toast(`${S.dog.name} has come home with you`,'gold');
   log(`${S.dog.name} arrived — a farm dog. She will not be much help for a while.`,'gold','home');
-  render(); ui(); G.save();
+  render(); ui(); if(typeof renderBuild==='function') renderBuild(); G.save();
 };
 G.renameDog = function(v){ if(S.dog){ S.dog.name = (v||'').trim() || S.dog.name; G.save(); } };
 
@@ -159,32 +159,45 @@ if(typeof tickPeople === 'function'){
 }
 
 /* ---------- buying her, from the Animals tab ---------- */
-(function dogButton(){
-  if(typeof ui !== 'function') return;
-  const paint = ()=>{
-    const list = document.getElementById('buildList');
-    if(!list || list.dataset.dogAdded === String(!!S.dog)) return;
-    /* only while the Animals category is showing */
-    const onAnimals = [...document.querySelectorAll('.cat,.catb,button')]
-      .some(b=>/^Animals$/.test(b.textContent.trim()) &&
-        (b.classList.contains('on') || b.getAttribute('aria-selected') === 'true'));
-    if(!onAnimals) return;
-    list.dataset.dogAdded = String(!!S.dog);
-    const card = document.createElement('div');
-    card.style.cssText = 'padding:9px 10px;border-top:1px solid var(--line)';
-    card.innerHTML = S.dog
-      ? `<div style="font-weight:700">${S.dog.name}</div>
-         <div class="muted" style="font-size:12px">Your dog. She follows you, fetches anything that gets out,
-         and sleeps by the fire.</div>`
-      : `<div style="font-weight:700">A farm dog <span class="tk" style="float:right">${fmt(180)}</span></div>
-         <div class="muted" style="font-size:12px;margin:2px 0 6px">Follows you round, brings back whatever
-         has got out, sleeps by the fire. No other use whatsoever.</div>
-         <button class="btn" ${S.cash<180?'disabled':''} onclick="G.buyDog()">Take her home</button>`;
-    list.appendChild(card);
+/* Hooked to renderBuild(), not ui(). The build list is rebuilt by
+   G.cat() -> renderBuild(), which never calls ui(), so a paint hung off
+   ui() ran on load and then never again when you switched to Animals -
+   which is exactly why the dog was not there. The selected category is
+   the global curCat, and Animals is 'animal', not the button's label. */
+function dogCard(){
+  const list = document.getElementById('buildList');
+  if(!list) return;
+  if(typeof curCat !== 'undefined' && curCat !== 'animal') return;
+  if(list.querySelector('#dogcard')) return;
+  const card = document.createElement('div');
+  card.id = 'dogcard';
+  /* deliberately NOT .bitem - that class is a grid built for an icon, a
+     name and a price, and it squeezed this into a two-word column */
+  card.style.cssText = 'display:block;padding:10px;border-bottom:1px solid var(--line);'
+    + 'background:rgba(255,255,255,.03)';
+  card.innerHTML = S.dog
+    ? `<div style="font-weight:700">${S.dog.name}</div>
+       <div class="muted" style="font-size:12px">Your dog. She follows you, brings back anything
+       that gets out, and sleeps by the fire.</div>`
+    : `<div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1">A farm dog</b><span class="tk">${fmt(180)}</span></div>
+       <div class="muted" style="font-size:12px;margin:2px 0 6px">Follows you round, brings back whatever
+       has got out, sleeps by the fire. No other use whatsoever.</div>
+       <button class="btn wide" ${S.cash<180?'disabled':''} onclick="G.buyDog()">Take her home</button>`;
+  /* first, not last. Appended, it sat below fifteen pens and off the
+     bottom of the panel, which is a feature nobody can find. */
+  if(list.firstChild) list.insertBefore(card, list.firstChild);
+  else list.appendChild(card);
+}
+if(typeof renderBuild === 'function'){
+  const _renderBuildDog = renderBuild;
+  renderBuild = function(){
+    const r = _renderBuildDog.apply(this, arguments);
+    try{ dogCard(); }catch(e){}
+    return r;
   };
-  const _uiDog = ui;
-  ui = function(){ const r = _uiDog.apply(this, arguments); try{ paint(); }catch(e){} return r; };
-})();
+}
+/* and once on load, in case Animals is already the open tab */
+setTimeout(()=>{ try{ dogCard(); }catch(e){} }, 800);
 
 (function dogCss(){
   const s = document.createElement('style');
