@@ -252,9 +252,11 @@ function panels(x,y,w,h,cols,rows){
 
 /* leafy canopy with lit crown and cast shadow */
 function canopy(cx,cy,r,grad,seed,sway){
+  /* One soft ellipse where there were two hard ones. A tree's shadow has
+     no edge, and two stacked flat ellipses gave it two. Same centre and
+     radii as the outer of the pair, so the footprint does not move. */
   let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.98)}" ry="${n(r*0.6)}"
-    fill="#16240c" opacity="0.24"/><ellipse cx="${n(cx+r*0.3)}" cy="${n(cy+r*0.42)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}"
-    fill="#16240c" opacity="0.26"/>`;
+    fill="url(#gShadow)" opacity="0.62"/>`;
   s += `<g${sway?' class="sway"':''} style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
   /* dark underside mass */
   s += `<circle cx="${n(cx+r*0.1)}" cy="${n(cy+r*0.14)}" r="${n(r*0.86)}" fill="#2b5418"/>`;
@@ -269,7 +271,7 @@ function canopy(cx,cy,r,grad,seed,sway){
   for(let i=0;i<3;i++){
     const b=-1.5+i*0.6, d=r*(0.2+hash(seed*11+i)*0.24);
     s += `<circle cx="${n(cx-r*0.2+Math.cos(b)*d)}" cy="${n(cy-r*0.22+Math.sin(b)*d)}"
-      r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="#a9d47c" opacity="${(0.3+hash(seed+i)*0.35).toFixed(2)}"/>`;
+      r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="url(#gLeafLit)" opacity="${(0.42+hash(seed+i)*0.35).toFixed(2)}"/>`;
   }
   /* rim light on the top-left edge */
   s += `<path d="M${n(cx-r*0.78)} ${n(cy-r*0.2)} a ${n(r*0.82)} ${n(r*0.82)} 0 0 1 ${n(r*0.9)} ${n(-r*0.52)}"
@@ -280,11 +282,16 @@ function canopy(cx,cy,r,grad,seed,sway){
 
 /* pointed native tree */
 function conifer(cx,cy,r,seed){
-  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="#16240c" opacity=".26"/>`;
+  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="url(#gShadow)" opacity=".6"/>`;
   s += `<g>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.88)}" fill="url(#gCanopyD)"/>`;
   s += `<circle cx="${n(cx-r*0.12)}" cy="${n(cy-r*0.12)}" r="${n(r*0.55)}" fill="#417a2f"/>`;
   s += `<circle cx="${n(cx-r*0.2)}" cy="${n(cy-r*0.2)}" r="${n(r*0.26)}" fill="#5d9c40" opacity=".8"/>`;
+  /* conifer had no rim light at all, which is why it read flatter than
+     the broadleaf beside it. Same arc canopy() uses, darker and tighter
+     because needles catch far less than a leaf. */
+  s += `<path d="M${n(cx-r*0.7)} ${n(cy-r*0.18)} a ${n(r*0.74)} ${n(r*0.74)} 0 0 1 ${n(r*0.8)} ${n(-r*0.46)}"
+    stroke="#8dbb63" stroke-width="${n(r*0.09)}" fill="none" opacity=".3" stroke-linecap="round"/>`;
   s += `</g>`;
   return s;
 }

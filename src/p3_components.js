@@ -12,6 +12,11 @@ function bedArt(w,h,ob,rows){
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="${wet?'url(#gSoilWet)':'url(#gSoil)'}"/>`;
   /* timber edging */
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="none" stroke="#8b6640" stroke-width="1.6"/>`;
+  /* the frame is timber with a thickness: its top and left faces catch
+     the light, and the soil sits down inside it in shade. Two strokes,
+     no new geometry, and the bed stops reading as a flat brown card. */
+  s += `<path d="M1.4 ${n(h-2.4)} L1.4 1.4 L${n(w-1.4)} 1.4" fill="none" stroke="#c49a68" stroke-width="1" opacity=".55" stroke-linecap="round"/>`;
+  s += `<path d="M${n(w-1.4)} 1.4 L${n(w-1.4)} ${n(h-2.4)} L1.4 ${n(h-2.4)}" fill="none" stroke="var(--a-shadow)" stroke-width="1" opacity=".3" stroke-linecap="round"/>`;
   s += `<rect x="1.2" y="1.2" width="${n(w-2.4)}" height="${n(h-3.4)}" rx="1.6" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="0.8"/>`;
   const rh = (h-5)/rows;
   for(let r0=0;r0<rows;r0++){
@@ -143,7 +148,10 @@ ART.tank = (w,h,ob)=>{
   let s='';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h/2;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
+    /* This is the tank you actually see at tier 0: p19's tiered version
+       returns straight back here when curTier() is falsy, so editing that
+       one alone changed nothing on an un-upgraded farm. */
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){

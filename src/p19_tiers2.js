@@ -141,7 +141,7 @@ ART.tank = (w,h,ob)=>{
   let s = '';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h*0.48;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){ const a=(j/12)*Math.PI*2;
