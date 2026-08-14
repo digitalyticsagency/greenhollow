@@ -114,11 +114,11 @@ const write = (rel, body) => {
 const made = [];
 PEOPLE.forEach(([name, sc, shirt, hat, label])=>{
   made.push(Object.assign(write(`people/${name}.svg`,
-    wrap(label, '-14 -17 28 30', person(0,0,sc,shirt,hat), 280, 300)), {label, group:'people'}));
+    wrap(label, '-9 -12 18 23', person(0,0,sc,shirt,hat), 280, 358)), {label, group:'people'}));
 });
 if(typeof sandbox.bookArt === 'function')
   made.push(Object.assign(write('people/reading.svg',
-    wrap('Reading on a bench','-14 -17 28 30', person(0,0,1,'#8f6fc4',null,sandbox.bookArt(0,0,1)), 280, 300)),
+    wrap('Reading on a bench','-9 -12 18 23', person(0,0,1,'#8f6fc4',null,sandbox.bookArt(0,0,1)), 280, 358)),
     {label:'Reading on a bench', group:'people'}));
 
 ANIMALS.forEach(k=>{
