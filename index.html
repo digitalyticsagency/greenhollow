@@ -1088,7 +1088,10 @@ function plant(cr,x,y,st,seed,pest){
     return `<circle cx="${n(x)}" cy="${n(y)}" r="0.9" fill="#6fb04a"/>`;
   }
   const R = 3.1*sc;
-  s += '<g class="cropsway">';
+  /* Crops used to sway. Wind now moves trees only, so this is a plain
+     group - kept as a group because the leaves are positioned relative
+     to it and removing it would move every plant. */
+  s += '<g>';
   for(let i=0;i<4;i++){
     const a = (i/4)*Math.PI*2 + hash(seed+i);
     s += `<ellipse cx="${n(x+Math.cos(a)*R*0.45)}" cy="${n(y+Math.sin(a)*R*0.4)}" rx="${n(R*0.55)}" ry="${n(R*0.42)}"
@@ -1295,7 +1298,7 @@ ART.orchard = (w,h,ob)=>{
 ART.berry = (w,h,ob)=>{
   let s = bedArt(w,h,null,2);
   const ripe = ob && ob.stage>=1;
-  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
+  s += `<g>`;   /* wind moves trees only */
   for(let i=0;i<14;i++){
     const x=4+hash(i*1.9)*(w-8), y=4+hash(i*3.1+2)*(h-8);
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(2.4+hash(i)*1.2)}" fill="#3f7a32"/>`;
@@ -1309,7 +1312,7 @@ ART.flowers = (w,h)=>{
   let s = patch(w,h,'#8cb35f',33,1);
   const cols=['#dd6f9c','#efb43c','#9b6fc4','#e2603a','#f2e07a','#5fb0d4','#fff6e0'];
   /* the heads catch the wind; the strip they are planted in does not */
-  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
+  s += `<g>`;   /* wind moves trees only */
   for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
     s += `<circle cx="${n(x+0.4)}" cy="${n(y+0.8)}" r="${n(1.5+hash(i)*1.1)}" fill="var(--a-shadow)" opacity=".3"/>`;
@@ -1399,7 +1402,7 @@ ART.apiary = (w,h,ob)=>{
 ART.rabbit = (w,h,ob)=> paddock(w,h,'rabbit', ob?Math.min(6,ob.animals||0):2, 27, 0.9);
 ART.fodder = (w,h)=>{
   let s = patch(w,h,'#b5bd68',31,1);
-  s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
+  s += `<g>`;   /* wind moves trees only */
   for(let i=0;i<Math.floor(w*h/26);i++){
     const x=3+hash(i*1.4)*(w-6);
     /* two tones of stalk on the same hash - the darker ones read as the
@@ -1606,7 +1609,7 @@ ART.worker_cottage = (w,h,ob)=>{
   /* washing line — the tell that somebody lives here */
   s += `<path d="M${n(w*0.1)} ${n(h*0.76)} Q ${n(w*0.5)} ${n(h*0.84)} ${n(w*0.9)} ${n(h*0.76)}" stroke="#8a7f6a" stroke-width="0.8" fill="none"/>`;
   ['#e8eef0','#c8583f','#e8c25a'].forEach((c,i)=>{
-    s += `<rect class="sway" x="${n(w*(0.24+i*0.2))}" y="${n(h*0.78)}" width="5" height="7" rx="1" fill="${c}"
+    s += `<rect x="${n(w*(0.24+i*0.2))}" y="${n(h*0.78)}" width="5" height="7" rx="1" fill="${c}"
       style="transform-origin:${n(w*(0.24+i*0.2)+2.5)}px ${n(h*0.78)}px"/>`;
   });
   return s;
