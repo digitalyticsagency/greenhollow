@@ -113,7 +113,7 @@ function youLayer(){
   youInit();
   const y = S.you;
   return `<g id="you" transform="translate(${n(y.x)},${n(y.y)})">
-    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a')}${typeof carryArt==='function'?carryArt():''}</g></g></g>`;
+    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a',null,{kit:'you'})}${typeof carryArt==='function'?carryArt():''}</g></g></g>`;
 }
 function paintYou(){
   const el = document.getElementById('you');

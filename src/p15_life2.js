@@ -264,13 +264,17 @@ function movePerson(p, dt){
 }
 function peopleLayer(){
   peopleInit();
-  const one = (p, sc, shirt, hat) =>
+  /* Costume and hair are chosen per person so the household are not four
+     of the same figure in different colours. Hair is keyed off the id so
+     a given child keeps the same head every redraw. */
+  const one = (p, sc, shirt, hat, opt) =>
     `<g class="npc" data-p="${p.id}" transform="translate(${n(p.x)},${n(p.y)})">
-      <g class="youbob"><g transform="scale(${p.dir},1)">${person(0,0,sc,shirt,hat)}</g></g>
+      <g class="youbob"><g transform="scale(${p.dir},1)">${person(0,0,sc,shirt,hat,null,opt||{})}</g></g>
       <text class="nlab" y="-26" text-anchor="middle">${p.name}</text></g>`;
   return `<g id="people">
-    ${S.family.map(f=>one(f, f.sc, f.shirt, f.role==='partner'?'#c47fa8':null)).join('')}
-    ${S.workers.map(w=>one(w, 1.05, '#4f8a9c', '#e0c07a')).join('')}
+    ${S.family.map(f=>one(f, f.sc, f.shirt, null,
+        { hair: f.role==='partner' ? 'bun' : (String(f.id).charCodeAt(0)%2 ? 'long' : 'bowl') })).join('')}
+    ${S.workers.map(w=>one(w, 1.05, '#4f8a9c', '#8a7f5f', {kit:'worker', hair:'short'})).join('')}
   </g>`;
 }
 function paintPeople(){

@@ -233,7 +233,7 @@ function staffLayer(){
   if(!(S.staff||[]).length) return '';
   return `<g id="staff">` + S.staff.map(w=>
     `<g class="npc worker" data-w="${w.id}" transform="translate(${n(w.x)},${n(w.y)})">
-      <g class="youbob working"><g transform="scale(${w.dir},1)">${person(0,0,1.0,w.shirt,'#e8e0cc')}</g></g>
+      <g class="youbob working"><g transform="scale(${w.dir},1)">${person(0,0,1.0,w.shirt,'#8a7f5f',null,{kit:'worker', hair:'short'})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${w.name}</text></g>`).join('') + `</g>`;
 }
 

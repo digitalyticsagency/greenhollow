@@ -81,19 +81,20 @@ const defs = DEFS();
 
 /* ---- the cast, with the colours the game actually assigns ---- */
 const PEOPLE = [
-  ['you',             1.15, '#c8583f', '#e0c07a', 'You — the player character'],
-  ['partner',         1.00, '#8f6fc4', null,      'Your partner'],
-  ['child-eldest',    0.80, '#e8a33d', null,      'Eldest child'],
-  ['child-youngest',  0.72, '#5fb0d4', null,      'Youngest child'],
-  ['worker-a',        1.00, '#d4726a', '#e8e0cc', 'Hired worker'],
-  ['worker-b',        1.00, '#6bbf7a', '#e8e0cc', 'Hired worker'],
-  ['worker-c',        1.00, '#e0995c', '#e8e0cc', 'Hired worker'],
-  ['worker-d',        1.00, '#7fa8c4', '#e8e0cc', 'Hired worker'],
-  ['trader',          1.00, '#c47fa8', '#e8e0cc', 'Market trader'],
-  ['guest-tent',      1.00, '#6bbf7a', null,      'Glamping guest'],
-  ['guest-dome',      1.00, '#7fa8c4', null,      'Dome guest'],
-  ['fisherman',       1.00, '#5f8aa8', '#c9b98a', 'Seasonal fisherman'],
+  ['you',            1.15,'#c8583f','#e0c07a',{kit:'you'},                    'You — the player character'],
+  ['partner',        1.00,'#8f6fc4',null,     {hair:'bun'},                    'Your partner'],
+  ['child-eldest',   0.80,'#e8a33d',null,     {hair:'long'},                   'Eldest child'],
+  ['child-youngest', 0.72,'#5fb0d4',null,     {hair:'bowl'},                   'Youngest child'],
+  ['worker-a',       1.05,'#d4726a','#8a7f5f',{kit:'worker',hair:'short'},     'Farm worker'],
+  ['worker-b',       1.05,'#6bbf7a','#8a7f5f',{kit:'worker',hair:'short'},     'Farm worker'],
+  ['worker-c',       1.05,'#e0995c','#8a7f5f',{kit:'worker',hair:'short'},     'Farm worker'],
+  ['worker-d',       1.05,'#7fa8c4','#8a7f5f',{kit:'worker',hair:'short'},     'Farm worker'],
+  ['trader',         1.00,'#c47fa8',null,     {kit:'trader',hair:'bun'},       'Market trader'],
+  ['guest-tent',     1.00,'#6bbf7a',null,     {kit:'guest',hair:'long'},       'Glamping guest'],
+  ['guest-dome',     1.00,'#7fa8c4',null,     {kit:'guest',hair:'bowl'},       'Dome guest'],
+  ['fisherman',      1.00,'#5f8aa8','#c9b98a',{kit:'fisherman',hair:'short'},  'Seasonal fisherman'],
 ];
+
 const ANIMALS = ['chicken','duck','goat','sheep','cow','rabbit','horse','quail','pig','turkey','alpaca'];
 
 const wrap = (title, vb, inner, w, h) =>
@@ -112,13 +113,13 @@ const write = (rel, body) => {
 };
 
 const made = [];
-PEOPLE.forEach(([name, sc, shirt, hat, label])=>{
+PEOPLE.forEach(([name, sc, shirt, hat, opt, label])=>{
   made.push(Object.assign(write(`people/${name}.svg`,
-    wrap(label, '-9 -12 18 23', person(0,0,sc,shirt,hat), 280, 358)), {label, group:'people'}));
+    wrap(label, '-10 -12 20 23', person(0,0,sc,shirt,hat,null,opt), 300, 345)), {label, group:'people'}));
 });
 if(typeof sandbox.bookArt === 'function')
   made.push(Object.assign(write('people/reading.svg',
-    wrap('Reading on a bench','-9 -12 18 23', person(0,0,1,'#8f6fc4',null,sandbox.bookArt(0,0,1)), 280, 358)),
+    wrap('Reading on a bench','-10 -12 20 23', person(0,0,1,'#8f6fc4',null,sandbox.bookArt(0,0,1),{hair:'bowl'}), 280, 358)),
     {label:'Reading on a bench', group:'people'}));
 
 ANIMALS.forEach(k=>{

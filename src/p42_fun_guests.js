@@ -198,7 +198,7 @@ function guestLayer(){
   if(!(S.guests||[]).length) return '';
   return `<g id="guests">` + S.guests.map(g=>
     `<g class="npc guest" data-g="${g.id}" transform="translate(${n(g.x)},${n(g.y)})">
-      <g class="youbob"><g transform="scale(${g.dir},1)">${person(0,0,1.0,g.shirt,null)}</g></g>
+      <g class="youbob"><g transform="scale(${g.dir},1)">${person(0,0,1.0,g.shirt,null,null,{kit:'guest', hair:(g.id%2?'long':'bowl')})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${g.name}</text></g>`).join('') + `</g>`;
 }
 

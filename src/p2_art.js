@@ -455,59 +455,114 @@ function beast(kind,x,y,sc,idle){
    second whole drawing. `prop` is a sixth optional argument appended at
    the end; all five existing call sites stop at `hat`, so nothing else
    needed touching. */
-function person(x,y,sc,shirt,hat,prop){
-  sc=sc||1;
+/* Costume and hair by role. Everything here is drawn INSIDE the group it
+   belongs to - a bib inside .pr-torso, a rod inside .pr-arm-r, a bun
+   inside .pr-hair - because the seated and reading poses transform those
+   groups by class. A satchel drawn as a sibling of the torso would stay
+   floating at standing height the moment its owner sat down. */
+const PERSON_KIT = {
+  /* dungarees over the shirt, which is what actually distinguishes a
+     farm worker at this size - the cap alone reads as any hat */
+  worker: { torso:(X,Y,U)=>
+      `<rect x="${X(-1.75)}" y="${Y(-0.9)}" width="${U(3.5)}" height="${U(3.6)}" rx="${U(0.35)}" fill="#41618a"/>`
+    + `<rect x="${X(-1.75)}" y="${Y(-0.9)}" width="${U(1.3)}" height="${U(3.6)}" rx="${U(0.35)}" fill="#fff" opacity=".08"/>`
+    + `<rect x="${X(-1.95)}" y="${Y(-1.95)}" width="${U(0.62)}" height="${U(1.3)}" rx="${U(0.3)}" fill="#41618a"/>`
+    + `<rect x="${X(1.33)}"  y="${Y(-1.95)}" width="${U(0.62)}" height="${U(1.3)}" rx="${U(0.3)}" fill="#41618a"/>`
+    + `<rect x="${X(-1.1)}" y="${Y(0.2)}" width="${U(2.2)}" height="${U(1.5)}" rx="${U(0.25)}" fill="#000" opacity=".12"/>`
+    + `<circle cx="${X(-1.64)}" cy="${Y(-0.75)}" r="${U(0.24)}" fill="#e3c65f"/>`
+    + `<circle cx="${X(1.64)}"  cy="${Y(-0.75)}" r="${U(0.24)}" fill="#e3c65f"/>` },
+
+  /* apron and a money satchel */
+  trader: { torso:(X,Y,U)=>
+      `<path d="M${X(-1.5)} ${Y(-0.5)} L${X(1.5)} ${Y(-0.5)} L${X(2.2)} ${Y(2.7)} L${X(-2.2)} ${Y(2.7)} Z" fill="#e8dfc9"/>`
+    + `<rect x="${X(-2.3)}" y="${Y(-0.5)}" width="${U(4.6)}" height="${U(0.5)}" rx="${U(0.25)}" fill="#c2b393"/>`
+    + `<rect x="${X(-0.9)}" y="${Y(0.6)}" width="${U(1.8)}" height="${U(1.2)}" rx="${U(0.2)}" fill="#000" opacity=".1"/>`
+    + `<path d="M${X(-1.3)} ${Y(-1.8)} L${X(2.3)} ${Y(0.9)}" stroke="#7a4f2c" stroke-width="${U(0.5)}" fill="none"/>`
+    + `<rect x="${X(1.7)}" y="${Y(0.8)}" width="${U(2)}" height="${U(1.7)}" rx="${U(0.35)}" fill="#8a5a34"/>`
+    + `<rect x="${X(1.7)}" y="${Y(0.8)}" width="${U(2)}" height="${U(0.7)}" rx="${U(0.3)}" fill="#a06f42"/>`
+    + `<circle cx="${X(2.7)}" cy="${Y(1.6)}" r="${U(0.28)}" fill="#e3c65f"/>` },
+
+  /* fishing vest, and the rod goes in the hand rather than beside it */
+  fisherman: { torso:(X,Y,U)=>
+      `<rect x="${X(-2.6)}" y="${Y(-1.5)}" width="${U(1.9)}" height="${U(3.9)}" rx="${U(0.4)}" fill="#cdbd93"/>`
+    + `<rect x="${X(0.7)}"  y="${Y(-1.5)}" width="${U(1.9)}" height="${U(3.9)}" rx="${U(0.4)}" fill="#cdbd93"/>`
+    + `<rect x="${X(-2.3)}" y="${Y(0.5)}" width="${U(1.3)}" height="${U(1.1)}" rx="${U(0.15)}" fill="#b3a179"/>`
+    + `<rect x="${X(1)}"    y="${Y(0.5)}" width="${U(1.3)}" height="${U(1.1)}" rx="${U(0.15)}" fill="#b3a179"/>`,
+    armR:(X,Y,U)=>
+      `<path d="M${X(3.4)} ${Y(3.2)} L${X(6.2)} ${Y(-4.6)}" stroke="#a9853f" stroke-width="${U(0.34)}" stroke-linecap="round"/>`
+    + `<path d="M${X(6.2)} ${Y(-4.6)} q ${U(0.9)} ${U(1.6)} ${U(0.2)} ${U(3)}" stroke="#dfe8ea" stroke-width="${U(0.16)}" fill="none" opacity=".8"/>` },
+
+  /* a visitor is carrying a day bag, nothing more */
+  guest: { torso:(X,Y,U)=>
+      `<path d="M${X(-1.3)} ${Y(-1.8)} L${X(2.2)} ${Y(0.8)}" stroke="#8a6a4a" stroke-width="${U(0.42)}" fill="none"/>`
+    + `<rect x="${X(1.6)}" y="${Y(0.7)}" width="${U(1.8)}" height="${U(1.6)}" rx="${U(0.3)}" fill="#9a7b56"/>`
+    + `<rect x="${X(1.6)}" y="${Y(0.7)}" width="${U(1.8)}" height="${U(0.6)}" rx="${U(0.26)}" fill="#b08f66"/>` },
+
+  /* the player carries a tool belt, so you can pick yourself out */
+  you: { torso:(X,Y,U)=>
+      `<rect x="${X(-2.7)}" y="${Y(1.5)}" width="${U(5.4)}" height="${U(0.75)}" fill="#8a5a34"/>`
+    + `<rect x="${X(-0.5)}" y="${Y(1.42)}" width="${U(1)}" height="${U(0.9)}" rx="${U(0.15)}" fill="#e3c65f"/>`
+    + `<rect x="${X(1.5)}" y="${Y(1.7)}" width="${U(0.8)}" height="${U(1.3)}" rx="${U(0.2)}" fill="#6d4526"/>` },
+};
+
+/* Hair on top of the base cap. Drawn inside .pr-hair so it tips with the
+   head when someone reads. */
+const PERSON_HAIR = {
+  bun: (X,Y,U,HY)=>`<circle cx="${X(-0.1)}" cy="${Y(HY-3.5)}" r="${U(1.25)}" fill="#4a3a2c"/>`
+                 + `<circle cx="${X(-0.45)}" cy="${Y(HY-3.8)}" r="${U(0.5)}" fill="#5d4a38" opacity=".7"/>`,
+  long:(X,Y,U,HY)=>`<path d="M${X(-3.5)} ${Y(HY-0.6)} q ${U(-0.5)} ${U(3.4)} ${U(0.5)} ${U(4.3)}
+                       l ${U(1.4)} ${U(0)} q ${U(-0.9)} ${U(-1.9)} ${U(-0.5)} ${U(-4)} z" fill="#4a3a2c"/>`
+                 + `<path d="M${X(3.5)} ${Y(HY-0.6)} q ${U(0.5)} ${U(3.4)} ${U(-0.5)} ${U(4.3)}
+                       l ${U(-1.4)} ${U(0)} q ${U(0.9)} ${U(-1.9)} ${U(0.5)} ${U(-4)} z" fill="#4a3a2c"/>`,
+  short:()=>'',
+};
+
+function person(x,y,sc,shirt,hat,prop,opt){
+  sc=sc||1; opt=opt||{};
   const X=v=>n(x+v*sc), Y=v=>n(y+v*sc), U=v=>n(v*sc);
   const skin='#f0c9a2', skinSh='#dba97f', dark='#2b2118', boot='#4b3520';
   const sh = shirt||'#c8583f';
+  const kit = PERSON_KIT[opt.kit] || {};
+  const hairCol = opt.hairCol || '#4a3a2c';
 
   /* Proportions are deliberately chibi - the head is about a third of the
-     figure - because at farm zoom a realistic head is four pixels and
-     reads as a dot. The first attempt kept the old small head and the
-     face was illegible at any size.
-
-     Shading is black or white at low alpha rather than a computed darker
-     hex: `shirt` arrives as an arbitrary colour from six callers and
-     there is no colour maths in this file. */
-  const HR = 3.6, HY = -5.4;          // head radius and centre
+     figure - because at farm zoom a realistic head is a few pixels and any
+     face on it is a smudge. Shading is black or white at low alpha rather
+     than a computed darker hex: `shirt` arrives as an arbitrary colour
+     from six callers and there is no colour maths in this file. */
+  const HR = 3.6, HY = -5.4;
 
   let s = `<ellipse class="pr-shadow" cx="${X(1.2)}" cy="${Y(9.2)}" rx="${U(4.6)}" ry="${U(1.9)}" fill="url(#gShadow)" opacity=".62"/>`;
 
-  /* --- legs: trouser + boot in one group. The seated pose rotates
-     .pr-leg about its own fill-box, so the boot must be inside the group
-     or it stays behind on the floor when someone sits down. --- */
   const leg=(cls,lx)=>
     `<g class="pr-leg ${cls}">`
-    + `<rect x="${X(lx)}" y="${Y(2.4)}" width="${U(1.75)}" height="${U(5.1)}" rx="${U(0.85)}" fill="#3f4a5a"/>`
+    + `<rect x="${X(lx)}" y="${Y(2.4)}" width="${U(1.75)}" height="${U(5.1)}" rx="${U(0.85)}" fill="${opt.trouser||'#3f4a5a'}"/>`
     + `<rect x="${X(lx)}" y="${Y(2.4)}" width="${U(0.58)}" height="${U(5.1)}" rx="${U(0.29)}" fill="#fff" opacity=".1"/>`
     + `<rect x="${X(lx-0.3)}" y="${Y(6.9)}" width="${U(2.35)}" height="${U(1.8)}" rx="${U(0.75)}" fill="${boot}"/>`
     + `<rect x="${X(lx-0.3)}" y="${Y(8.2)}" width="${U(2.35)}" height="${U(0.5)}" rx="${U(0.25)}" fill="#2f2015"/>`
     + `</g>`;
   s += leg('pr-leg-l',-2.05) + leg('pr-leg-r',0.3);
 
-  /* neck, so the head sits on the body instead of in it */
   s += `<rect x="${X(-0.85)}" y="${Y(-2.6)}" width="${U(1.7)}" height="${U(1.5)}" fill="${skinSh}"/>`;
 
-  /* --- torso --- */
   s += `<g class="pr-torso">`
      + `<rect x="${X(-2.75)}" y="${Y(-1.9)}" width="${U(5.5)}" height="${U(4.6)}" rx="${U(1.7)}" fill="${sh}"/>`
      + `<rect x="${X(-2.75)}" y="${Y(-1.9)}" width="${U(2.2)}" height="${U(4.6)}" rx="${U(1.7)}" fill="#fff" opacity=".12"/>`
      + `<rect x="${X(1.15)}" y="${Y(-1.9)}" width="${U(1.6)}" height="${U(4.6)}" rx="${U(1.7)}" fill="#000" opacity=".1"/>`
      + `<path d="M${X(-1.1)} ${Y(-1.95)} L${X(0)} ${Y(-0.75)} L${X(1.1)} ${Y(-1.95)} Z" fill="#000" opacity=".18"/>`
-     + `<rect x="${X(-0.15)}" y="${Y(-0.9)}" width="${U(0.3)}" height="${U(3)}" fill="#000" opacity=".12"/>`
+     + (kit.torso ? kit.torso(X,Y,U) : `<rect x="${X(-0.15)}" y="${Y(-0.9)}" width="${U(0.3)}" height="${U(3)}" fill="#000" opacity=".12"/>`)
      + `</g>`;
 
-  /* --- arms + hands, grouped for the same reason as the legs --- */
-  const arm=(cls,ax,hx)=>
+  const arm=(cls,ax,hx,extra)=>
     `<g class="pr-arm ${cls}">`
     + `<rect x="${X(ax)}" y="${Y(-1.5)}" width="${U(1.6)}" height="${U(3.8)}" rx="${U(0.8)}" fill="${sh}"/>`
     + `<rect x="${X(ax)}" y="${Y(-1.5)}" width="${U(0.55)}" height="${U(3.8)}" rx="${U(0.27)}" fill="#fff" opacity=".13"/>`
+    + (extra||'')
     + `<circle cx="${X(hx)}" cy="${Y(2.5)}" r="${U(0.95)}" fill="${skin}"/>`
     + `</g>`;
-  s += arm('pr-arm-l',-4.3,-3.5) + arm('pr-arm-r',2.7,3.5);
+  s += arm('pr-arm-l',-4.3,-3.5, kit.armL && kit.armL(X,Y,U))
+     + arm('pr-arm-r',2.7,3.5,  kit.armR && kit.armR(X,Y,U));
 
-  /* --- head. The face lives inside .pr-head so it tips with the head
-     when someone reads, rather than floating in front of it. --- */
   s += `<g class="pr-head">`
      + `<circle cx="${X(0)}" cy="${Y(HY)}" r="${U(HR)}" fill="${skin}"/>`
      + `<path d="M${X(-HR)} ${Y(HY)} a ${U(HR)} ${U(HR)} 0 0 0 ${U(HR*2)} 0 z" fill="${skinSh}" opacity=".22"/>`
@@ -521,33 +576,49 @@ function person(x,y,sc,shirt,hat,prop){
          stroke="${dark}" stroke-width="${U(0.28)}" stroke-linecap="round" opacity=".85"/>`
      + `</g>`;
 
-  /* --- hair. It only covers the top of the skull: the first version
-     filled the whole upper half from the head's centre line, which put
-     the fringe straight over the eyes. --- */
+  /* Hair caps only the top of the skull. An earlier version filled the
+     whole upper half from the head's centre line, which is above the eyes,
+     so it drew a full face and then covered the eyes with the fringe. */
+  const style = PERSON_HAIR[opt.hair];
   s += `<g class="pr-hair">`
+     + (opt.hair==='long' ? style(X,Y,U,HY) : '')
      + `<path d="M${X(-HR+0.06)} ${Y(HY-0.55)} a ${U(HR)} ${U(HR)} 0 0 1 ${U(HR*2-0.12)} 0
-           q ${U(-0.7)} ${U(-0.55)} ${U(-1.9)} ${U(-0.5)} q ${U(-1.6)} ${U(0.07)} ${U(-2.3)} ${U(0.5)} z" fill="#4a3a2c"/>`
-     + `<path d="M${X(-2.5)} ${Y(HY-1.05)} q ${U(1.2)} ${U(-1.5)} ${U(3.2)} ${U(-1.1)}
-           q ${U(-1.7)} ${U(0.55)} ${U(-2.1)} ${U(1.6)} z" fill="#3a2c20"/>`
+           q ${U(-0.7)} ${U(-0.55)} ${U(-1.9)} ${U(-0.5)} q ${U(-1.6)} ${U(0.07)} ${U(-2.3)} ${U(0.5)} z" fill="${hairCol}"/>`
+     + (opt.hair==='short' ? '' :
+        `<path d="M${X(-2.5)} ${Y(HY-1.05)} q ${U(1.2)} ${U(-1.5)} ${U(3.2)} ${U(-1.1)}
+           q ${U(-1.7)} ${U(0.55)} ${U(-2.1)} ${U(1.6)} z" fill="#3a2c20"/>`)
      + `<path d="M${X(-2.4)} ${Y(HY-1.9)} q ${U(1.7)} ${U(-1.1)} ${U(3.5)} ${U(-0.2)}"
          fill="none" stroke="#5d4a38" stroke-width="${U(0.32)}" stroke-linecap="round" opacity=".75"/>`
+     + (opt.hair==='bun' ? style(X,Y,U,HY) : '')
      + `</g>`;
 
-  /* --- hat, raised clear of the eye line. The brim originally sat at
-     y-5.2, which is exactly where the eyes are, so it hid the face the
-     moment there was one to hide. --- */
+  /* The brim used to sit at y-5.2, exactly the eye line, so it hid the
+     face the moment there was one. A worker gets a peaked cap instead of
+     a sun hat - at this size a round brim reads as "any hat at all". */
   if(hat){
-    s += `<g class="pr-hat">`
-       + `<ellipse cx="${X(0)}" cy="${Y(HY-1.85)}" rx="${U(5.7)}" ry="${U(2.2)}" fill="${hat}"/>`
-       + `<path d="M${X(-5.7)} ${Y(HY-1.85)} a ${U(5.7)} ${U(2.2)} 0 0 0 ${U(11.4)} 0 z" fill="#000" opacity=".13"/>`
-       + `<ellipse cx="${X(0)}" cy="${Y(HY-2.2)}" rx="${U(5.2)}" ry="${U(1.9)}" fill="${hat}"/>`
-       + `<ellipse cx="${X(0)}" cy="${Y(HY-3.05)}" rx="${U(2.85)}" ry="${U(2.25)}" fill="${hat}"/>`
-       + `<path d="M${X(-2.85)} ${Y(HY-2.95)} a ${U(2.85)} ${U(2.25)} 0 0 1 ${U(5.7)} 0 z" fill="#fff" opacity=".16"/>`
-       + `<ellipse cx="${X(0)}" cy="${Y(HY-2.45)}" rx="${U(2.85)}" ry="${U(0.66)}" fill="#000" opacity=".18"/>`
-       + `</g>`;
+    if(opt.kit === 'worker'){
+      s += `<g class="pr-hat">`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.5)}" rx="${U(3.15)}" ry="${U(2.1)}" fill="${hat}"/>`
+         + `<path d="M${X(-3.15)} ${Y(HY-2.4)} a ${U(3.15)} ${U(2.1)} 0 0 1 ${U(6.3)} 0 z" fill="#fff" opacity=".14"/>`
+         + `<path d="M${X(-3.5)} ${Y(HY-1.5)} q ${U(3.5)} ${U(1.5)} ${U(6.6)} ${U(-0.5)}
+               q ${U(-3.2)} ${U(-0.8)} ${U(-6.6)} ${U(0.5)} z" fill="${hat}"/>`
+         + `<path d="M${X(-3.5)} ${Y(HY-1.5)} q ${U(3.5)} ${U(1.5)} ${U(6.6)} ${U(-0.5)}
+               q ${U(-3.2)} ${U(-0.8)} ${U(-6.6)} ${U(0.5)} z" fill="#000" opacity=".18"/>`
+         + `</g>`;
+    } else {
+      s += `<g class="pr-hat">`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-1.85)}" rx="${U(5.7)}" ry="${U(2.2)}" fill="${hat}"/>`
+         + `<path d="M${X(-5.7)} ${Y(HY-1.85)} a ${U(5.7)} ${U(2.2)} 0 0 0 ${U(11.4)} 0 z" fill="#000" opacity=".13"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.2)}" rx="${U(5.2)}" ry="${U(1.9)}" fill="${hat}"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-3.05)}" rx="${U(2.85)}" ry="${U(2.25)}" fill="${hat}"/>`
+         + `<path d="M${X(-2.85)} ${Y(HY-2.95)} a ${U(2.85)} ${U(2.25)} 0 0 1 ${U(5.7)} 0 z" fill="#fff" opacity=".16"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.45)}" rx="${U(2.85)}" ry="${U(0.66)}" fill="#000" opacity=".18"/>`
+         + `</g>`;
+    }
   }
   if(prop) s += prop;
   return s;
 }
+
 
 

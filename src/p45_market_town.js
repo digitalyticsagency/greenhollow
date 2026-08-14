@@ -203,7 +203,7 @@ function traderLayer(){
   return `<g id="traders">` + S.traders.map(tr=>
     `<g class="npc trader${tr.cheer?' cheering':''}" data-t="${tr.id}"
         transform="translate(${n(tr.x)},${n(tr.y)})">
-      <g class="youbob"><g transform="scale(${tr.dir},1)">${person(0,0,1.0,tr.shirt,'#e8e0cc')}</g></g>
+      <g class="youbob"><g transform="scale(${tr.dir},1)">${person(0,0,1.0,tr.shirt,null,null,{kit:'trader', hair:(tr.id%2?'bun':'short')})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${tr.name}</text></g>`).join('') + `</g>`;
 }
 
