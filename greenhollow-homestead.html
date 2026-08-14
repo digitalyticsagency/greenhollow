@@ -518,11 +518,20 @@ function ao(x,y,w,h,o){
 
 /* The one outline rule. Structures get a hairline darker edge on their
    outer silhouette; organics never do, because an outline on a canopy or
-   an animal reads as cartoon rather than crisp. Gated on footprint - at
-   40px a 1x1 item is mostly outline. */
-function edge(w,h,r){
-  if(w < 70 || h < 40) return '';
-  return `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
+   an animal reads as cartoon rather than crisp. Gated on size - at 40px
+   a 1x1 item is mostly outline.
+
+   Takes the SHAPE's box, not the tile's. The first version took (w,h)
+   and outlined the whole footprint, so the battery - a cabinet occupying
+   the middle 72% of its tile - got a rectangle floating well outside
+   itself. Almost nothing here fills its tile edge to edge, so the tile
+   is the wrong box in the common case. */
+function edge(x,y,w,h,r){
+  /* 48x24 rather than 60x30: the battery cabinet is 57x52 on a 2x2 tile,
+     which is plainly big enough to carry a hairline, and the higher gate
+     silently dropped it. */
+  if(w < 48 || h < 24) return '';
+  return `<rect x="${n(x+0.5)}" y="${n(y+0.5)}" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
     fill="none" stroke="var(--a-edge)" stroke-width="0.5"/>`;
 }
 
@@ -915,6 +924,10 @@ ART.cabin = (w,h)=>{
   s += `<rect x="${n(w*0.03)}" y="${n(h*0.5)}" width="${n(w*0.46)}" height="${n(h*0.24)}" rx="2" fill="#8e6b3e"/>`;
   s += `<rect x="${n(w*0.03)}" y="${n(h*0.49)}" width="${n(w*0.46)}" height="${n(h*0.22)}" rx="2" fill="url(#gTimber)"/>`;
   for(let i=1;i<9;i++) s += `<line x1="${n(w*0.03+i*(w*0.46/9))}" y1="${n(h*0.49)}" x2="${n(w*0.03+i*(w*0.46/9))}" y2="${n(h*0.71)}" stroke="#00000033" stroke-width="0.8"/>`;
+  /* the main mass sits behind and above the verandah - drop a soft band
+     along the verandah's back edge so the two read as different depths
+     rather than two rectangles on one plane */
+  s += `<rect x="${n(w*0.03)}" y="${n(h*0.49)}" width="${n(w*0.46)}" height="${n(h*0.05)}" fill="var(--a-shadow)" opacity=".22"/>`;
   s += `<g transform="translate(${n(w*0.42)},${n(h*0.26)})">${building(w*0.56,h*0.58,{solar:1,skylight:1})}</g>`;
   s += `<g transform="translate(1,1)">${building(w*0.66,h*0.48,{solar:1,chimney:1})}</g>`;
   s += `<rect x="${n(w*0.28)}" y="${n(h*0.4)}" width="${n(w*0.17)}" height="${n(h*0.16)}" rx="1.5" fill="url(#gGlass)" stroke="#7e929a" stroke-width="0.8"/>`;
@@ -963,7 +976,7 @@ ART.battery = (w,h)=>{
   /* where the cabinet meets the ground, not a drop shadow - a darker band
      inside its own footprint, which reads as contact at any zoom */
   s += `<rect x="${n(w*0.14)}" y="${n(h*0.74)}" width="${n(w*0.72)}" height="${n(h*0.08)}" fill="#2f363d" opacity=".55"/>`;
-  s += edge(w,h,2);
+  s += edge(w*0.14, h*0.16, w*0.72, h*0.66, 2);   /* the cabinet, not the tile */
   return s;
 };
 
@@ -993,7 +1006,11 @@ ART.tank = (w,h,ob)=>{
 ART.pond = (w,h)=> water(w,h,4);
 ART.well = (w,h)=>{
   let s = patch(w,h,'#84aa58',15,1);
+  s += `<ellipse cx="${n(w/2+1.5)}" cy="${n(h/2+2)}" rx="${n(Math.min(w,h)/2-2)}" ry="${n(Math.min(w,h)/2-3.5)}" fill="url(#gShadow)" opacity=".55"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)/2-3)}" fill="url(#gStone)"/>`;
+  /* the shaft is a hole, so its near rim catches light and its far rim
+     does not - one arc is the whole trick */
+  s += `<path d="M${n(w/2-(Math.min(w,h)/2-4.2))} ${n(h/2)} a ${n(Math.min(w,h)/2-4.2)} ${n(Math.min(w,h)/2-4.2)} 0 0 1 ${n((Math.min(w,h)/2-4.2)*2)} 0" fill="none" stroke="var(--a-shadow)" stroke-width="1.6" opacity=".4"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)/2-5.5)}" fill="#22506b"/>`;
   s += `<circle cx="${n(w/2-1.5)}" cy="${n(h/2-1.5)}" r="${n(Math.min(w,h)/2-8)}" fill="#3d7a9c" opacity=".7"/>`;
   return s;
@@ -1188,7 +1205,9 @@ ART.fodder = (w,h)=>{
   s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.floor(w*h/26);i++){
     const x=3+hash(i*1.4)*(w-6);
-    s += `<path d="M${n(x)} ${n(h-4)} q ${n((hash(i)-0.5)*3)} -6 ${n((hash(i+2)-0.5)*4)} -9" stroke="#c9c26a" stroke-width="1.1" fill="none"/>`;
+    /* two tones of stalk on the same hash - the darker ones read as the
+       row behind, which is most of what makes a crop look deep */
+    s += `<path d="M${n(x)} ${n(h-4)} q ${n((hash(i)-0.5)*3)} -6 ${n((hash(i+2)-0.5)*4)} -9" stroke="${hash(i*3.1)>0.5?'#c9c26a':'#a89c52'}" stroke-width="1.1" fill="none"/>`;
   }
   s += `</g>`;
   return s;
@@ -1217,7 +1236,9 @@ ART.dairy = (w,h,ob)=>{
 };
 ART.packing = (w,h,ob)=>{
   let s = building(w,h,{solar:1,solar2:1});
+  s += `<ellipse cx="${n(w*0.23)}" cy="${n(h*0.72)}" rx="${n(w*0.15)}" ry="2.4" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<rect x="${n(w*0.1)}" y="${n(h*0.68)}" width="${n(w*0.24)}" height="5" rx="1" fill="#a1743f"/>`;
+  s += `<rect x="${n(w*0.1)}" y="${n(h*0.68)}" width="${n(w*0.24)}" height="1.6" rx="0.8" fill="#c08f52"/>`;
   return s;
 };
 
@@ -1235,12 +1256,18 @@ ART.farm_stand = (w,h,ob)=>{
 };
 ART.tea_kiosk = (w,h)=>{
   let s = ART.farm_stand(w,h,null);
-  s += `<circle cx="${n(w*0.5)}" cy="${n(h*0.62)}" r="3" fill="#f4efe1"/>`;
+  s += `<ellipse cx="${n(w*0.5+0.8)}" cy="${n(h*0.62+2.6)}" rx="3.4" ry="1.4" fill="url(#gShadow)" opacity=".5"/>`;
+  s += `<circle cx="${n(w*0.5)}" cy="${n(h*0.62)}" r="3" fill="url(#gPlaster)"/>`;
+  s += `<circle cx="${n(w*0.5-0.9)}" cy="${n(h*0.62-0.9)}" r="1.2" fill="#fff" opacity=".55"/>`;
   return s;
 };
 ART.gift_shop = (w,h)=>{
   let s = building(w,h,{roof:'url(#gRoof)'});
+  /* A 5px-tall shopfront can never clear edge()'s size gate, so it gets
+     the frame drawn explicitly rather than a call that returns ''. */
   s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="5" rx="1" fill="url(#gGlass)"/>`;
+  s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="5" rx="1" fill="none" stroke="var(--a-edge)" stroke-width="0.6"/>`;
+  s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="1.6" rx="0.8" fill="#fff" opacity=".3"/>`;
   return s;
 };
 ART.glamping = (w,h)=>{
@@ -1276,15 +1303,20 @@ ART.deck = (w,h)=>{
   s += `<rect x="${n(w*0.3)}" y="${n(h*0.3)}" width="${n(w*0.4)}" height="${n(h*0.36)}" rx="2" fill="#7fa9bd" opacity=".85"/>`;
   s += `<circle cx="${n(w*0.14)}" cy="${n(h*0.76)}" r="3.6" fill="#4f8a35"/>`;
   s += `<circle cx="${n(w*0.87)}" cy="${n(h*0.24)}" r="4" fill="#5f9c3d"/>`;
+  s += edge(0.5, 0.5, w-1, h-2, 2.5);
   return s;
 };
 ART.playground = (w,h)=>{
   let s = patch(w,h,'#93bd64',41,1);
-  s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.62)}" rx="${n(w*0.18)}" ry="${n(h*0.2)}" fill="#b9ab82"/>`;
+  s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.62)}" rx="${n(w*0.18)}" ry="${n(h*0.2)}" fill="url(#gEarthDry)"/>`;
   s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.6)}" rx="${n(w*0.16)}" ry="${n(h*0.17)}" fill="#e0d3ac"/>`;
   s += `<g transform="translate(${n(w*0.05)},${n(h*0.08)})">${building(w*0.24,h*0.3,{roof:'url(#gRoofRed)'})}</g>`;
+  /* the A-frame and the slide were floating - one small pool of shade at
+     each foot puts them back on the grass */
+  s += `<ellipse cx="${n(w*0.56)}" cy="${n(h*0.71)}" rx="${n(w*0.12)}" ry="2.6" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<path d="M${n(w*0.46)} ${n(h*0.7)} L${n(w*0.56)} ${n(h*0.2)} L${n(w*0.66)} ${n(h*0.7)}" stroke="#a8814f" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
   s += `<rect x="${n(w*0.52)}" y="${n(h*0.44)}" width="6.5" height="2.4" rx="1.2" fill="#c8583f"/>`;
+  s += `<ellipse cx="${n(w*0.89)}" cy="${n(h*0.64)}" rx="${n(w*0.05)}" ry="2.2" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<path d="M${n(w*0.76)} ${n(h*0.22)} L${n(w*0.9)} ${n(h*0.62)}" stroke="#4f93b5" stroke-width="4.5" fill="none" stroke-linecap="round"/>`;
   s += `<rect x="${n(w*0.72)}" y="${n(h*0.14)}" width="${n(w*0.1)}" height="${n(h*0.12)}" rx="1.5" fill="#efb43c"/>`;
   return s;
@@ -1294,6 +1326,7 @@ ART.firepit = (w,h)=>{
   let s = patch(w,h,'#8cb35f',43,1);
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGravel)"/>`;
   for(let i=0;i<9;i++){ const a=(i/9)*Math.PI*2;
+    s += `<ellipse cx="${n(cx+Math.cos(a)*R*0.82+0.7)}" cy="${n(cy+Math.sin(a)*R*0.82+1.1)}" rx="2.6" ry="1.5" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx+Math.cos(a)*R*0.82)}" cy="${n(cy+Math.sin(a)*R*0.82)}" r="2.4" fill="url(#gStone)"/>`; }
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R*0.42)}" fill="#3a2f26"/>`;
   s += `<circle class="flame" cx="${n(cx)}" cy="${n(cy)}" r="${n(R*0.26)}" fill="#e8862e"/>`;
@@ -1313,8 +1346,12 @@ ART.hedge  = (w,h)=> hedge(w,h);
 ART.fence  = (w,h)=> fence(w,h);
 ART.gate   = (w,h)=>{
   let s = gravel(w,h*0.5,'rect',2).replace(/^/,`<g transform="translate(0,${n(h*0.45)})">`)+'</g>';
+  s += `<ellipse cx="${n(w*0.07+3.5)}" cy="${n(h*0.88)}" rx="4.2" ry="1.7" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<ellipse cx="${n(w*0.86+3.5)}" cy="${n(h*0.88)}" rx="4.2" ry="1.7" fill="url(#gShadow)" opacity=".6"/>`;
   s += `<rect x="${n(w*0.07)}" y="${n(h*0.18)}" width="5" height="${n(h*0.7)}" rx="2" fill="url(#gTimber)"/>`;
   s += `<rect x="${n(w*0.86)}" y="${n(h*0.18)}" width="5" height="${n(h*0.7)}" rx="2" fill="url(#gTimber)"/>`;
+  s += `<rect x="${n(w*0.07)}" y="${n(h*0.18)}" width="1.7" height="${n(h*0.7)}" rx="0.8" fill="#fff" opacity=".22"/>`;
+  s += `<rect x="${n(w*0.86)}" y="${n(h*0.18)}" width="1.7" height="${n(h*0.7)}" rx="0.8" fill="#fff" opacity=".22"/>`;
   s += `<path d="M${n(w*0.09)} ${n(h*0.22)} Q${n(w/2)} ${n(h*0.02)} ${n(w*0.89)} ${n(h*0.22)}" stroke="#8e6b3e" stroke-width="6" fill="none" stroke-linecap="round"/>`;
   s += `<path d="M${n(w*0.09)} ${n(h*0.21)} Q${n(w/2)} ${n(h*0.01)} ${n(w*0.89)} ${n(h*0.21)}" stroke="#bb8b57" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
   return s;

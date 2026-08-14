@@ -111,11 +111,20 @@ function ao(x,y,w,h,o){
 
 /* The one outline rule. Structures get a hairline darker edge on their
    outer silhouette; organics never do, because an outline on a canopy or
-   an animal reads as cartoon rather than crisp. Gated on footprint - at
-   40px a 1x1 item is mostly outline. */
-function edge(w,h,r){
-  if(w < 70 || h < 40) return '';
-  return `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
+   an animal reads as cartoon rather than crisp. Gated on size - at 40px
+   a 1x1 item is mostly outline.
+
+   Takes the SHAPE's box, not the tile's. The first version took (w,h)
+   and outlined the whole footprint, so the battery - a cabinet occupying
+   the middle 72% of its tile - got a rectangle floating well outside
+   itself. Almost nothing here fills its tile edge to edge, so the tile
+   is the wrong box in the common case. */
+function edge(x,y,w,h,r){
+  /* 48x24 rather than 60x30: the battery cabinet is 57x52 on a 2x2 tile,
+     which is plainly big enough to carry a hairline, and the higher gate
+     silently dropped it. */
+  if(w < 48 || h < 24) return '';
+  return `<rect x="${n(x+0.5)}" y="${n(y+0.5)}" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
     fill="none" stroke="var(--a-edge)" stroke-width="0.5"/>`;
 }
 
