@@ -93,8 +93,8 @@ ART.cabin = (w,h)=>{
      along the verandah's back edge so the two read as different depths
      rather than two rectangles on one plane */
   s += `<rect x="${n(w*0.03)}" y="${n(h*0.49)}" width="${n(w*0.46)}" height="${n(h*0.05)}" fill="var(--a-shadow)" opacity=".22"/>`;
-  s += `<g transform="translate(${n(w*0.42)},${n(h*0.26)})">${building(w*0.56,h*0.58,{solar:1,skylight:1})}</g>`;
-  s += `<g transform="translate(1,1)">${building(w*0.66,h*0.48,{solar:1,chimney:1})}</g>`;
+  s += `<g transform="translate(${n(w*0.42)},${n(h*0.26)})">${building(w*0.56,h*0.58,{solar:1,skylight:1,home:1})}</g>`;
+  s += `<g transform="translate(1,1)">${building(w*0.66,h*0.48,{solar:1,chimney:1,home:1})}</g>`;
   s += `<rect x="${n(w*0.28)}" y="${n(h*0.4)}" width="${n(w*0.17)}" height="${n(h*0.16)}" rx="1.5" fill="url(#gGlass)" stroke="#7e929a" stroke-width="0.8"/>`;
   s += `<circle cx="${n(w*0.09)}" cy="${n(h*0.78)}" r="3.4" fill="#4f8a35"/><circle cx="${n(w*0.44)}" cy="${n(h*0.78)}" r="3" fill="#5f9c3d"/>`;
   return s;

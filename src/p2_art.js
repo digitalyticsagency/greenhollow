@@ -201,8 +201,20 @@ function building(w,h,o){
       /* diagonal reflection streak across the glass */
       s += `<polygon points="${n(wx)},${n(bh+1+wh)} ${n(wx+ww*0.55)},${n(bh+1)} ${n(wx+ww*0.85)},${n(bh+1)} ${n(wx+ww*0.3)},${n(bh+1+wh)}"
         fill="#fff" opacity=".45"/>`;
+      /* Lamplight behind the glass, dark by day. Drawn here rather than as
+         an overlay layer so it uses the same wx/bh/skirt the window itself
+         does and can never drift out of register; p96 fades it in at dusk
+         by putting a class on the scene, so nothing re-renders. */
+      s += `<rect class="winglow${o.home?' home':''}" x="${n(wx)}" y="${n(bh+1)}"
+        width="${n(ww)}" height="${n(wh)}" rx="0.6" fill="#ffcb76" opacity="0"/>`;
       s += `<rect x="${n(wx)}" y="${n(bh+1)}" width="${n(ww)}" height="${n(wh)}" rx="0.6" fill="none" stroke="#3d4f57" stroke-width="0.5"/>`;
+      /* the light it throws down the wall and onto the ground below */
+      s += `<ellipse class="winspill${o.home?' home':''}" cx="${n(wx+ww/2)}" cy="${n(bh+skirt+0.6)}"
+        rx="${n(ww*1.35)}" ry="${n(ww*0.5)}" fill="#ffd98a" opacity="0"/>`;
     }
+    /* a warm seam under the door, which is what you actually notice first */
+    s += `<rect class="winglow${o.home?' home':''}" x="${n(w*0.5-dw/2)}" y="${n(bh+skirt-1.6)}"
+      width="${n(dw)}" height="1.4" rx="0.5" fill="#ffcb76" opacity="0"/>`;
     s += `<rect x="${n(m+1.5)}" y="${n(bh+skirt-1.2)}" width="${n(w-2*m-3)}" height="1.2" fill="#000" opacity=".4"/>`;
   }
 
