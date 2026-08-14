@@ -42,7 +42,11 @@ render = function(){
   });
 
   let ghostSvg = '';
-  if(ghost){
+  /* The ghost has its own layer now (p93), so render() must not draw a
+     second copy of it into the foreground - that is what it existed for
+     before, and leaving both in place would double it up and put the
+     expensive path back. */
+  if(ghost && typeof moveGhost !== 'function'){
     const f = footprint(ghost.bp, ghost.rot);
     if((typeof SET!=='function') || SET('grid')){
       ghostSvg += `<g class="gridlay">`;

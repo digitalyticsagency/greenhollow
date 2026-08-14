@@ -371,7 +371,12 @@ function bindInput(){
       const B = (typeof estateBounds === 'function') ? estateBounds() : FARM;
       const tx = clamp(t.tx - Math.floor(f.w/2), B.x, B.x+B.w-f.w);
       const ty = clamp(t.ty - Math.floor(f.h/2), B.y, B.y+B.h-f.h);
-      if(tx!==ghost.tx || ty!==ghost.ty){ ghost.tx=tx; ghost.ty=ty; render(); }
+      if(tx!==ghost.tx || ty!==ghost.ty){ ghost.tx=tx; ghost.ty=ty;
+        /* moveGhost() updates the ghost's own layer on the next frame.
+           This used to call render(), which rebuilt every object, animal,
+           person and the weather - 16ms on a 40-object farm - once per
+           mouse move, so the moves queued up behind each other. */
+        if(typeof moveGhost === 'function') moveGhost(); else render(); }
     }
     if(!dragging) return;
     moved += Math.abs(e.movementX)+Math.abs(e.movementY);
@@ -419,7 +424,7 @@ function bindInput(){
       const B = (typeof estateBounds === 'function') ? estateBounds() : FARM;
       ghost.tx = clamp(t.tx - Math.floor(f.w/2), B.x, B.x+B.w-f.w);
       ghost.ty = clamp(t.ty - Math.floor(f.h/2), B.y, B.y+B.h-f.h);
-      render();
+      if(typeof moveGhost === 'function') moveGhost(); else render();
     } else {
       cam.x = tstart.cx + (t0.clientX-tstart.x); cam.y = tstart.cy + (t0.clientY-tstart.y);
       applyCam();
