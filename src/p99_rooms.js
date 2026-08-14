@@ -143,7 +143,11 @@ function assignRooms(){
     r.label = r.use === 'office' ? 'Office' : r.use === 'guest' ? 'Guest room' : 'Store';
   });
 
+  /* keyed off k for the circulation spaces, because a five bed house has
+     two of them and calling both "Hall" made the furnishing list read as
+     a duplicate rather than two different rooms */
   plan.rooms.forEach(r=>{ if(!r.label) r.label =
+    r.k==='landing'?'Landing':
     r.t==='kitchen'?'Kitchen':r.t==='living'?'Living room':r.t==='hall'?'Hall':
     r.t==='bath'?'Bathroom':r.t==='pantry'?'Pantry':r.t==='util'?'Utility':''; });
   return plan;

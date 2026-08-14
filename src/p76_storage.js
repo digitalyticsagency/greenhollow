@@ -84,8 +84,11 @@ if(typeof advanceDay === 'function'){
 (function showFullness(){
   if(typeof ui !== 'function') return;
   const paint = ()=>{
-    const sel = (typeof selObj === 'function') ? selObj() : null;
-    const o = sel || (typeof sel !== 'undefined' ? sel : null);
+    /* There is no selObj() in this codebase — selection is the global
+       `sel`, holding an id. This asked for a function that has never
+       existed, got null every time, and returned before painting, so the
+       "% of cap" badge this whole block exists for was never once shown. */
+    const o = (S.objs || []).find(z=>z.id === sel);
     if(!o || !BPMAP[o.bp] || BPMAP[o.bp].kind !== 'animal') return;
     const capN = penCapacity(o);
     const pct = Math.min(1, (o.ready || 0) / capN);
