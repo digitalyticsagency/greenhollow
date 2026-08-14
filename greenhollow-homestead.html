@@ -21276,7 +21276,12 @@ const NEW_REC = [
   };
 
   /* --- animals: paddock() gives pens, shelters and the mind hooks --- */
-  A.quail       = (w,h,ob)=> paddock(w,h,'chicken', ob?Math.min(10,ob.animals||0):3, 51, 0.7);
+  /* This said 'chicken', so the quail hutch drew white birds with red
+     combs while the live simulation - which reads bp.animal correctly -
+     walked actual quail around on top of them. Two different species in
+     one pen. beast3d has had a quail body since p68; the pen art just
+     never asked for it. */
+  A.quail       = (w,h,ob)=> paddock(w,h,'quail',   ob?Math.min(10,ob.animals||0):3, 51, 0.7);
   A.pig_pen     = (w,h,ob)=> paddock(w,h,'pig',     ob?Math.min(4, ob.animals||0):2, 53, 1.05);
   A.turkey_run  = (w,h,ob)=> paddock(w,h,'turkey',  ob?Math.min(6, ob.animals||0):2, 55, 1.0);
   A.alpaca      = (w,h,ob)=> paddock(w,h,'alpaca',  ob?Math.min(4, ob.animals||0):2, 57, 1.1);
