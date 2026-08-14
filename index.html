@@ -14,6 +14,16 @@
   --gold:#f0c14b; --green:#7cc24f; --green2:#4d8f3c;
   --blue:#6fb6d8; --red:#e2705c; --amber:#e8a33d; --violet:#a98fd6;
   --r:10px; --shadow:0 10px 34px rgba(0,0,0,.45);
+  /* ---- scene art tokens ----
+     Namespaced --a-* on purpose. The first draft of this called the
+     shadow colour --ink, which already exists above as #e9efe0, the UI
+     text colour - that would have turned every panel label near-black on
+     dark green. Everything the procedural art shares lives here so a
+     change is one edit rather than 25. */
+  --a-shadow:#16240c;      /* cast shadow / AO — was hardcoded 25 times */
+  --a-gold:#f0c14b;        /* the ready-to-collect highlight — 21 times */
+  --a-timber-d:#7d5931;    /* dark timber — 9 times */
+  --a-edge:rgba(20,32,12,.38);   /* the one outline colour for structures */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
 }
 html,body{height:100%;}
@@ -410,33 +420,20 @@ function hash(i){ const x = Math.sin(i*127.1)*43758.5453; return x - Math.floor(
 /* ---------------- shared <defs> ---------------- */
 function DEFS(){
   return `<defs>
-  <filter id="fGrain" x="0" y="0" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7"/>
-    <feColorMatrix type="saturate" values="0"/>
-    <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
-  </filter>
-  <filter id="fRough" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="4" seed="3" result="t"/>
-    <feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-  <filter id="fDrop" x="-40%" y="-40%" width="200%" height="220%">
-    <feDropShadow dx="2.5" dy="4" stdDeviation="2.2" flood-color="#0d1607" flood-opacity="0.45"/>
-  </filter>
-  <filter id="fSoft" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="3"/>
-  </filter>
-  <filter id="fGlow" x="-60%" y="-60%" width="220%" height="220%">
-    <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
+  <!-- No filters. fGrain, fRough, fDrop, fSoft and fGlow lived here with
+       zero uses between them, and two were feTurbulence and
+       feGaussianBlur - the pair that historically took this scene from
+       121fps to 15. Depth comes from stacked shapes and gradients; an
+       unused blur in DEFS is just an invitation. -->
 
   <linearGradient id="gLawn" x1="0.1" y1="0" x2="0.65" y2="1">
     <stop offset="0" stop-color="#88b25c"/><stop offset="0.45" stop-color="#74a04b"/><stop offset="1" stop-color="#5d8a3c"/></linearGradient>
   <linearGradient id="gMeadow" x1="0" y1="0" x2="0.5" y2="1">
-    <stop offset="0" stop-color="#c3b982"/><stop offset="1" stop-color="#a49b69"/></linearGradient>
+    <stop offset="0" stop-color="#c3b982"/><stop offset="0.5" stop-color="#b3a976"/><stop offset="1" stop-color="#a49b69"/></linearGradient>
   <linearGradient id="gSoil" x1="0.2" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#7a5a3f"/><stop offset="0.5" stop-color="#63482f"/><stop offset="1" stop-color="#4c3624"/></linearGradient>
   <linearGradient id="gSoilWet" x1="0.2" y1="0" x2="0.7" y2="1">
-    <stop offset="0" stop-color="#5b4028"/><stop offset="1" stop-color="#3a2818"/></linearGradient>
+    <stop offset="0" stop-color="#5b4028"/><stop offset="0.5" stop-color="#4a3320"/><stop offset="1" stop-color="#3a2818"/></linearGradient>
   <linearGradient id="gRoof" x1="0.05" y1="0" x2="0.55" y2="1">
     <stop offset="0" stop-color="#a3aeb4"/><stop offset="0.4" stop-color="#8a959b"/><stop offset="1" stop-color="#6a747a"/></linearGradient>
   <linearGradient id="gRoofRed" x1="0.05" y1="0" x2="0.55" y2="1">
@@ -446,14 +443,14 @@ function DEFS(){
   <linearGradient id="gSolar" x1="0.1" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#38507f"/><stop offset="0.35" stop-color="#22304f"/><stop offset="1" stop-color="#161f36"/></linearGradient>
   <linearGradient id="gGravel" x1="0" y1="0" x2="0.4" y2="1">
-    <stop offset="0" stop-color="#d3c7a8"/><stop offset="1" stop-color="#b6a988"/></linearGradient>
+    <stop offset="0" stop-color="#d3c7a8"/><stop offset="0.55" stop-color="#c5b898"/><stop offset="1" stop-color="#b6a988"/></linearGradient>
   <linearGradient id="gGlass" x1="0.05" y1="0" x2="0.6" y2="1">
     <stop offset="0" stop-color="#e6f6fa"/><stop offset="0.45" stop-color="#c2e0e9"/><stop offset="1" stop-color="#9dc2ce"/></linearGradient>
   <linearGradient id="gStone" x1="0" y1="0" x2="0.4" y2="1">
-    <stop offset="0" stop-color="#ada59a"/><stop offset="1" stop-color="#857e73"/></linearGradient>
+    <stop offset="0" stop-color="#ada59a"/><stop offset="0.5" stop-color="#999186"/><stop offset="1" stop-color="#857e73"/></linearGradient>
   <radialGradient id="gWater" cx="0.36" cy="0.3" r="0.78">
     <stop offset="0" stop-color="#8fd0e8"/><stop offset="0.4" stop-color="#4f93b5"/>
-    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#1f5878"/></radialGradient>
+    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#255d7c"/></radialGradient>
   <radialGradient id="gCanopy" cx="0.34" cy="0.28" r="0.8">
     <stop offset="0" stop-color="#79b356"/><stop offset="0.45" stop-color="#4f8c38"/>
     <stop offset="0.85" stop-color="#356523"/><stop offset="1" stop-color="#274c19"/></radialGradient>
@@ -464,7 +461,25 @@ function DEFS(){
   <linearGradient id="gHedge" x1="0" y1="0" x2="0.3" y2="1">
     <stop offset="0" stop-color="#5b9440"/><stop offset="0.5" stop-color="#3f6f2c"/><stop offset="1" stop-color="#27491c"/></linearGradient>
   <linearGradient id="gTank" x1="0" y1="0" x2="0.7" y2="1">
-    <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#4e7a4c"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+    <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#5c8859"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+  <!-- added in the polish pass: these absorb the most-repeated flat
+       fills. Same hue as what they replace, one extra value of depth. -->
+  <linearGradient id="gPlaster" x1="0.05" y1="0" x2="0.55" y2="1">
+    <stop offset="0" stop-color="#f2ead6"/><stop offset="0.5" stop-color="#e2d8c0"/><stop offset="1" stop-color="#cbbfa4"/></linearGradient>
+  <linearGradient id="gMetal" x1="0" y1="0" x2="0.45" y2="1">
+    <stop offset="0" stop-color="#c2ccd2"/><stop offset="0.45" stop-color="#9fb0b8"/><stop offset="1" stop-color="#76858d"/></linearGradient>
+  <linearGradient id="gStraw" x1="0.1" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#e6d49a"/><stop offset="0.5" stop-color="#d8c48b"/><stop offset="1" stop-color="#b99f63"/></linearGradient>
+  <radialGradient id="gLeafLit" cx="0.32" cy="0.26" r="0.82">
+    <stop offset="0" stop-color="#96c96a"/><stop offset="0.45" stop-color="#6ca346"/>
+    <stop offset="0.85" stop-color="#47762c"/><stop offset="1" stop-color="#335620"/></radialGradient>
+  <linearGradient id="gEarthDry" x1="0.15" y1="0" x2="0.65" y2="1">
+    <stop offset="0" stop-color="#b09a71"/><stop offset="0.5" stop-color="#9c8760"/><stop offset="1" stop-color="#7f6c4c"/></linearGradient>
+  <radialGradient id="gShadow" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#16240c" stop-opacity="0.55"/>
+    <stop offset="0.6" stop-color="#16240c" stop-opacity="0.34"/>
+    <stop offset="1" stop-color="#16240c" stop-opacity="0"/></radialGradient>
+
   <linearGradient id="gHaze" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#cfe0ea" stop-opacity="0.45"/>
     <stop offset="0.22" stop-color="#cfe0ea" stop-opacity="0.10"/>
@@ -473,7 +488,9 @@ function DEFS(){
     <stop offset="1" stop-color="#cfe0ea" stop-opacity="0.4"/></linearGradient>
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
-  </defs>`.replace('#ada59a','#ada59a').replace('#1f5878','#255d7c');
+  </defs>`;   /* the two trailing .replace() calls are gone: one swapped a string
+        for itself, the other rewrote gWater's last stop behind the
+        gradient's back, so editing the declaration did nothing. */
 }
 
 /* ---------------- primitives ---------------- */
@@ -483,29 +500,83 @@ function DEFS(){
    plain translucent ellipse is indistinguishable and effectively free. */
 function ao(x,y,w,h,o){
   const op = (o||0.34);
+  /* Was two flat #16240c ellipses with hard edges. gShadow fades to zero
+     alpha at its own rim, so the contact shadow ends softly without a
+     blur filter - the effect the banned fSoft was there for, at no cost.
+     One ellipse now does what two were approximating.
+
+     Geometry is copied exactly from the old outer ellipse - cx+0.06w,
+     0.94h, rx 0.55w, ry 0.22h. It already reached past the footprint to
+     1.11w, and a first pass at this quietly widened it to 1.16w, which
+     bleeds onto the next tile. The only thing that changes here is the
+     fill. Opacity is x1.9 because the two old ellipses composited over
+     each other to ~0.30 at op=0.28, and gShadow's centre stop is 0.55
+     alpha - x1.15 would have made every shadow on the farm lighter. */
   return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
-    fill="#16240c" opacity="${(op*0.55).toFixed(2)}"/>`
-   + `<ellipse cx="${n(x+w/2+w*0.05)}" cy="${n(y+h*0.93)}" rx="${n(w*0.46)}" ry="${n(h*0.17)}"
-    fill="#16240c" opacity="${(op*0.6).toFixed(2)}"/>`;
+    fill="url(#gShadow)" opacity="${Math.min(1, op*1.9).toFixed(2)}"/>`;
 }
+
+/* The one outline rule. Structures get a hairline darker edge on their
+   outer silhouette; organics never do, because an outline on a canopy or
+   an animal reads as cartoon rather than crisp. Gated on size - at 40px
+   a 1x1 item is mostly outline.
+
+   Takes the SHAPE's box, not the tile's. The first version took (w,h)
+   and outlined the whole footprint, so the battery - a cabinet occupying
+   the middle 72% of its tile - got a rectangle floating well outside
+   itself. Almost nothing here fills its tile edge to edge, so the tile
+   is the wrong box in the common case. */
+function edge(x,y,w,h,r){
+  /* 48x24 rather than 60x30: the battery cabinet is 57x52 on a 2x2 tile,
+     which is plainly big enough to carry a hairline, and the higher gate
+     silently dropped it. */
+  if(w < 48 || h < 24) return '';
+  return `<rect x="${n(x+0.5)}" y="${n(y+0.5)}" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
+    fill="none" stroke="var(--a-edge)" stroke-width="0.5"/>`;
+}
+
 /* grain overlay clipped to a shape via a rect (cheap texture) */
 /* feTurbulence is far too costly to run per object; texture now comes from
    the gradients and speckles already in each material. */
 function grain(){ return ''; }
 /* organic ground patch */
-function patch(w,h,fill,seed,inset){
+/* This is the ground under some fifteen different objects and it was a
+   single flat colour, which is why they all sat on the lawn like stickers.
+   It now gets a second, smaller copy of its own outline offset toward the
+   sun and a third offset away from it - a dome of light and a shaded far
+   edge, from the shape the patch already had. Two extra paths, no new
+   geometry, and the footprint is unchanged.
+
+   `lit` exists because water() stacks four patches to build a pond; a
+   highlight inside each of those would wash the pool out, so it passes
+   false. Everything else takes the default. */
+function patch(w,h,fill,seed,inset,lit){
   inset = inset||1;
-  const pts=[], N=16;
-  for(let i=0;i<N;i++){
-    const a=(i/N)*Math.PI*2, wob=0.88+hash(seed*5+i)*0.14;
-    pts.push([n(w/2+Math.cos(a)*(w/2-inset)*wob), n(h/2+Math.sin(a)*(h/2-inset)*wob)]);
+  const outline = (shrink,dx,dy)=>{
+    const pts=[], N=16;
+    for(let i=0;i<N;i++){
+      const a=(i/N)*Math.PI*2, wob=0.88+hash(seed*5+i)*0.14;
+      pts.push([n(w/2+dx+Math.cos(a)*(w/2-inset)*wob*shrink),
+                n(h/2+dy+Math.sin(a)*(h/2-inset)*wob*shrink)]);
+    }
+    let d=`M${pts[0][0]} ${pts[0][1]}`;
+    for(let i=1;i<=N;i++){
+      const p=pts[i%N], q=pts[(i+1)%N];
+      d+=` Q${p[0]} ${p[1]} ${n((p[0]+q[0])/2)} ${n((p[1]+q[1])/2)}`;
+    }
+    return d+'Z';
+  };
+  let s = `<path d="${outline(1,0,0)}" fill="${fill}"/>`;
+  if(lit !== false){
+    /* Only the lit crown. A first pass also laid a shaded far edge under
+       this, but at 0.07 alpha of dark green over mid-green that is about
+       a 2% luminance change - invisible - while costing a third of the
+       added geometry. Measured interleaved against the single-path
+       version: three paths cost +3.1ms on a full render of a
+       patch-dense farm, two cost about half that. */
+    s += `<path d="${outline(0.66, -w*0.045, -h*0.06)}" fill="#fff" opacity=".095"/>`;
   }
-  let d=`M${pts[0][0]} ${pts[0][1]}`;
-  for(let i=1;i<=N;i++){
-    const p=pts[i%N], q=pts[(i+1)%N];
-    d+=` Q${p[0]} ${p[1]} ${n((p[0]+q[0])/2)} ${n((p[1]+q[1])/2)}`;
-  }
-  return `<path d="${d}Z" fill="${fill}"/>`;
+  return s;
 }
 
 /* pitched-roof building, lit from upper left.
@@ -612,9 +683,11 @@ function panels(x,y,w,h,cols,rows){
 
 /* leafy canopy with lit crown and cast shadow */
 function canopy(cx,cy,r,grad,seed,sway){
+  /* One soft ellipse where there were two hard ones. A tree's shadow has
+     no edge, and two stacked flat ellipses gave it two. Same centre and
+     radii as the outer of the pair, so the footprint does not move. */
   let s = `<ellipse cx="${n(cx+r*0.34)}" cy="${n(cy+r*0.46)}" rx="${n(r*0.98)}" ry="${n(r*0.6)}"
-    fill="#16240c" opacity="0.24"/><ellipse cx="${n(cx+r*0.3)}" cy="${n(cy+r*0.42)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}"
-    fill="#16240c" opacity="0.26"/>`;
+    fill="url(#gShadow)" opacity="0.62"/>`;
   s += `<g${sway?' class="sway"':''} style="transform-origin:${n(cx)}px ${n(cy+r*0.7)}px">`;
   /* dark underside mass */
   s += `<circle cx="${n(cx+r*0.1)}" cy="${n(cy+r*0.14)}" r="${n(r*0.86)}" fill="#2b5418"/>`;
@@ -629,7 +702,7 @@ function canopy(cx,cy,r,grad,seed,sway){
   for(let i=0;i<3;i++){
     const b=-1.5+i*0.6, d=r*(0.2+hash(seed*11+i)*0.24);
     s += `<circle cx="${n(cx-r*0.2+Math.cos(b)*d)}" cy="${n(cy-r*0.22+Math.sin(b)*d)}"
-      r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="#a9d47c" opacity="${(0.3+hash(seed+i)*0.35).toFixed(2)}"/>`;
+      r="${n(r*(0.13+hash(seed*13+i)*0.12))}" fill="url(#gLeafLit)" opacity="${(0.42+hash(seed+i)*0.35).toFixed(2)}"/>`;
   }
   /* rim light on the top-left edge */
   s += `<path d="M${n(cx-r*0.78)} ${n(cy-r*0.2)} a ${n(r*0.82)} ${n(r*0.82)} 0 0 1 ${n(r*0.9)} ${n(-r*0.52)}"
@@ -640,11 +713,16 @@ function canopy(cx,cy,r,grad,seed,sway){
 
 /* pointed native tree */
 function conifer(cx,cy,r,seed){
-  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="#16240c" opacity=".26"/>`;
+  let s = `<ellipse cx="${n(cx+r*0.32)}" cy="${n(cy+r*0.44)}" rx="${n(r*0.82)}" ry="${n(r*0.48)}" fill="url(#gShadow)" opacity=".6"/>`;
   s += `<g>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.88)}" fill="url(#gCanopyD)"/>`;
   s += `<circle cx="${n(cx-r*0.12)}" cy="${n(cy-r*0.12)}" r="${n(r*0.55)}" fill="#417a2f"/>`;
   s += `<circle cx="${n(cx-r*0.2)}" cy="${n(cy-r*0.2)}" r="${n(r*0.26)}" fill="#5d9c40" opacity=".8"/>`;
+  /* conifer had no rim light at all, which is why it read flatter than
+     the broadleaf beside it. Same arc canopy() uses, darker and tighter
+     because needles catch far less than a leaf. */
+  s += `<path d="M${n(cx-r*0.7)} ${n(cy-r*0.18)} a ${n(r*0.74)} ${n(r*0.74)} 0 0 1 ${n(r*0.8)} ${n(-r*0.46)}"
+    stroke="#8dbb63" stroke-width="${n(r*0.09)}" fill="none" opacity=".3" stroke-linecap="round"/>`;
   s += `</g>`;
   return s;
 }
@@ -660,7 +738,13 @@ function hedge(w,h){
     const cx = vert? w*0.46 : 1.5+t*(w-3);
     const cy = vert? 1.5+t*(h-3) : h*0.42;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(thick*0.3)}" fill="#5f9a42" opacity="${(0.35+0.4*hash(i*3)).toFixed(2)}"/>`;
+    /* each lobe takes the light on its sun side, so the run reads as a
+       row of bushes rather than a green tube with dots on it */
+    s += `<circle cx="${n(cx-thick*0.09)}" cy="${n(cy-thick*0.1)}" r="${n(thick*0.16)}" fill="#8fc063" opacity="${(0.2+0.3*hash(i*5)).toFixed(2)}"/>`;
   }
+  /* shaded far face: bottom edge on a run, right edge on a stile */
+  if(vert) s += `<rect x="${n(w-1-thick*0.26)}" y="0.5" width="${n(thick*0.26)}" height="${n(h-2)}" rx="${n(thick*0.16)}" fill="var(--a-shadow)" opacity=".2"/>`;
+  else     s += `<rect x="0.5" y="${n(h-2-thick*0.26)}" width="${n(w-1)}" height="${n(thick*0.26)}" rx="${n(thick*0.16)}" fill="var(--a-shadow)" opacity=".2"/>`;
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(thick*0.24)}" rx="${n(thick*0.2)}" fill="#7cb257" opacity=".3"/>`;
   s += grain(0,0,w,h,0.16);
   return s;
@@ -670,11 +754,11 @@ function hedge(w,h){
 function water(w,h,seed){
   /* a pond should read as water first and bank second: keep the verge
      narrow so the pool dominates the footprint */
-  let s = patch(w,h,'#5d7a3a',seed||4,0.5);
-  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.955) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#7d9450',seed||4,0.5)}</g>`;
-  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.915) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'url(#gWater)',seed||4,0.5)}</g>`;
+  let s = patch(w,h,'#5d7a3a',seed||4,0.5,false);
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.955) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#7d9450',seed||4,0.5,false)}</g>`;
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.5)}) scale(0.915) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'url(#gWater)',seed||4,0.5,false)}</g>`;
   /* darker at the far edge, so the pool reads as having depth */
-  s += `<g transform="translate(${n(w*0.5)},${n(h*0.62)}) scale(0.7) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#1f5878',seed||4,0.5)}</g>`;
+  s += `<g transform="translate(${n(w*0.5)},${n(h*0.62)}) scale(0.7) translate(${n(-w*0.5)},${n(-h*0.5)})">${patch(w,h,'#1f5878',seed||4,0.5,false)}</g>`;
   for(let i=0;i<3;i++){
     s += `<ellipse class="ripple" cx="${n(w*(0.34+i*0.16))}" cy="${n(h*(0.4+i*0.13))}" rx="${n(w*0.13)}" ry="${n(h*0.045)}"
       fill="none" stroke="#dff4fb" stroke-width="0.9" opacity=".4" style="animation-delay:${(i*1.1).toFixed(1)}s"/>`;
@@ -778,21 +862,173 @@ function beast(kind,x,y,sc,idle){
    second whole drawing. `prop` is a sixth optional argument appended at
    the end; all five existing call sites stop at `hat`, so nothing else
    needed touching. */
-function person(x,y,sc,shirt,hat,prop){
-  sc=sc||1;
-  let s = `<ellipse class="pr-shadow" cx="${n(x+1.6*sc)}" cy="${n(y+9*sc)}" rx="${n(4.4*sc)}" ry="${n(1.8*sc)}" fill="#16240c" opacity=".32"/>`;
-  s += `<rect class="pr-leg pr-leg-l" x="${n(x-2.2*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
-  s += `<rect class="pr-leg pr-leg-r" x="${n(x+0.4*sc)}" y="${n(y+2.6*sc)}" width="${n(1.8*sc)}" height="${n(6*sc)}" rx="${n(0.9*sc)}" fill="#3f4a5a"/>`;
-  s += `<rect class="pr-torso" x="${n(x-3*sc)}" y="${n(y-2.4*sc)}" width="${n(6*sc)}" height="${n(5.6*sc)}" rx="${n(2.2*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<rect class="pr-arm pr-arm-l" x="${n(x-4.8*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<rect class="pr-arm pr-arm-r" x="${n(x+2.9*sc)}" y="${n(y-1.8*sc)}" width="${n(1.9*sc)}" height="${n(4.4*sc)}" rx="${n(0.9*sc)}" fill="${shirt||'#c8583f'}"/>`;
-  s += `<circle class="pr-head" cx="${n(x)}" cy="${n(y-4.6*sc)}" r="${n(2.9*sc)}" fill="#e2b98f"/>`;
-  s += `<path class="pr-hair" d="M${n(x-2.9*sc)} ${n(y-4.9*sc)} a ${n(2.9*sc)} ${n(2.9*sc)} 0 0 1 ${n(5.8*sc)} 0 z" fill="#4a3a2c"/>`;
-  if(hat){ s += `<g class="pr-hat"><ellipse cx="${n(x)}" cy="${n(y-5.2*sc)}" rx="${n(5*sc)}" ry="${n(2.2*sc)}" fill="${hat}"/>
-                 <circle cx="${n(x)}" cy="${n(y-6*sc)}" r="${n(2.3*sc)}" fill="${hat}"/></g>`; }
+/* Costume and hair by role. Everything here is drawn INSIDE the group it
+   belongs to - a bib inside .pr-torso, a rod inside .pr-arm-r, a bun
+   inside .pr-hair - because the seated and reading poses transform those
+   groups by class. A satchel drawn as a sibling of the torso would stay
+   floating at standing height the moment its owner sat down. */
+const PERSON_KIT = {
+  /* dungarees over the shirt, which is what actually distinguishes a
+     farm worker at this size - the cap alone reads as any hat */
+  worker: { torso:(X,Y,U)=>
+      `<rect x="${X(-1.75)}" y="${Y(-0.9)}" width="${U(3.5)}" height="${U(3.6)}" rx="${U(0.35)}" fill="#41618a"/>`
+    + `<rect x="${X(-1.75)}" y="${Y(-0.9)}" width="${U(1.3)}" height="${U(3.6)}" rx="${U(0.35)}" fill="#fff" opacity=".08"/>`
+    + `<rect x="${X(-1.95)}" y="${Y(-1.95)}" width="${U(0.62)}" height="${U(1.3)}" rx="${U(0.3)}" fill="#41618a"/>`
+    + `<rect x="${X(1.33)}"  y="${Y(-1.95)}" width="${U(0.62)}" height="${U(1.3)}" rx="${U(0.3)}" fill="#41618a"/>`
+    + `<rect x="${X(-1.1)}" y="${Y(0.2)}" width="${U(2.2)}" height="${U(1.5)}" rx="${U(0.25)}" fill="#000" opacity=".12"/>`
+    + `<circle cx="${X(-1.64)}" cy="${Y(-0.75)}" r="${U(0.24)}" fill="#e3c65f"/>`
+    + `<circle cx="${X(1.64)}"  cy="${Y(-0.75)}" r="${U(0.24)}" fill="#e3c65f"/>` },
+
+  /* apron and a money satchel */
+  trader: { torso:(X,Y,U)=>
+      `<path d="M${X(-1.5)} ${Y(-0.5)} L${X(1.5)} ${Y(-0.5)} L${X(2.2)} ${Y(2.7)} L${X(-2.2)} ${Y(2.7)} Z" fill="#e8dfc9"/>`
+    + `<rect x="${X(-2.3)}" y="${Y(-0.5)}" width="${U(4.6)}" height="${U(0.5)}" rx="${U(0.25)}" fill="#c2b393"/>`
+    + `<rect x="${X(-0.9)}" y="${Y(0.6)}" width="${U(1.8)}" height="${U(1.2)}" rx="${U(0.2)}" fill="#000" opacity=".1"/>`
+    + `<path d="M${X(-1.3)} ${Y(-1.8)} L${X(2.3)} ${Y(0.9)}" stroke="#7a4f2c" stroke-width="${U(0.5)}" fill="none"/>`
+    + `<rect x="${X(1.7)}" y="${Y(0.8)}" width="${U(2)}" height="${U(1.7)}" rx="${U(0.35)}" fill="#8a5a34"/>`
+    + `<rect x="${X(1.7)}" y="${Y(0.8)}" width="${U(2)}" height="${U(0.7)}" rx="${U(0.3)}" fill="#a06f42"/>`
+    + `<circle cx="${X(2.7)}" cy="${Y(1.6)}" r="${U(0.28)}" fill="#e3c65f"/>` },
+
+  /* fishing vest, and the rod goes in the hand rather than beside it */
+  fisherman: { torso:(X,Y,U)=>
+      `<rect x="${X(-2.6)}" y="${Y(-1.5)}" width="${U(1.9)}" height="${U(3.9)}" rx="${U(0.4)}" fill="#cdbd93"/>`
+    + `<rect x="${X(0.7)}"  y="${Y(-1.5)}" width="${U(1.9)}" height="${U(3.9)}" rx="${U(0.4)}" fill="#cdbd93"/>`
+    + `<rect x="${X(-2.3)}" y="${Y(0.5)}" width="${U(1.3)}" height="${U(1.1)}" rx="${U(0.15)}" fill="#b3a179"/>`
+    + `<rect x="${X(1)}"    y="${Y(0.5)}" width="${U(1.3)}" height="${U(1.1)}" rx="${U(0.15)}" fill="#b3a179"/>`,
+    armR:(X,Y,U)=>
+      `<path d="M${X(3.4)} ${Y(3.2)} L${X(6.2)} ${Y(-4.6)}" stroke="#a9853f" stroke-width="${U(0.34)}" stroke-linecap="round"/>`
+    + `<path d="M${X(6.2)} ${Y(-4.6)} q ${U(0.9)} ${U(1.6)} ${U(0.2)} ${U(3)}" stroke="#dfe8ea" stroke-width="${U(0.16)}" fill="none" opacity=".8"/>` },
+
+  /* a visitor is carrying a day bag, nothing more */
+  guest: { torso:(X,Y,U)=>
+      `<path d="M${X(-1.3)} ${Y(-1.8)} L${X(2.2)} ${Y(0.8)}" stroke="#8a6a4a" stroke-width="${U(0.42)}" fill="none"/>`
+    + `<rect x="${X(1.6)}" y="${Y(0.7)}" width="${U(1.8)}" height="${U(1.6)}" rx="${U(0.3)}" fill="#9a7b56"/>`
+    + `<rect x="${X(1.6)}" y="${Y(0.7)}" width="${U(1.8)}" height="${U(0.6)}" rx="${U(0.26)}" fill="#b08f66"/>` },
+
+  /* the player carries a tool belt, so you can pick yourself out */
+  you: { torso:(X,Y,U)=>
+      `<rect x="${X(-2.7)}" y="${Y(1.5)}" width="${U(5.4)}" height="${U(0.75)}" fill="#8a5a34"/>`
+    + `<rect x="${X(-0.5)}" y="${Y(1.42)}" width="${U(1)}" height="${U(0.9)}" rx="${U(0.15)}" fill="#e3c65f"/>`
+    + `<rect x="${X(1.5)}" y="${Y(1.7)}" width="${U(0.8)}" height="${U(1.3)}" rx="${U(0.2)}" fill="#6d4526"/>` },
+};
+
+/* Hair on top of the base cap. Drawn inside .pr-hair so it tips with the
+   head when someone reads. */
+const PERSON_HAIR = {
+  bun: (X,Y,U,HY)=>`<circle cx="${X(-0.1)}" cy="${Y(HY-3.5)}" r="${U(1.25)}" fill="#4a3a2c"/>`
+                 + `<circle cx="${X(-0.45)}" cy="${Y(HY-3.8)}" r="${U(0.5)}" fill="#5d4a38" opacity=".7"/>`,
+  long:(X,Y,U,HY)=>`<path d="M${X(-3.5)} ${Y(HY-0.6)} q ${U(-0.5)} ${U(3.4)} ${U(0.5)} ${U(4.3)}
+                       l ${U(1.4)} ${U(0)} q ${U(-0.9)} ${U(-1.9)} ${U(-0.5)} ${U(-4)} z" fill="#4a3a2c"/>`
+                 + `<path d="M${X(3.5)} ${Y(HY-0.6)} q ${U(0.5)} ${U(3.4)} ${U(-0.5)} ${U(4.3)}
+                       l ${U(-1.4)} ${U(0)} q ${U(0.9)} ${U(-1.9)} ${U(0.5)} ${U(-4)} z" fill="#4a3a2c"/>`,
+  short:()=>'',
+};
+
+function person(x,y,sc,shirt,hat,prop,opt){
+  sc=sc||1; opt=opt||{};
+  const X=v=>n(x+v*sc), Y=v=>n(y+v*sc), U=v=>n(v*sc);
+  const skin='#f0c9a2', skinSh='#dba97f', dark='#2b2118', boot='#4b3520';
+  const sh = shirt||'#c8583f';
+  const kit = PERSON_KIT[opt.kit] || {};
+  const hairCol = opt.hairCol || '#4a3a2c';
+
+  /* Proportions are deliberately chibi - the head is about a third of the
+     figure - because at farm zoom a realistic head is a few pixels and any
+     face on it is a smudge. Shading is black or white at low alpha rather
+     than a computed darker hex: `shirt` arrives as an arbitrary colour
+     from six callers and there is no colour maths in this file. */
+  const HR = 3.6, HY = -5.4;
+
+  let s = `<ellipse class="pr-shadow" cx="${X(1.2)}" cy="${Y(9.2)}" rx="${U(4.6)}" ry="${U(1.9)}" fill="url(#gShadow)" opacity=".62"/>`;
+
+  const leg=(cls,lx)=>
+    `<g class="pr-leg ${cls}">`
+    + `<rect x="${X(lx)}" y="${Y(2.4)}" width="${U(1.75)}" height="${U(5.1)}" rx="${U(0.85)}" fill="${opt.trouser||'#3f4a5a'}"/>`
+    + `<rect x="${X(lx)}" y="${Y(2.4)}" width="${U(0.58)}" height="${U(5.1)}" rx="${U(0.29)}" fill="#fff" opacity=".1"/>`
+    + `<rect x="${X(lx-0.3)}" y="${Y(6.9)}" width="${U(2.35)}" height="${U(1.8)}" rx="${U(0.75)}" fill="${boot}"/>`
+    + `<rect x="${X(lx-0.3)}" y="${Y(8.2)}" width="${U(2.35)}" height="${U(0.5)}" rx="${U(0.25)}" fill="#2f2015"/>`
+    + `</g>`;
+  s += leg('pr-leg-l',-2.05) + leg('pr-leg-r',0.3);
+
+  s += `<rect x="${X(-0.85)}" y="${Y(-2.6)}" width="${U(1.7)}" height="${U(1.5)}" fill="${skinSh}"/>`;
+
+  s += `<g class="pr-torso">`
+     + `<rect x="${X(-2.75)}" y="${Y(-1.9)}" width="${U(5.5)}" height="${U(4.6)}" rx="${U(1.7)}" fill="${sh}"/>`
+     + `<rect x="${X(-2.75)}" y="${Y(-1.9)}" width="${U(2.2)}" height="${U(4.6)}" rx="${U(1.7)}" fill="#fff" opacity=".12"/>`
+     + `<rect x="${X(1.15)}" y="${Y(-1.9)}" width="${U(1.6)}" height="${U(4.6)}" rx="${U(1.7)}" fill="#000" opacity=".1"/>`
+     + `<path d="M${X(-1.1)} ${Y(-1.95)} L${X(0)} ${Y(-0.75)} L${X(1.1)} ${Y(-1.95)} Z" fill="#000" opacity=".18"/>`
+     + (kit.torso ? kit.torso(X,Y,U) : `<rect x="${X(-0.15)}" y="${Y(-0.9)}" width="${U(0.3)}" height="${U(3)}" fill="#000" opacity=".12"/>`)
+     + `</g>`;
+
+  const arm=(cls,ax,hx,extra)=>
+    `<g class="pr-arm ${cls}">`
+    + `<rect x="${X(ax)}" y="${Y(-1.5)}" width="${U(1.6)}" height="${U(3.8)}" rx="${U(0.8)}" fill="${sh}"/>`
+    + `<rect x="${X(ax)}" y="${Y(-1.5)}" width="${U(0.55)}" height="${U(3.8)}" rx="${U(0.27)}" fill="#fff" opacity=".13"/>`
+    + (extra||'')
+    + `<circle cx="${X(hx)}" cy="${Y(2.5)}" r="${U(0.95)}" fill="${skin}"/>`
+    + `</g>`;
+  s += arm('pr-arm-l',-4.3,-3.5, kit.armL && kit.armL(X,Y,U))
+     + arm('pr-arm-r',2.7,3.5,  kit.armR && kit.armR(X,Y,U));
+
+  s += `<g class="pr-head">`
+     + `<circle cx="${X(0)}" cy="${Y(HY)}" r="${U(HR)}" fill="${skin}"/>`
+     + `<path d="M${X(-HR)} ${Y(HY)} a ${U(HR)} ${U(HR)} 0 0 0 ${U(HR*2)} 0 z" fill="${skinSh}" opacity=".22"/>`
+     + `<ellipse cx="${X(-2.05)}" cy="${Y(HY+1.15)}" rx="${U(0.8)}" ry="${U(0.5)}" fill="#e5877f" opacity=".42"/>`
+     + `<ellipse cx="${X(2.05)}"  cy="${Y(HY+1.15)}" rx="${U(0.8)}" ry="${U(0.5)}" fill="#e5877f" opacity=".42"/>`
+     + `<ellipse cx="${X(-1.32)}" cy="${Y(HY+0.1)}" rx="${U(0.5)}" ry="${U(0.56)}" fill="${dark}"/>`
+     + `<ellipse cx="${X(1.32)}"  cy="${Y(HY+0.1)}" rx="${U(0.5)}" ry="${U(0.56)}" fill="${dark}"/>`
+     + `<circle cx="${X(-1.5)}" cy="${Y(HY-0.15)}" r="${U(0.19)}" fill="#fff"/>`
+     + `<circle cx="${X(1.14)}" cy="${Y(HY-0.15)}" r="${U(0.19)}" fill="#fff"/>`
+     + `<path d="M${X(-0.85)} ${Y(HY+1.5)} q ${U(0.85)} ${U(0.8)} ${U(1.7)} 0" fill="none"
+         stroke="${dark}" stroke-width="${U(0.28)}" stroke-linecap="round" opacity=".85"/>`
+     + `</g>`;
+
+  /* Hair caps only the top of the skull. An earlier version filled the
+     whole upper half from the head's centre line, which is above the eyes,
+     so it drew a full face and then covered the eyes with the fringe. */
+  const style = PERSON_HAIR[opt.hair];
+  s += `<g class="pr-hair">`
+     + (opt.hair==='long' ? style(X,Y,U,HY) : '')
+     + `<path d="M${X(-HR+0.06)} ${Y(HY-0.55)} a ${U(HR)} ${U(HR)} 0 0 1 ${U(HR*2-0.12)} 0
+           q ${U(-0.7)} ${U(-0.55)} ${U(-1.9)} ${U(-0.5)} q ${U(-1.6)} ${U(0.07)} ${U(-2.3)} ${U(0.5)} z" fill="${hairCol}"/>`
+     + (opt.hair==='short' ? '' :
+        `<path d="M${X(-2.5)} ${Y(HY-1.05)} q ${U(1.2)} ${U(-1.5)} ${U(3.2)} ${U(-1.1)}
+           q ${U(-1.7)} ${U(0.55)} ${U(-2.1)} ${U(1.6)} z" fill="#3a2c20"/>`)
+     + `<path d="M${X(-2.4)} ${Y(HY-1.9)} q ${U(1.7)} ${U(-1.1)} ${U(3.5)} ${U(-0.2)}"
+         fill="none" stroke="#5d4a38" stroke-width="${U(0.32)}" stroke-linecap="round" opacity=".75"/>`
+     + (opt.hair==='bun' ? style(X,Y,U,HY) : '')
+     + `</g>`;
+
+  /* The brim used to sit at y-5.2, exactly the eye line, so it hid the
+     face the moment there was one. A worker gets a peaked cap instead of
+     a sun hat - at this size a round brim reads as "any hat at all". */
+  if(hat){
+    if(opt.kit === 'worker'){
+      s += `<g class="pr-hat">`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.5)}" rx="${U(3.15)}" ry="${U(2.1)}" fill="${hat}"/>`
+         + `<path d="M${X(-3.15)} ${Y(HY-2.4)} a ${U(3.15)} ${U(2.1)} 0 0 1 ${U(6.3)} 0 z" fill="#fff" opacity=".14"/>`
+         + `<path d="M${X(-3.5)} ${Y(HY-1.5)} q ${U(3.5)} ${U(1.5)} ${U(6.6)} ${U(-0.5)}
+               q ${U(-3.2)} ${U(-0.8)} ${U(-6.6)} ${U(0.5)} z" fill="${hat}"/>`
+         + `<path d="M${X(-3.5)} ${Y(HY-1.5)} q ${U(3.5)} ${U(1.5)} ${U(6.6)} ${U(-0.5)}
+               q ${U(-3.2)} ${U(-0.8)} ${U(-6.6)} ${U(0.5)} z" fill="#000" opacity=".18"/>`
+         + `</g>`;
+    } else {
+      s += `<g class="pr-hat">`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-1.85)}" rx="${U(5.7)}" ry="${U(2.2)}" fill="${hat}"/>`
+         + `<path d="M${X(-5.7)} ${Y(HY-1.85)} a ${U(5.7)} ${U(2.2)} 0 0 0 ${U(11.4)} 0 z" fill="#000" opacity=".13"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.2)}" rx="${U(5.2)}" ry="${U(1.9)}" fill="${hat}"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-3.05)}" rx="${U(2.85)}" ry="${U(2.25)}" fill="${hat}"/>`
+         + `<path d="M${X(-2.85)} ${Y(HY-2.95)} a ${U(2.85)} ${U(2.25)} 0 0 1 ${U(5.7)} 0 z" fill="#fff" opacity=".16"/>`
+         + `<ellipse cx="${X(0)}" cy="${Y(HY-2.45)}" rx="${U(2.85)}" ry="${U(0.66)}" fill="#000" opacity=".18"/>`
+         + `</g>`;
+    }
+  }
   if(prop) s += prop;
   return s;
 }
+
+
+
 
 /* =====================================================================
    COMPONENTS — every placeable thing, drawn to its footprint.
@@ -808,6 +1044,11 @@ function bedArt(w,h,ob,rows){
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="${wet?'url(#gSoilWet)':'url(#gSoil)'}"/>`;
   /* timber edging */
   s += `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-2)}" rx="2" fill="none" stroke="#8b6640" stroke-width="1.6"/>`;
+  /* the frame is timber with a thickness: its top and left faces catch
+     the light, and the soil sits down inside it in shade. Two strokes,
+     no new geometry, and the bed stops reading as a flat brown card. */
+  s += `<path d="M1.4 ${n(h-2.4)} L1.4 1.4 L${n(w-1.4)} 1.4" fill="none" stroke="#c49a68" stroke-width="1" opacity=".55" stroke-linecap="round"/>`;
+  s += `<path d="M${n(w-1.4)} 1.4 L${n(w-1.4)} ${n(h-2.4)} L1.4 ${n(h-2.4)}" fill="none" stroke="var(--a-shadow)" stroke-width="1" opacity=".3" stroke-linecap="round"/>`;
   s += `<rect x="1.2" y="1.2" width="${n(w-2.4)}" height="${n(h-3.4)}" rx="1.6" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="0.8"/>`;
   const rh = (h-5)/rows;
   for(let r0=0;r0<rows;r0++){
@@ -877,6 +1118,10 @@ ART.cabin = (w,h)=>{
   s += `<rect x="${n(w*0.03)}" y="${n(h*0.5)}" width="${n(w*0.46)}" height="${n(h*0.24)}" rx="2" fill="#8e6b3e"/>`;
   s += `<rect x="${n(w*0.03)}" y="${n(h*0.49)}" width="${n(w*0.46)}" height="${n(h*0.22)}" rx="2" fill="url(#gTimber)"/>`;
   for(let i=1;i<9;i++) s += `<line x1="${n(w*0.03+i*(w*0.46/9))}" y1="${n(h*0.49)}" x2="${n(w*0.03+i*(w*0.46/9))}" y2="${n(h*0.71)}" stroke="#00000033" stroke-width="0.8"/>`;
+  /* the main mass sits behind and above the verandah - drop a soft band
+     along the verandah's back edge so the two read as different depths
+     rather than two rectangles on one plane */
+  s += `<rect x="${n(w*0.03)}" y="${n(h*0.49)}" width="${n(w*0.46)}" height="${n(h*0.05)}" fill="var(--a-shadow)" opacity=".22"/>`;
   s += `<g transform="translate(${n(w*0.42)},${n(h*0.26)})">${building(w*0.56,h*0.58,{solar:1,skylight:1})}</g>`;
   s += `<g transform="translate(1,1)">${building(w*0.66,h*0.48,{solar:1,chimney:1})}</g>`;
   s += `<rect x="${n(w*0.28)}" y="${n(h*0.4)}" width="${n(w*0.17)}" height="${n(h*0.16)}" rx="1.5" fill="url(#gGlass)" stroke="#7e929a" stroke-width="0.8"/>`;
@@ -888,7 +1133,9 @@ ART.workshop  = (w,h)=> building(w,h,{roof:'url(#gRoofRed)',solar:1});
 ART.cellar    = (w,h)=>{
   let s = patch(w,h,'#7fa855',9,1);
   s += `<ellipse cx="${n(w/2)}" cy="${n(h*0.48)}" rx="${n(w*0.36)}" ry="${n(h*0.32)}" fill="#6a8f45"/>`;
-  s += `<rect x="${n(w*0.36)}" y="${n(h*0.6)}" width="${n(w*0.28)}" height="${n(h*0.3)}" rx="2" fill="#7d5931"/>`;
+  /* the mound is a dome, so it takes the light on its upper-left third */
+  s += `<ellipse cx="${n(w/2-w*0.07)}" cy="${n(h*0.41)}" rx="${n(w*0.22)}" ry="${n(h*0.18)}" fill="#7fa855" opacity=".55"/>`;
+  s += `<rect x="${n(w*0.36)}" y="${n(h*0.6)}" width="${n(w*0.28)}" height="${n(h*0.3)}" rx="2" fill="var(--a-timber-d)"/>`;
   s += `<rect x="${n(w*0.4)}" y="${n(h*0.64)}" width="${n(w*0.2)}" height="${n(h*0.24)}" rx="1.5" fill="#4b3520"/>`;
   return s;
 };
@@ -906,8 +1153,8 @@ ART.solar_ground = (w,h)=>{
 };
 ART.wind = (w,h)=>{
   const cx=w/2, hy=h*0.3;
-  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34"/>`;
-  s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="#d6dad4"/>`;
+  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="url(#gShadow)" opacity=".5"/>`;
+  s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="url(#gMetal)"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="1.3" height="${n(h-hy-3)}" fill="#fff" opacity=".5"/>`;
   s += `<g class="spin" style="transform-origin:${n(cx)}px ${n(hy)}px">`;
   for(let i=0;i<3;i++) s += `<path d="M${n(cx)} ${n(hy)} l -1.4 -${n(hy*0.9)} q 1.4 -3 2.8 0 z" fill="#f3f4f0" transform="rotate(${i*120} ${n(cx)} ${n(hy)})"/>`;
@@ -920,6 +1167,10 @@ ART.battery = (w,h)=>{
   s += `<rect x="${n(w*0.14)}" y="${n(h*0.16)}" width="${n(w*0.72)}" height="${n(h*0.3)}" rx="2" fill="#69747e"/>`;
   s += `<rect x="${n(w*0.26)}" y="${n(h*0.52)}" width="${n(w*0.48)}" height="3.4" rx="1.7" fill="#0e1a10"/>`;
   s += `<rect x="${n(w*0.27)}" y="${n(h*0.53)}" width="${n(w*0.34)}" height="2.4" rx="1.2" fill="#7cc24f"/>`;
+  /* where the cabinet meets the ground, not a drop shadow - a darker band
+     inside its own footprint, which reads as contact at any zoom */
+  s += `<rect x="${n(w*0.14)}" y="${n(h*0.74)}" width="${n(w*0.72)}" height="${n(h*0.08)}" fill="#2f363d" opacity=".55"/>`;
+  s += edge(w*0.14, h*0.16, w*0.72, h*0.66, 2);   /* the cabinet, not the tile */
   return s;
 };
 
@@ -929,7 +1180,10 @@ ART.tank = (w,h,ob)=>{
   let s='';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h/2;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
+    /* This is the tank you actually see at tier 0: p19's tiered version
+       returns straight back here when curTier() is falsy, so editing that
+       one alone changed nothing on an un-upgraded farm. */
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){
@@ -949,7 +1203,11 @@ ART.tank = (w,h,ob)=>{
 ART.pond = (w,h)=> water(w,h,4);
 ART.well = (w,h)=>{
   let s = patch(w,h,'#84aa58',15,1);
+  s += `<ellipse cx="${n(w/2+1.5)}" cy="${n(h/2+2)}" rx="${n(Math.min(w,h)/2-2)}" ry="${n(Math.min(w,h)/2-3.5)}" fill="url(#gShadow)" opacity=".55"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)/2-3)}" fill="url(#gStone)"/>`;
+  /* the shaft is a hole, so its near rim catches light and its far rim
+     does not - one arc is the whole trick */
+  s += `<path d="M${n(w/2-(Math.min(w,h)/2-4.2))} ${n(h/2)} a ${n(Math.min(w,h)/2-4.2)} ${n(Math.min(w,h)/2-4.2)} 0 0 1 ${n((Math.min(w,h)/2-4.2)*2)} 0" fill="none" stroke="var(--a-shadow)" stroke-width="1.6" opacity=".4"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)/2-5.5)}" fill="#22506b"/>`;
   s += `<circle cx="${n(w/2-1.5)}" cy="${n(h/2-1.5)}" r="${n(Math.min(w,h)/2-8)}" fill="#3d7a9c" opacity=".7"/>`;
   return s;
@@ -957,7 +1215,8 @@ ART.well = (w,h)=>{
 ART.sprinkler = (w,h)=>{
   let s = patch(w,h,'#8cb35f',18,1);
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)*0.4)}" fill="none" stroke="#9fd6ee" stroke-width="1" stroke-dasharray="3 3" opacity=".7" class="spinSlow" style="transform-origin:${n(w/2)}px ${n(h/2)}px"/>`;
-  s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="2.6" fill="#5f6b74"/>`;
+  s += `<ellipse cx="${n(w/2+0.6)}" cy="${n(h/2+1.6)}" rx="3.4" ry="1.8" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="2.6" fill="url(#gMetal)"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="1.2" fill="#9fd6ee"/>`;
   return s;
 };
@@ -1053,7 +1312,7 @@ ART.flowers = (w,h)=>{
   s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
-    s += `<circle cx="${n(x)}" cy="${n(y+0.6)}" r="${n(1.5+hash(i)*1.1)}" fill="#3f7a32" opacity=".5"/>`;
+    s += `<circle cx="${n(x+0.4)}" cy="${n(y+0.8)}" r="${n(1.5+hash(i)*1.1)}" fill="var(--a-shadow)" opacity=".3"/>`;
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.4+hash(i)*1.1)}" fill="${cols[i%7]}"/>`;
   }
   s += `</g>`;
@@ -1063,9 +1322,12 @@ ART.compost = (w,h)=>{
   let s = ao(0,0,w,h,.28);
   for(let i=0;i<3;i++){
     const x = 1.5 + i*((w-3)/3);
-    s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="${n(h-5)}" rx="1.5" fill="#7d5931"/>`;
+    s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="${n(h-5)}" rx="1.5" fill="var(--a-timber-d)"/>`;
     s += `<rect x="${n(x+1)}" y="3.5" width="${n((w-3)/3-3.5)}" height="${n(h-7)}" rx="1" fill="${['#4b3520','#6b4f38','#4f7a35'][i]}"/>`;
     s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="1.6" rx="0.8" fill="#a1743f"/>`;
+    /* the third bin is the finished one - give it a straw crown so the
+       three bays read as a sequence rather than three identical boxes */
+    if(i===2) s += `<rect x="${n(x+1)}" y="3.2" width="${n((w-3)/3-3.5)}" height="2" rx="1" fill="url(#gStraw)" opacity=".85"/>`;
   }
   return s;
 };
@@ -1140,7 +1402,9 @@ ART.fodder = (w,h)=>{
   s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.floor(w*h/26);i++){
     const x=3+hash(i*1.4)*(w-6);
-    s += `<path d="M${n(x)} ${n(h-4)} q ${n((hash(i)-0.5)*3)} -6 ${n((hash(i+2)-0.5)*4)} -9" stroke="#c9c26a" stroke-width="1.1" fill="none"/>`;
+    /* two tones of stalk on the same hash - the darker ones read as the
+       row behind, which is most of what makes a crop look deep */
+    s += `<path d="M${n(x)} ${n(h-4)} q ${n((hash(i)-0.5)*3)} -6 ${n((hash(i+2)-0.5)*4)} -9" stroke="${hash(i*3.1)>0.5?'#c9c26a':'#a89c52'}" stroke-width="1.1" fill="none"/>`;
   }
   s += `</g>`;
   return s;
@@ -1169,7 +1433,9 @@ ART.dairy = (w,h,ob)=>{
 };
 ART.packing = (w,h,ob)=>{
   let s = building(w,h,{solar:1,solar2:1});
+  s += `<ellipse cx="${n(w*0.23)}" cy="${n(h*0.72)}" rx="${n(w*0.15)}" ry="2.4" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<rect x="${n(w*0.1)}" y="${n(h*0.68)}" width="${n(w*0.24)}" height="5" rx="1" fill="#a1743f"/>`;
+  s += `<rect x="${n(w*0.1)}" y="${n(h*0.68)}" width="${n(w*0.24)}" height="1.6" rx="0.8" fill="#c08f52"/>`;
   return s;
 };
 
@@ -1187,26 +1453,35 @@ ART.farm_stand = (w,h,ob)=>{
 };
 ART.tea_kiosk = (w,h)=>{
   let s = ART.farm_stand(w,h,null);
-  s += `<circle cx="${n(w*0.5)}" cy="${n(h*0.62)}" r="3" fill="#f4efe1"/>`;
+  s += `<ellipse cx="${n(w*0.5+0.8)}" cy="${n(h*0.62+2.6)}" rx="3.4" ry="1.4" fill="url(#gShadow)" opacity=".5"/>`;
+  s += `<circle cx="${n(w*0.5)}" cy="${n(h*0.62)}" r="3" fill="url(#gPlaster)"/>`;
+  s += `<circle cx="${n(w*0.5-0.9)}" cy="${n(h*0.62-0.9)}" r="1.2" fill="#fff" opacity=".55"/>`;
   return s;
 };
 ART.gift_shop = (w,h)=>{
   let s = building(w,h,{roof:'url(#gRoof)'});
+  /* A 5px-tall shopfront can never clear edge()'s size gate, so it gets
+     the frame drawn explicitly rather than a call that returns ''. */
   s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="5" rx="1" fill="url(#gGlass)"/>`;
+  s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="5" rx="1" fill="none" stroke="var(--a-edge)" stroke-width="0.6"/>`;
+  s += `<rect x="${n(w*0.28)}" y="${n(h*0.62)}" width="${n(w*0.42)}" height="1.6" rx="0.8" fill="#fff" opacity=".3"/>`;
   return s;
 };
 ART.glamping = (w,h)=>{
   const cx=w/2;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32"/>`;
-  s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="#cfc3a4"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="url(#gShadow)" opacity=".5"/>`;
+  /* left flank is the shaded one, right flank faces the sun - same two
+     polygons as before, now both on the canvas gradient */
+  s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="url(#gPlaster)"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} ${n(cx)},${n(h-4)}" fill="#efe6cd"/>`;
+  s += `<polygon points="${n(cx)},2 ${n(cx)},${n(h-4)} 3,${n(h-4)}" fill="var(--a-shadow)" opacity=".13"/>`;
   s += `<path d="M${n(cx)} ${n(h-4)} L${n(cx-w*0.12)} ${n(h*0.52)} L${n(cx+w*0.12)} ${n(h*0.52)} z" fill="#6d5b44"/>`;
-  s += `<circle cx="${n(cx)}" cy="3" r="1.6" fill="#f0c14b"/>`;
+  s += `<circle cx="${n(cx)}" cy="3" r="1.6" fill="var(--a-gold)"/>`;
   return s;
 };
 ART.dome = (w,h)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="url(#gShadow)" opacity=".55"/>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGlass)"/>`;
   for(let i=0;i<6;i++){
     const a1=(i/6)*Math.PI*2, a2=((i+1)/6)*Math.PI*2;
@@ -1225,15 +1500,20 @@ ART.deck = (w,h)=>{
   s += `<rect x="${n(w*0.3)}" y="${n(h*0.3)}" width="${n(w*0.4)}" height="${n(h*0.36)}" rx="2" fill="#7fa9bd" opacity=".85"/>`;
   s += `<circle cx="${n(w*0.14)}" cy="${n(h*0.76)}" r="3.6" fill="#4f8a35"/>`;
   s += `<circle cx="${n(w*0.87)}" cy="${n(h*0.24)}" r="4" fill="#5f9c3d"/>`;
+  s += edge(0.5, 0.5, w-1, h-2, 2.5);
   return s;
 };
 ART.playground = (w,h)=>{
   let s = patch(w,h,'#93bd64',41,1);
-  s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.62)}" rx="${n(w*0.18)}" ry="${n(h*0.2)}" fill="#b9ab82"/>`;
+  s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.62)}" rx="${n(w*0.18)}" ry="${n(h*0.2)}" fill="url(#gEarthDry)"/>`;
   s += `<ellipse cx="${n(w*0.24)}" cy="${n(h*0.6)}" rx="${n(w*0.16)}" ry="${n(h*0.17)}" fill="#e0d3ac"/>`;
   s += `<g transform="translate(${n(w*0.05)},${n(h*0.08)})">${building(w*0.24,h*0.3,{roof:'url(#gRoofRed)'})}</g>`;
+  /* the A-frame and the slide were floating - one small pool of shade at
+     each foot puts them back on the grass */
+  s += `<ellipse cx="${n(w*0.56)}" cy="${n(h*0.71)}" rx="${n(w*0.12)}" ry="2.6" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<path d="M${n(w*0.46)} ${n(h*0.7)} L${n(w*0.56)} ${n(h*0.2)} L${n(w*0.66)} ${n(h*0.7)}" stroke="#a8814f" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
   s += `<rect x="${n(w*0.52)}" y="${n(h*0.44)}" width="6.5" height="2.4" rx="1.2" fill="#c8583f"/>`;
+  s += `<ellipse cx="${n(w*0.89)}" cy="${n(h*0.64)}" rx="${n(w*0.05)}" ry="2.2" fill="url(#gShadow)" opacity=".5"/>`;
   s += `<path d="M${n(w*0.76)} ${n(h*0.22)} L${n(w*0.9)} ${n(h*0.62)}" stroke="#4f93b5" stroke-width="4.5" fill="none" stroke-linecap="round"/>`;
   s += `<rect x="${n(w*0.72)}" y="${n(h*0.14)}" width="${n(w*0.1)}" height="${n(h*0.12)}" rx="1.5" fill="#efb43c"/>`;
   return s;
@@ -1243,6 +1523,7 @@ ART.firepit = (w,h)=>{
   let s = patch(w,h,'#8cb35f',43,1);
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGravel)"/>`;
   for(let i=0;i<9;i++){ const a=(i/9)*Math.PI*2;
+    s += `<ellipse cx="${n(cx+Math.cos(a)*R*0.82+0.7)}" cy="${n(cy+Math.sin(a)*R*0.82+1.1)}" rx="2.6" ry="1.5" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx+Math.cos(a)*R*0.82)}" cy="${n(cy+Math.sin(a)*R*0.82)}" r="2.4" fill="url(#gStone)"/>`; }
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R*0.42)}" fill="#3a2f26"/>`;
   s += `<circle class="flame" cx="${n(cx)}" cy="${n(cy)}" r="${n(R*0.26)}" fill="#e8862e"/>`;
@@ -1262,16 +1543,21 @@ ART.hedge  = (w,h)=> hedge(w,h);
 ART.fence  = (w,h)=> fence(w,h);
 ART.gate   = (w,h)=>{
   let s = gravel(w,h*0.5,'rect',2).replace(/^/,`<g transform="translate(0,${n(h*0.45)})">`)+'</g>';
+  s += `<ellipse cx="${n(w*0.07+3.5)}" cy="${n(h*0.88)}" rx="4.2" ry="1.7" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<ellipse cx="${n(w*0.86+3.5)}" cy="${n(h*0.88)}" rx="4.2" ry="1.7" fill="url(#gShadow)" opacity=".6"/>`;
   s += `<rect x="${n(w*0.07)}" y="${n(h*0.18)}" width="5" height="${n(h*0.7)}" rx="2" fill="url(#gTimber)"/>`;
   s += `<rect x="${n(w*0.86)}" y="${n(h*0.18)}" width="5" height="${n(h*0.7)}" rx="2" fill="url(#gTimber)"/>`;
+  s += `<rect x="${n(w*0.07)}" y="${n(h*0.18)}" width="1.7" height="${n(h*0.7)}" rx="0.8" fill="#fff" opacity=".22"/>`;
+  s += `<rect x="${n(w*0.86)}" y="${n(h*0.18)}" width="1.7" height="${n(h*0.7)}" rx="0.8" fill="#fff" opacity=".22"/>`;
   s += `<path d="M${n(w*0.09)} ${n(h*0.22)} Q${n(w/2)} ${n(h*0.02)} ${n(w*0.89)} ${n(h*0.22)}" stroke="#8e6b3e" stroke-width="6" fill="none" stroke-linecap="round"/>`;
   s += `<path d="M${n(w*0.09)} ${n(h*0.21)} Q${n(w/2)} ${n(h*0.01)} ${n(w*0.89)} ${n(h*0.21)}" stroke="#bb8b57" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
   return s;
 };
 ART.sign = (w,h)=>{
   let s = patch(w,h,'#8cb35f',47,1);
-  s += `<rect x="${n(w/2-1.4)}" y="${n(h*0.5)}" width="2.8" height="${n(h*0.42)}" fill="#7d5931"/>`;
-  s += `<rect x="4" y="${n(h*0.16)}" width="${n(w-8)}" height="${n(h*0.36)}" rx="2" fill="#f4efe1" stroke="#7d5931" stroke-width="1.6"/>`;
+  s += `<ellipse cx="${n(w/2+1.2)}" cy="${n(h*0.92)}" rx="4" ry="1.6" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<rect x="${n(w/2-1.4)}" y="${n(h*0.5)}" width="2.8" height="${n(h*0.42)}" fill="var(--a-timber-d)"/>`;
+  s += `<rect x="4" y="${n(h*0.16)}" width="${n(w-8)}" height="${n(h*0.36)}" rx="2" fill="url(#gPlaster)" stroke="var(--a-timber-d)" stroke-width="1.6"/>`;
   s += `<line x1="7" y1="${n(h*0.28)}" x2="${n(w-7)}" y2="${n(h*0.28)}" stroke="#9c8470" stroke-width="1.4"/>`;
   s += `<line x1="7" y1="${n(h*0.4)}" x2="${n(w-11)}" y2="${n(h*0.4)}" stroke="#9c8470" stroke-width="1.4"/>`;
   return s;
@@ -3494,7 +3780,7 @@ function youLayer(){
   youInit();
   const y = S.you;
   return `<g id="you" transform="translate(${n(y.x)},${n(y.y)})">
-    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a')}${typeof carryArt==='function'?carryArt():''}</g></g></g>`;
+    <g class="youbob"><g transform="scale(${y.dir},1)">${person(0,0,1.15,'#c8583f','#e0c07a',null,{kit:'you'})}${typeof carryArt==='function'?carryArt():''}</g></g></g>`;
 }
 function paintYou(){
   const el = document.getElementById('you');
@@ -4546,13 +4832,17 @@ function movePerson(p, dt){
 }
 function peopleLayer(){
   peopleInit();
-  const one = (p, sc, shirt, hat) =>
+  /* Costume and hair are chosen per person so the household are not four
+     of the same figure in different colours. Hair is keyed off the id so
+     a given child keeps the same head every redraw. */
+  const one = (p, sc, shirt, hat, opt) =>
     `<g class="npc" data-p="${p.id}" transform="translate(${n(p.x)},${n(p.y)})">
-      <g class="youbob"><g transform="scale(${p.dir},1)">${person(0,0,sc,shirt,hat)}</g></g>
+      <g class="youbob"><g transform="scale(${p.dir},1)">${person(0,0,sc,shirt,hat,null,opt||{})}</g></g>
       <text class="nlab" y="-26" text-anchor="middle">${p.name}</text></g>`;
   return `<g id="people">
-    ${S.family.map(f=>one(f, f.sc, f.shirt, f.role==='partner'?'#c47fa8':null)).join('')}
-    ${S.workers.map(w=>one(w, 1.05, '#4f8a9c', '#e0c07a')).join('')}
+    ${S.family.map(f=>one(f, f.sc, f.shirt, null,
+        { hair: f.role==='partner' ? 'bun' : (String(f.id).charCodeAt(0)%2 ? 'long' : 'bowl') })).join('')}
+    ${S.workers.map(w=>one(w, 1.05, '#4f8a9c', '#8a7f5f', {kit:'worker', hair:'short'})).join('')}
   </g>`;
 }
 function paintPeople(){
@@ -6638,7 +6928,7 @@ ART.tank = (w,h,ob)=>{
   let s = '';
   for(let i=0;i<cnt;i++){
     const cx=(w/cnt)*(i+0.5), cy=h*0.48;
-    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="#16240c" opacity=".34"/>`;
+    s += `<ellipse cx="${n(cx+2)}" cy="${n(cy+2.5)}" rx="${n(rad)}" ry="${n(rad*0.9)}" fill="url(#gShadow)" opacity=".6"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad)}" fill="#2f4f2f"/>`;
     s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(rad-1.2)}" fill="url(#gTank)"/>`;
     for(let j=0;j<12;j++){ const a=(j/12)*Math.PI*2;
@@ -13513,7 +13803,7 @@ function guestLayer(){
   if(!(S.guests||[]).length) return '';
   return `<g id="guests">` + S.guests.map(g=>
     `<g class="npc guest" data-g="${g.id}" transform="translate(${n(g.x)},${n(g.y)})">
-      <g class="youbob"><g transform="scale(${g.dir},1)">${person(0,0,1.0,g.shirt,null)}</g></g>
+      <g class="youbob"><g transform="scale(${g.dir},1)">${person(0,0,1.0,g.shirt,null,null,{kit:'guest', hair:(g.id%2?'long':'bowl')})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${g.name}</text></g>`).join('') + `</g>`;
 }
 
@@ -13887,7 +14177,7 @@ function staffLayer(){
   if(!(S.staff||[]).length) return '';
   return `<g id="staff">` + S.staff.map(w=>
     `<g class="npc worker" data-w="${w.id}" transform="translate(${n(w.x)},${n(w.y)})">
-      <g class="youbob working"><g transform="scale(${w.dir},1)">${person(0,0,1.0,w.shirt,'#e8e0cc')}</g></g>
+      <g class="youbob working"><g transform="scale(${w.dir},1)">${person(0,0,1.0,w.shirt,'#8a7f5f',null,{kit:'worker', hair:'short'})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${w.name}</text></g>`).join('') + `</g>`;
 }
 
@@ -14153,7 +14443,7 @@ function traderLayer(){
   return `<g id="traders">` + S.traders.map(tr=>
     `<g class="npc trader${tr.cheer?' cheering':''}" data-t="${tr.id}"
         transform="translate(${n(tr.x)},${n(tr.y)})">
-      <g class="youbob"><g transform="scale(${tr.dir},1)">${person(0,0,1.0,tr.shirt,'#e8e0cc')}</g></g>
+      <g class="youbob"><g transform="scale(${tr.dir},1)">${person(0,0,1.0,tr.shirt,null,null,{kit:'trader', hair:(tr.id%2?'bun':'short')})}</g></g>
       <text class="nlab" y="-24" text-anchor="middle">${tr.name}</text></g>`).join('') + `</g>`;
 }
 
@@ -21142,7 +21432,12 @@ const NEW_REC = [
   };
 
   /* --- animals: paddock() gives pens, shelters and the mind hooks --- */
-  A.quail       = (w,h,ob)=> paddock(w,h,'chicken', ob?Math.min(10,ob.animals||0):3, 51, 0.7);
+  /* This said 'chicken', so the quail hutch drew white birds with red
+     combs while the live simulation - which reads bp.animal correctly -
+     walked actual quail around on top of them. Two different species in
+     one pen. beast3d has had a quail body since p68; the pen art just
+     never asked for it. */
+  A.quail       = (w,h,ob)=> paddock(w,h,'quail',   ob?Math.min(10,ob.animals||0):3, 51, 0.7);
   A.pig_pen     = (w,h,ob)=> paddock(w,h,'pig',     ob?Math.min(4, ob.animals||0):2, 53, 1.05);
   A.turkey_run  = (w,h,ob)=> paddock(w,h,'turkey',  ob?Math.min(6, ob.animals||0):2, 55, 1.0);
   A.alpaca      = (w,h,ob)=> paddock(w,h,'alpaca',  ob?Math.min(4, ob.animals||0):2, 57, 1.1);
@@ -22050,6 +22345,253 @@ G.tierAudit = function(){
            rewrapped:ARCH_REWRAPPED.size };
 };
 G.benchTalk = function(){ BENCH_T = 0; return { pairs: benchPairs().map(p=>p[0].name+' + '+p[1].name) }; };
+
+/* =====================================================================
+   GUESTS COULD NOT SEE ANYTHING NEW
+
+   The guests walk to a stop chosen from GUEST_STOPS, and that was a
+   hand-written list of eight art names: tea_kiosk, gift_shop,
+   farm_stand, deck, firepit, playground, pond, orchard. The cafe, the
+   honesty box, the pick-your-own gate and every new leisure item were
+   simply not in it, so a guest would walk past a A$620 cafe to queue at
+   the tea kiosk.
+
+   The list is the bug, not its contents. A hand-maintained table of
+   place names means every item added from here on is invisible to
+   guests until somebody remembers to come back and add it. So the stops
+   are derived from the blueprints instead: anything that takes money
+   from a visitor, or that an adult would plausibly go and look at, is a
+   stop automatically. The bespoke lines below are then decoration on top
+   of a list that maintains itself.
+
+   Two things are deliberately NOT stops. Lodging - the tent, the dome,
+   the bunkhouse, the shepherd's hut - is where guests live, and having
+   one pay to visit another's bed is nonsense. And anything with no charm
+   and no income, like a signal relay, which nobody would cross a field
+   to look at.
+   ===================================================================== */
+
+/* where a guest will not go */
+const GUEST_LODGING = ['glamping','dome','bunkhouse','shepherd_hut'];
+
+/* Lines and prices for the places that deserve their own voice. Anything
+   not listed still becomes a stop - it just gets a generic line and a
+   price worked out from its blueprint. */
+const GUEST_STOP_LINES = {
+  cafe:        { act:'in the cafe',            say:['Table for two?','That cake is enormous.','Best coffee for miles.'] },
+  honesty_box: { act:'at the honesty box',     say:['No one here at all.','I have left the money in the tin.'] },
+  pickyourown: { act:'picking their own',      say:['Right down the rows we go.','These are still warm.','One for the punnet, one for me.'] },
+  tea_kiosk:   { act:'at the tea kiosk',       say:['Two teas, please.','Proper scone, this.'] },
+  gift_shop:   { act:'in the gift shop',       say:['I am buying this.','One for my sister.'] },
+  farm_stand:  { act:'at the farm stand',      say:['All this is from here?','I will take a dozen.'] },
+  deck:        { act:'on the yoga deck',       say:['Breathe out…','Best class I have had.'] },
+  firepit:     { act:'at the fire circle',     say:['Budge up.','Marshmallows?'] },
+  firepit_seats:{act:'round the fire',         say:['Room for one more?','This is the best bit of the day.'] },
+  playground:  { act:'watching the kids',      say:['They will sleep well tonight.'] },
+  zipline:     { act:'watching the zip line',  say:['Go on, have a go.','Rather them than me.'] },
+  climbing_frame:{act:'by the climbing frame', say:['Careful at the top!'] },
+  plunge_pool: { act:'at the plunge pool',     say:['Cold. Very cold.','Bracing, that.'] },
+  bird_hide:   { act:'in the bird hide',       say:['*whispering*','There — did you see it?','Shh.'] },
+  pond:        { act:'down by the pond',       say:['Look at the light on that water.'] },
+  orchard:     { act:'walking the orchard',    say:['Can you smell the blossom?'] },
+  vine_row:    { act:'along the vines',        say:['You make wine too?','These are nearly ready.'] },
+  dam:         { act:'up at the dam',          say:['That is a lot of water.','Good spot, this.'] },
+  wildflower:  { act:'in the wildflowers',     say:['Listen to the bees.','I could photograph this all day.'] },
+  pergola:     { act:'under the pergola',      say:['Out of the sun at last.','Smells wonderful.'] },
+  sauna:       { act:'in the sauna',           say:['Ten more minutes.'] },
+  hottub:      { act:'in the hot tub',         say:['This water is perfect.','Worth every cent.'] },
+  cinema:      { act:'at the outdoor cinema',  say:['Have you seen this one?','Pass the popcorn.'] },
+};
+
+/* What a visit costs, taken from the blueprint rather than invented:
+   a tourism building charges a share of its daily income, a shop takes a
+   basket, and anything free stays free. */
+function guestSpendFor(bp){
+  if(!bp) return 0;
+  if(GUEST_LODGING.indexOf(bp.art) >= 0) return 0;
+  if(bp.kind === 'tourism') return Math.max(4, Math.round((bp.income || 10) * 0.55));
+  if(bp.kind === 'shop')    return Math.max(4, Math.round((bp.rate || 1) * 6));
+  return 0;                                   /* look, do not pay */
+}
+
+/* Is this worth crossing a field for? Anything that takes money, plus
+   anything with real charm - which is the game's own measure of "nice to
+   look at" - plus recreation meant for adults. */
+function isGuestStop(bp){
+  if(!bp) return false;
+  if(GUEST_LODGING.indexOf(bp.art) >= 0) return false;
+  /* The homestead has charm 12, which qualified it under the charm rule
+     and sent paying guests wandering into the family's kitchen. Anywhere
+     the household lives or works privately is out. */
+  if(bp.kind === 'home' || bp.kind === 'housing' || bp.kind === 'hub') return false;
+  if(bp.kind === 'tourism' || bp.kind === 'shop') return true;
+  if(bp.kind === 'rec') return true;
+  if(GUEST_STOP_LINES[bp.art] || GUEST_STOP_LINES[bp.art.replace(/^rec_/, '')]) return true;
+  return (bp.charm || 0) >= 10;               /* ponds, orchards, big planting */
+}
+
+/* ---------- rebuild guestStops() from the world, every time ---------- */
+if(typeof guestStops === 'function'){
+  guestStops = function(){
+    const out = [];
+    (S.objs || []).forEach(o=>{
+      const bp = BPMAP[o.bp];
+      if(!isGuestStop(bp)) return;
+      const f = footprint(bp, o.rot);
+      /* leisure art is named rec_<id>, so a bespoke entry keyed on the
+         plain id - plunge_pool, bird_hide - never matched and every new
+         leisure item fell through to the generic line */
+      const key = bp.art.replace(/^rec_/, '');
+      const custom = GUEST_STOP_LINES[bp.art] || GUEST_STOP_LINES[key];
+      out.push({
+        art: bp.art,
+        o,
+        x: (o.tx + f.w * 0.5) * T,
+        y: (o.ty + f.h * 0.78) * T,
+        act: custom ? custom.act : `looking at the ${bp.name.toLowerCase()}`,
+        say: custom ? custom.say : null,
+        spend: guestSpendFor(bp),
+      });
+    });
+    return out;
+  };
+}
+
+/* pickGuestStop reads .spend and .say off whatever guestStops returns, so
+   it needs no changes - but it did assume `say` was always present */
+if(typeof pickGuestStop === 'function'){
+  const _pickBase = pickGuestStop;
+  pickGuestStop = function(g){
+    const t = _pickBase.apply(this, arguments);
+    /* a stop with no bespoke lines should still get the occasional
+       remark, or the new places feel mute next to the old ones */
+    if(t && !t.say && Math.random() < 0.4){
+      const generic = ['Worth the walk.','I like this.','Have you been over here?','Lovely, this bit.'];
+      if(typeof speak === 'function')
+        setTimeout(()=>{ if(g.trip) speak(g, generic[Math.floor(Math.random()*generic.length)]); }, 2400);
+    }
+    return t;
+  };
+}
+
+/* ---------- handles ---------- */
+G.guestStops = function(){
+  const stops = guestStops();
+  return {
+    count: stops.length,
+    stops: stops.map(s=>({ art:s.art, act:s.act, spend:s.spend, bespoke: !!s.say })),
+    ignored: (S.objs||[]).filter(o=>!isGuestStop(BPMAP[o.bp]))
+              .map(o=>BPMAP[o.bp].art)
+              .filter((v,i,a)=>a.indexOf(v)===i).slice(0,12),
+  };
+};
+
+/* =====================================================================
+   THE WHOLE FARM WAS RENDERING NEAR-BLACK
+
+   The lawn is one rect filled url(#gLawn), and gLawn is a mid-green
+   three-stop gradient. On screen the property was a dark, almost black
+   rectangle with faint vertical banding, while the meadow outside the
+   hedge stayed a healthy green. Forcing the rect to magenta proved
+   nothing was covering it: the gradient itself was not painting, and
+   what showed through was the bare backdrop with the mown stripes -
+   which are white at 3.5% - reading as the only texture on it.
+
+   The cause is DEFS() being emitted into every SVG in the document. The
+   scene has two (#bg, #fg) and every catalogue thumbnail builds its own,
+   so each gradient id existed eleven times over. `url(#gLawn)` resolves
+   to the FIRST element with that id in the document, and the first one
+   lived inside a build-menu thumbnail in ASIDE#left - a panel with
+   display:none. A paint server inside a subtree that is never rendered
+   is not built, so every reference to it silently paints nothing.
+
+   Cross-<svg> references are not the problem and were verified working:
+   a rect in #fg filled from a gradient in #bg's own defs paints
+   correctly. The problem is only ever *which* copy wins the id, and
+   whether that copy is in a rendered subtree.
+
+   So: install the definitions exactly once, in a host that is always
+   rendered and always first, and make DEFS() emit nothing afterwards.
+   Every existing call site keeps working untouched - there are eight of
+   them across the layers, the thumbnails and the market - they just stop
+   contributing duplicate ids, and all of them resolve to the one live
+   copy. It also drops eight redundant copies of the block from the DOM.
+
+   The host is width/height 0 and clipped, NOT display:none - that would
+   reintroduce the exact bug this fixes.
+   ===================================================================== */
+
+const DEFS_HOST_ID = 'defsHost';
+
+function installDefsHost(){
+  if(document.getElementById(DEFS_HOST_ID)) return false;
+  const raw = DEFS();                        /* capture before overriding */
+  if(!raw) return false;
+  const host = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  host.setAttribute('id', DEFS_HOST_ID);
+  host.setAttribute('width','0');
+  host.setAttribute('height','0');
+  host.setAttribute('aria-hidden','true');
+  /* rendered, but occupying nothing and never hit-testable */
+  host.setAttribute('style','position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;pointer-events:none');
+  host.innerHTML = raw;
+  document.body.insertBefore(host, document.body.firstChild);
+  return true;
+}
+
+/* Once the host owns the ids, every other emitter must stop claiming
+   them. Returning '' rather than editing eight call sites keeps this
+   reversible and keeps the art code unaware of any of it. */
+const _DEFS_FULL = DEFS;
+function scopeDefsToHost(){
+  DEFS = function(){
+    return document.getElementById(DEFS_HOST_ID) ? '' : _DEFS_FULL();
+  };
+}
+
+(function defsHostBoot(){
+  const go = function(){
+    if(!installDefsHost()) return;
+    scopeDefsToHost();
+    /* the backdrop is cached and was built with the duplicate ids in it,
+       so it has to be rebuilt once for the fix to show */
+    if(typeof terrainCache !== 'undefined') terrainCache = '';
+    if(typeof render === 'function') render();
+  };
+  if(document.body) setTimeout(go, 0);
+  else document.addEventListener('DOMContentLoaded', ()=>setTimeout(go,0));
+})();
+
+/* ---------- handle ---------- */
+/* Reports whether any gradient id is still duplicated, and whether the
+   copy that wins each id is in a rendered subtree. That second half is
+   the part that actually matters and the part I could not see by
+   reading the source. */
+G.defsAudit = function(){
+  const host = document.getElementById(DEFS_HOST_ID);
+  const ids = host ? [...host.querySelectorAll('[id]')].map(n=>n.id) : [];
+  const dupes = [], hiddenOwner = [];
+  ids.forEach(id=>{
+    const all = document.querySelectorAll('[id="'+id+'"]');
+    if(all.length > 1) dupes.push(id+' x'+all.length);
+    let r = all[0];
+    while(r && r.tagName !== 'svg') r = r.parentNode;
+    let a = r, hid = false;
+    while(a && a !== document.body){
+      const cs = getComputedStyle(a);
+      if(cs.display === 'none' || cs.visibility === 'hidden'){ hid = true; break; }
+      a = a.parentNode;
+    }
+    if(hid) hiddenOwner.push(id);
+  });
+  return {
+    hostPresent: !!host,
+    definitions: ids.length,
+    stillDuplicated: dupes,
+    winningCopyInHiddenSubtree: hiddenOwner,   /* must be empty */
+    defsNowEmits: DEFS().length,
+  };
+};
 
 
 </script>
