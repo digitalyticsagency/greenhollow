@@ -503,9 +503,17 @@ function ao(x,y,w,h,o){
   /* Was two flat #16240c ellipses with hard edges. gShadow fades to zero
      alpha at its own rim, so the contact shadow ends softly without a
      blur filter - the effect the banned fSoft was there for, at no cost.
-     One ellipse now does what two were approximating. */
-  return `<ellipse cx="${n(x+w/2+w*0.055)}" cy="${n(y+h*0.935)}" rx="${n(w*0.58)}" ry="${n(h*0.24)}"
-    fill="url(#gShadow)" opacity="${(op*1.15).toFixed(2)}"/>`;
+     One ellipse now does what two were approximating.
+
+     Geometry is copied exactly from the old outer ellipse - cx+0.06w,
+     0.94h, rx 0.55w, ry 0.22h. It already reached past the footprint to
+     1.11w, and a first pass at this quietly widened it to 1.16w, which
+     bleeds onto the next tile. The only thing that changes here is the
+     fill. Opacity is x1.9 because the two old ellipses composited over
+     each other to ~0.30 at op=0.28, and gShadow's centre stop is 0.55
+     alpha - x1.15 would have made every shadow on the farm lighter. */
+  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
+    fill="url(#gShadow)" opacity="${Math.min(1, op*1.9).toFixed(2)}"/>`;
 }
 
 /* The one outline rule. Structures get a hairline darker edge on their
@@ -918,7 +926,9 @@ ART.workshop  = (w,h)=> building(w,h,{roof:'url(#gRoofRed)',solar:1});
 ART.cellar    = (w,h)=>{
   let s = patch(w,h,'#7fa855',9,1);
   s += `<ellipse cx="${n(w/2)}" cy="${n(h*0.48)}" rx="${n(w*0.36)}" ry="${n(h*0.32)}" fill="#6a8f45"/>`;
-  s += `<rect x="${n(w*0.36)}" y="${n(h*0.6)}" width="${n(w*0.28)}" height="${n(h*0.3)}" rx="2" fill="#7d5931"/>`;
+  /* the mound is a dome, so it takes the light on its upper-left third */
+  s += `<ellipse cx="${n(w/2-w*0.07)}" cy="${n(h*0.41)}" rx="${n(w*0.22)}" ry="${n(h*0.18)}" fill="#7fa855" opacity=".55"/>`;
+  s += `<rect x="${n(w*0.36)}" y="${n(h*0.6)}" width="${n(w*0.28)}" height="${n(h*0.3)}" rx="2" fill="var(--a-timber-d)"/>`;
   s += `<rect x="${n(w*0.4)}" y="${n(h*0.64)}" width="${n(w*0.2)}" height="${n(h*0.24)}" rx="1.5" fill="#4b3520"/>`;
   return s;
 };
@@ -936,8 +946,8 @@ ART.solar_ground = (w,h)=>{
 };
 ART.wind = (w,h)=>{
   const cx=w/2, hy=h*0.3;
-  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="#16240c" opacity=".34"/>`;
-  s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="#d6dad4"/>`;
+  let s = `<ellipse cx="${n(cx+5)}" cy="${n(h-5)}" rx="9" ry="3" fill="url(#gShadow)" opacity=".5"/>`;
+  s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="3.2" height="${n(h-hy-3)}" rx="1.6" fill="url(#gMetal)"/>`;
   s += `<rect x="${n(cx-1.6)}" y="${n(hy)}" width="1.3" height="${n(h-hy-3)}" fill="#fff" opacity=".5"/>`;
   s += `<g class="spin" style="transform-origin:${n(cx)}px ${n(hy)}px">`;
   for(let i=0;i<3;i++) s += `<path d="M${n(cx)} ${n(hy)} l -1.4 -${n(hy*0.9)} q 1.4 -3 2.8 0 z" fill="#f3f4f0" transform="rotate(${i*120} ${n(cx)} ${n(hy)})"/>`;
@@ -950,6 +960,10 @@ ART.battery = (w,h)=>{
   s += `<rect x="${n(w*0.14)}" y="${n(h*0.16)}" width="${n(w*0.72)}" height="${n(h*0.3)}" rx="2" fill="#69747e"/>`;
   s += `<rect x="${n(w*0.26)}" y="${n(h*0.52)}" width="${n(w*0.48)}" height="3.4" rx="1.7" fill="#0e1a10"/>`;
   s += `<rect x="${n(w*0.27)}" y="${n(h*0.53)}" width="${n(w*0.34)}" height="2.4" rx="1.2" fill="#7cc24f"/>`;
+  /* where the cabinet meets the ground, not a drop shadow - a darker band
+     inside its own footprint, which reads as contact at any zoom */
+  s += `<rect x="${n(w*0.14)}" y="${n(h*0.74)}" width="${n(w*0.72)}" height="${n(h*0.08)}" fill="#2f363d" opacity=".55"/>`;
+  s += edge(w,h,2);
   return s;
 };
 
@@ -987,7 +1001,8 @@ ART.well = (w,h)=>{
 ART.sprinkler = (w,h)=>{
   let s = patch(w,h,'#8cb35f',18,1);
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="${n(Math.min(w,h)*0.4)}" fill="none" stroke="#9fd6ee" stroke-width="1" stroke-dasharray="3 3" opacity=".7" class="spinSlow" style="transform-origin:${n(w/2)}px ${n(h/2)}px"/>`;
-  s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="2.6" fill="#5f6b74"/>`;
+  s += `<ellipse cx="${n(w/2+0.6)}" cy="${n(h/2+1.6)}" rx="3.4" ry="1.8" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="2.6" fill="url(#gMetal)"/>`;
   s += `<circle cx="${n(w/2)}" cy="${n(h/2)}" r="1.2" fill="#9fd6ee"/>`;
   return s;
 };
@@ -1083,7 +1098,7 @@ ART.flowers = (w,h)=>{
   s += `<g class="sway" style="transform-origin:${n(w/2)}px ${n(h)}px">`;
   for(let i=0;i<Math.min(38,Math.floor(w*h/70));i++){
     const x=3+hash(i*1.3)*(w-6), y=3+hash(i*2.7+3)*(h-6);
-    s += `<circle cx="${n(x)}" cy="${n(y+0.6)}" r="${n(1.5+hash(i)*1.1)}" fill="#3f7a32" opacity=".5"/>`;
+    s += `<circle cx="${n(x+0.4)}" cy="${n(y+0.8)}" r="${n(1.5+hash(i)*1.1)}" fill="var(--a-shadow)" opacity=".3"/>`;
     s += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.4+hash(i)*1.1)}" fill="${cols[i%7]}"/>`;
   }
   s += `</g>`;
@@ -1093,9 +1108,12 @@ ART.compost = (w,h)=>{
   let s = ao(0,0,w,h,.28);
   for(let i=0;i<3;i++){
     const x = 1.5 + i*((w-3)/3);
-    s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="${n(h-5)}" rx="1.5" fill="#7d5931"/>`;
+    s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="${n(h-5)}" rx="1.5" fill="var(--a-timber-d)"/>`;
     s += `<rect x="${n(x+1)}" y="3.5" width="${n((w-3)/3-3.5)}" height="${n(h-7)}" rx="1" fill="${['#4b3520','#6b4f38','#4f7a35'][i]}"/>`;
     s += `<rect x="${n(x)}" y="2.5" width="${n((w-3)/3-1.5)}" height="1.6" rx="0.8" fill="#a1743f"/>`;
+    /* the third bin is the finished one - give it a straw crown so the
+       three bays read as a sequence rather than three identical boxes */
+    if(i===2) s += `<rect x="${n(x+1)}" y="3.2" width="${n((w-3)/3-3.5)}" height="2" rx="1" fill="url(#gStraw)" opacity=".85"/>`;
   }
   return s;
 };
@@ -1227,16 +1245,19 @@ ART.gift_shop = (w,h)=>{
 };
 ART.glamping = (w,h)=>{
   const cx=w/2;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="#16240c" opacity=".32"/>`;
-  s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="#cfc3a4"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(h-4)}" rx="${n(w*0.42)}" ry="${n(h*0.13)}" fill="url(#gShadow)" opacity=".5"/>`;
+  /* left flank is the shaded one, right flank faces the sun - same two
+     polygons as before, now both on the canvas gradient */
+  s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} 3,${n(h-4)}" fill="url(#gPlaster)"/>`;
   s += `<polygon points="${n(cx)},2 ${n(w-3)},${n(h-4)} ${n(cx)},${n(h-4)}" fill="#efe6cd"/>`;
+  s += `<polygon points="${n(cx)},2 ${n(cx)},${n(h-4)} 3,${n(h-4)}" fill="var(--a-shadow)" opacity=".13"/>`;
   s += `<path d="M${n(cx)} ${n(h-4)} L${n(cx-w*0.12)} ${n(h*0.52)} L${n(cx+w*0.12)} ${n(h*0.52)} z" fill="#6d5b44"/>`;
-  s += `<circle cx="${n(cx)}" cy="3" r="1.6" fill="#f0c14b"/>`;
+  s += `<circle cx="${n(cx)}" cy="3" r="1.6" fill="var(--a-gold)"/>`;
   return s;
 };
 ART.dome = (w,h)=>{
   const cx=w/2, cy=h/2, R=Math.min(w,h)/2-1.5;
-  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="#16240c" opacity=".34"/>`;
+  let s = `<ellipse cx="${n(cx+2)}" cy="${n(cy+3)}" rx="${n(R)}" ry="${n(R*0.86)}" fill="url(#gShadow)" opacity=".55"/>`;
   s += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(R)}" fill="url(#gGlass)"/>`;
   for(let i=0;i<6;i++){
     const a1=(i/6)*Math.PI*2, a2=((i+1)/6)*Math.PI*2;
@@ -1300,8 +1321,9 @@ ART.gate   = (w,h)=>{
 };
 ART.sign = (w,h)=>{
   let s = patch(w,h,'#8cb35f',47,1);
-  s += `<rect x="${n(w/2-1.4)}" y="${n(h*0.5)}" width="2.8" height="${n(h*0.42)}" fill="#7d5931"/>`;
-  s += `<rect x="4" y="${n(h*0.16)}" width="${n(w-8)}" height="${n(h*0.36)}" rx="2" fill="#f4efe1" stroke="#7d5931" stroke-width="1.6"/>`;
+  s += `<ellipse cx="${n(w/2+1.2)}" cy="${n(h*0.92)}" rx="4" ry="1.6" fill="url(#gShadow)" opacity=".6"/>`;
+  s += `<rect x="${n(w/2-1.4)}" y="${n(h*0.5)}" width="2.8" height="${n(h*0.42)}" fill="var(--a-timber-d)"/>`;
+  s += `<rect x="4" y="${n(h*0.16)}" width="${n(w-8)}" height="${n(h*0.36)}" rx="2" fill="url(#gPlaster)" stroke="var(--a-timber-d)" stroke-width="1.6"/>`;
   s += `<line x1="7" y1="${n(h*0.28)}" x2="${n(w-7)}" y2="${n(h*0.28)}" stroke="#9c8470" stroke-width="1.4"/>`;
   s += `<line x1="7" y1="${n(h*0.4)}" x2="${n(w-11)}" y2="${n(h*0.4)}" stroke="#9c8470" stroke-width="1.4"/>`;
   return s;

@@ -96,9 +96,17 @@ function ao(x,y,w,h,o){
   /* Was two flat #16240c ellipses with hard edges. gShadow fades to zero
      alpha at its own rim, so the contact shadow ends softly without a
      blur filter - the effect the banned fSoft was there for, at no cost.
-     One ellipse now does what two were approximating. */
-  return `<ellipse cx="${n(x+w/2+w*0.055)}" cy="${n(y+h*0.935)}" rx="${n(w*0.58)}" ry="${n(h*0.24)}"
-    fill="url(#gShadow)" opacity="${(op*1.15).toFixed(2)}"/>`;
+     One ellipse now does what two were approximating.
+
+     Geometry is copied exactly from the old outer ellipse - cx+0.06w,
+     0.94h, rx 0.55w, ry 0.22h. It already reached past the footprint to
+     1.11w, and a first pass at this quietly widened it to 1.16w, which
+     bleeds onto the next tile. The only thing that changes here is the
+     fill. Opacity is x1.9 because the two old ellipses composited over
+     each other to ~0.30 at op=0.28, and gShadow's centre stop is 0.55
+     alpha - x1.15 would have made every shadow on the farm lighter. */
+  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
+    fill="url(#gShadow)" opacity="${Math.min(1, op*1.9).toFixed(2)}"/>`;
 }
 
 /* The one outline rule. Structures get a hairline darker edge on their
