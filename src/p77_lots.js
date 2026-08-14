@@ -44,6 +44,14 @@ function rectFor(tx, ty, w, h){
   return estateRects().find(r =>
     tx >= r.x && ty >= r.y && tx + w <= r.x + r.w && ty + h <= r.y + r.h) || null;
 }
+/* the box that contains the home block and every lot, used to clamp the
+   placement ghost so it can actually be dragged onto a lot */
+function estateBounds(){
+  const rs = estateRects();
+  const x0 = Math.min(...rs.map(r=>r.x)), y0 = Math.min(...rs.map(r=>r.y));
+  const x1 = Math.max(...rs.map(r=>r.x + r.w)), y1 = Math.max(...rs.map(r=>r.y + r.h));
+  return { x:x0, y:y0, w:x1 - x0, h:y1 - y0 };
+}
 function estateTiles(){
   return estateRects().reduce((a,r)=>a + r.w*r.h, 0);
 }

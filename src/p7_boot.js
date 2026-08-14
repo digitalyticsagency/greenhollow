@@ -365,8 +365,12 @@ function bindInput(){
     if(ghost){
       const t = screenToTile(e.clientX, e.clientY);
       const f = footprint(ghost.bp, ghost.rot);
-      const tx = clamp(t.tx - Math.floor(f.w/2), FARM.x, FARM.x+FARM.w-f.w);
-      const ty = clamp(t.ty - Math.floor(f.h/2), FARM.y, FARM.y+FARM.h-f.h);
+      /* clamped to the whole estate, not the home block: once you own a
+         separate lot the ghost must be able to travel to it. overlaps()
+         is lot-aware and still refuses the lane between them. */
+      const B = (typeof estateBounds === 'function') ? estateBounds() : FARM;
+      const tx = clamp(t.tx - Math.floor(f.w/2), B.x, B.x+B.w-f.w);
+      const ty = clamp(t.ty - Math.floor(f.h/2), B.y, B.y+B.h-f.h);
       if(tx!==ghost.tx || ty!==ghost.ty){ ghost.tx=tx; ghost.ty=ty; render(); }
     }
     if(!dragging) return;
@@ -378,8 +382,10 @@ function bindInput(){
     } else if(dragging.mode==='obj' && dragObj && moved>6){
       const t = screenToTile(e.clientX, e.clientY);
       const o = dragObj.o, f = footprint(BPMAP[o.bp], o.rot);
-      const tx = clamp(t.tx - Math.floor(f.w/2), FARM.x, FARM.x+FARM.w-f.w);
-      const ty = clamp(t.ty - Math.floor(f.h/2), FARM.y, FARM.y+FARM.h-f.h);
+      /* dragging a placed object across the estate, same reasoning */
+      const B = (typeof estateBounds === 'function') ? estateBounds() : FARM;
+      const tx = clamp(t.tx - Math.floor(f.w/2), B.x, B.x+B.w-f.w);
+      const ty = clamp(t.ty - Math.floor(f.h/2), B.y, B.y+B.h-f.h);
       if((tx!==o.tx||ty!==o.ty) && !overlaps(tx,ty,f,o.id)){ o.tx=tx; o.ty=ty; render(); }
     }
   });
@@ -410,8 +416,9 @@ function bindInput(){
     if(ghost){
       const t = screenToTile(t0.clientX, t0.clientY);
       const f = footprint(ghost.bp, ghost.rot);
-      ghost.tx = clamp(t.tx-Math.floor(f.w/2), FARM.x, FARM.x+FARM.w-f.w);
-      ghost.ty = clamp(t.ty-Math.floor(f.h/2), FARM.y, FARM.y+FARM.h-f.h);
+      const B = (typeof estateBounds === 'function') ? estateBounds() : FARM;
+      ghost.tx = clamp(t.tx - Math.floor(f.w/2), B.x, B.x+B.w-f.w);
+      ghost.ty = clamp(t.ty - Math.floor(f.h/2), B.y, B.y+B.h-f.h);
       render();
     } else {
       cam.x = tstart.cx + (t0.clientX-tstart.x); cam.y = tstart.cy + (t0.clientY-tstart.y);
