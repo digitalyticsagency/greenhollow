@@ -13,33 +13,20 @@ function hash(i){ const x = Math.sin(i*127.1)*43758.5453; return x - Math.floor(
 /* ---------------- shared <defs> ---------------- */
 function DEFS(){
   return `<defs>
-  <filter id="fGrain" x="0" y="0" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7"/>
-    <feColorMatrix type="saturate" values="0"/>
-    <feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
-  </filter>
-  <filter id="fRough" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="4" seed="3" result="t"/>
-    <feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-  <filter id="fDrop" x="-40%" y="-40%" width="200%" height="220%">
-    <feDropShadow dx="2.5" dy="4" stdDeviation="2.2" flood-color="#0d1607" flood-opacity="0.45"/>
-  </filter>
-  <filter id="fSoft" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="3"/>
-  </filter>
-  <filter id="fGlow" x="-60%" y="-60%" width="220%" height="220%">
-    <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
+  <!-- No filters. fGrain, fRough, fDrop, fSoft and fGlow lived here with
+       zero uses between them, and two were feTurbulence and
+       feGaussianBlur - the pair that historically took this scene from
+       121fps to 15. Depth comes from stacked shapes and gradients; an
+       unused blur in DEFS is just an invitation. -->
 
   <linearGradient id="gLawn" x1="0.1" y1="0" x2="0.65" y2="1">
     <stop offset="0" stop-color="#88b25c"/><stop offset="0.45" stop-color="#74a04b"/><stop offset="1" stop-color="#5d8a3c"/></linearGradient>
   <linearGradient id="gMeadow" x1="0" y1="0" x2="0.5" y2="1">
-    <stop offset="0" stop-color="#c3b982"/><stop offset="1" stop-color="#a49b69"/></linearGradient>
+    <stop offset="0" stop-color="#c3b982"/><stop offset="0.5" stop-color="#b3a976"/><stop offset="1" stop-color="#a49b69"/></linearGradient>
   <linearGradient id="gSoil" x1="0.2" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#7a5a3f"/><stop offset="0.5" stop-color="#63482f"/><stop offset="1" stop-color="#4c3624"/></linearGradient>
   <linearGradient id="gSoilWet" x1="0.2" y1="0" x2="0.7" y2="1">
-    <stop offset="0" stop-color="#5b4028"/><stop offset="1" stop-color="#3a2818"/></linearGradient>
+    <stop offset="0" stop-color="#5b4028"/><stop offset="0.5" stop-color="#4a3320"/><stop offset="1" stop-color="#3a2818"/></linearGradient>
   <linearGradient id="gRoof" x1="0.05" y1="0" x2="0.55" y2="1">
     <stop offset="0" stop-color="#a3aeb4"/><stop offset="0.4" stop-color="#8a959b"/><stop offset="1" stop-color="#6a747a"/></linearGradient>
   <linearGradient id="gRoofRed" x1="0.05" y1="0" x2="0.55" y2="1">
@@ -49,14 +36,14 @@ function DEFS(){
   <linearGradient id="gSolar" x1="0.1" y1="0" x2="0.7" y2="1">
     <stop offset="0" stop-color="#38507f"/><stop offset="0.35" stop-color="#22304f"/><stop offset="1" stop-color="#161f36"/></linearGradient>
   <linearGradient id="gGravel" x1="0" y1="0" x2="0.4" y2="1">
-    <stop offset="0" stop-color="#d3c7a8"/><stop offset="1" stop-color="#b6a988"/></linearGradient>
+    <stop offset="0" stop-color="#d3c7a8"/><stop offset="0.55" stop-color="#c5b898"/><stop offset="1" stop-color="#b6a988"/></linearGradient>
   <linearGradient id="gGlass" x1="0.05" y1="0" x2="0.6" y2="1">
     <stop offset="0" stop-color="#e6f6fa"/><stop offset="0.45" stop-color="#c2e0e9"/><stop offset="1" stop-color="#9dc2ce"/></linearGradient>
   <linearGradient id="gStone" x1="0" y1="0" x2="0.4" y2="1">
-    <stop offset="0" stop-color="#ada59a"/><stop offset="1" stop-color="#857e73"/></linearGradient>
+    <stop offset="0" stop-color="#ada59a"/><stop offset="0.5" stop-color="#999186"/><stop offset="1" stop-color="#857e73"/></linearGradient>
   <radialGradient id="gWater" cx="0.36" cy="0.3" r="0.78">
     <stop offset="0" stop-color="#8fd0e8"/><stop offset="0.4" stop-color="#4f93b5"/>
-    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#1f5878"/></radialGradient>
+    <stop offset="0.85" stop-color="#2f6d90"/><stop offset="1" stop-color="#255d7c"/></radialGradient>
   <radialGradient id="gCanopy" cx="0.34" cy="0.28" r="0.8">
     <stop offset="0" stop-color="#79b356"/><stop offset="0.45" stop-color="#4f8c38"/>
     <stop offset="0.85" stop-color="#356523"/><stop offset="1" stop-color="#274c19"/></radialGradient>
@@ -67,7 +54,25 @@ function DEFS(){
   <linearGradient id="gHedge" x1="0" y1="0" x2="0.3" y2="1">
     <stop offset="0" stop-color="#5b9440"/><stop offset="0.5" stop-color="#3f6f2c"/><stop offset="1" stop-color="#27491c"/></linearGradient>
   <linearGradient id="gTank" x1="0" y1="0" x2="0.7" y2="1">
-    <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#4e7a4c"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+    <stop offset="0" stop-color="#6d9a67"/><stop offset="0.5" stop-color="#5c8859"/><stop offset="1" stop-color="#365a36"/></linearGradient>
+  <!-- added in the polish pass: these absorb the most-repeated flat
+       fills. Same hue as what they replace, one extra value of depth. -->
+  <linearGradient id="gPlaster" x1="0.05" y1="0" x2="0.55" y2="1">
+    <stop offset="0" stop-color="#f2ead6"/><stop offset="0.5" stop-color="#e2d8c0"/><stop offset="1" stop-color="#cbbfa4"/></linearGradient>
+  <linearGradient id="gMetal" x1="0" y1="0" x2="0.45" y2="1">
+    <stop offset="0" stop-color="#c2ccd2"/><stop offset="0.45" stop-color="#9fb0b8"/><stop offset="1" stop-color="#76858d"/></linearGradient>
+  <linearGradient id="gStraw" x1="0.1" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#e6d49a"/><stop offset="0.5" stop-color="#d8c48b"/><stop offset="1" stop-color="#b99f63"/></linearGradient>
+  <radialGradient id="gLeafLit" cx="0.32" cy="0.26" r="0.82">
+    <stop offset="0" stop-color="#96c96a"/><stop offset="0.45" stop-color="#6ca346"/>
+    <stop offset="0.85" stop-color="#47762c"/><stop offset="1" stop-color="#335620"/></radialGradient>
+  <linearGradient id="gEarthDry" x1="0.15" y1="0" x2="0.65" y2="1">
+    <stop offset="0" stop-color="#b09a71"/><stop offset="0.5" stop-color="#9c8760"/><stop offset="1" stop-color="#7f6c4c"/></linearGradient>
+  <radialGradient id="gShadow" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#16240c" stop-opacity="0.55"/>
+    <stop offset="0.6" stop-color="#16240c" stop-opacity="0.34"/>
+    <stop offset="1" stop-color="#16240c" stop-opacity="0"/></radialGradient>
+
   <linearGradient id="gHaze" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#cfe0ea" stop-opacity="0.45"/>
     <stop offset="0.22" stop-color="#cfe0ea" stop-opacity="0.10"/>
@@ -76,7 +81,9 @@ function DEFS(){
     <stop offset="1" stop-color="#cfe0ea" stop-opacity="0.4"/></linearGradient>
   <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
-  </defs>`.replace('#ada59a','#ada59a').replace('#1f5878','#255d7c');
+  </defs>`;   /* the two trailing .replace() calls are gone: one swapped a string
+        for itself, the other rewrote gWater's last stop behind the
+        gradient's back, so editing the declaration did nothing. */
 }
 
 /* ---------------- primitives ---------------- */
@@ -86,11 +93,24 @@ function DEFS(){
    plain translucent ellipse is indistinguishable and effectively free. */
 function ao(x,y,w,h,o){
   const op = (o||0.34);
-  return `<ellipse cx="${n(x+w/2+w*0.06)}" cy="${n(y+h*0.94)}" rx="${n(w*0.55)}" ry="${n(h*0.22)}"
-    fill="#16240c" opacity="${(op*0.55).toFixed(2)}"/>`
-   + `<ellipse cx="${n(x+w/2+w*0.05)}" cy="${n(y+h*0.93)}" rx="${n(w*0.46)}" ry="${n(h*0.17)}"
-    fill="#16240c" opacity="${(op*0.6).toFixed(2)}"/>`;
+  /* Was two flat #16240c ellipses with hard edges. gShadow fades to zero
+     alpha at its own rim, so the contact shadow ends softly without a
+     blur filter - the effect the banned fSoft was there for, at no cost.
+     One ellipse now does what two were approximating. */
+  return `<ellipse cx="${n(x+w/2+w*0.055)}" cy="${n(y+h*0.935)}" rx="${n(w*0.58)}" ry="${n(h*0.24)}"
+    fill="url(#gShadow)" opacity="${(op*1.15).toFixed(2)}"/>`;
 }
+
+/* The one outline rule. Structures get a hairline darker edge on their
+   outer silhouette; organics never do, because an outline on a canopy or
+   an animal reads as cartoon rather than crisp. Gated on footprint - at
+   40px a 1x1 item is mostly outline. */
+function edge(w,h,r){
+  if(w < 70 || h < 40) return '';
+  return `<rect x="0.5" y="0.5" width="${n(w-1)}" height="${n(h-1)}" rx="${r===undefined?3:r}"
+    fill="none" stroke="var(--a-edge)" stroke-width="0.5"/>`;
+}
+
 /* grain overlay clipped to a shape via a rect (cheap texture) */
 /* feTurbulence is far too costly to run per object; texture now comes from
    the gradients and speckles already in each material. */

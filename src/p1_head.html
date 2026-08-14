@@ -14,6 +14,16 @@
   --gold:#f0c14b; --green:#7cc24f; --green2:#4d8f3c;
   --blue:#6fb6d8; --red:#e2705c; --amber:#e8a33d; --violet:#a98fd6;
   --r:10px; --shadow:0 10px 34px rgba(0,0,0,.45);
+  /* ---- scene art tokens ----
+     Namespaced --a-* on purpose. The first draft of this called the
+     shadow colour --ink, which already exists above as #e9efe0, the UI
+     text colour - that would have turned every panel label near-black on
+     dark green. Everything the procedural art shares lives here so a
+     change is one edit rather than 25. */
+  --a-shadow:#16240c;      /* cast shadow / AO — was hardcoded 25 times */
+  --a-gold:#f0c14b;        /* the ready-to-collect highlight — 21 times */
+  --a-timber-d:#7d5931;    /* dark timber — 9 times */
+  --a-edge:rgba(20,32,12,.38);   /* the one outline colour for structures */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
 }
 html,body{height:100%;}
