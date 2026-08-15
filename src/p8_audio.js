@@ -97,6 +97,13 @@ const SND = (function(){
              noiseHit(0.5, 280, 110, 0.045, 0.6); },
     whine(){ const b = 520 + Math.random()*80;
              tone(b, 0.42, 'sine', 0.05, null, b*1.7); },
+    /* birdsong: two or three rising notes, never quite the same twice —
+       this fires whenever a bird that trusts you passes, so it has to be
+       short, quiet and varied or it becomes a car alarm */
+    chirp(){ const b = 1500 + Math.random()*900;
+             const n0 = 2 + Math.floor(Math.random()*2);
+             for(let i=0;i<n0;i++)
+               setTimeout(()=>tone(b*(1 + i*0.16), 0.07, 'sine', 0.035, null, b*(1.3 + i*0.2)), i*85); },
     bee(){ tone(220, 0.5, 'sawtooth', 0.02, null, 210); },
     /* the rest of the yard. Kept small and soft - these fire often, so
        anything with a sharp attack becomes irritating within a minute. */

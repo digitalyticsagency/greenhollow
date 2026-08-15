@@ -45,17 +45,17 @@
 
 const BIRD_KINDS = {
   finch:     { n:'Finch',     body:'#8a9a3f', wing:'#5e6b28', wing2:'#aebd63', belly:'#eef0c4',
-               beak:'#e8913a', sc:0.85, speed:64,  flap:0.28, tag:'flocks' },
+               beak:'#e8913a', sc:0.55, speed:64,  flap:0.28, tag:'flocks' },
   bluebird:  { n:'Bluebird',  body:'#3f7fd0', wing:'#2b5ea8', wing2:'#7fb0e8', belly:'#f6c9bd',
-               beak:'#4a6a8a', sc:0.9,  speed:52,  flap:0.34, tag:'pairs' },
+               beak:'#4a6a8a', sc:0.58,  speed:52,  flap:0.34, tag:'pairs' },
   martin:    { n:'Martin',    body:'#7b6fd8', wing:'#4f45a8', wing2:'#a99cf0', belly:'#cfc8f4',
-               beak:'#3a3550', sc:0.82, speed:96,  flap:0.22, tag:'hunts low' },
+               beak:'#3a3550', sc:0.53, speed:96,  flap:0.22, tag:'hunts low' },
   firecrest: { n:'Firecrest', body:'#e0442a', wing:'#9e2a1c', wing2:'#f4a288', belly:'#f6b9a0',
-               beak:'#e8913a', sc:0.95, speed:70,  flap:0.30, tag:'territorial' },
+               beak:'#e8913a', sc:0.60, speed:70,  flap:0.30, tag:'territorial' },
   siskin:    { n:'Siskin',    body:'#e8c33a', wing:'#7f8a2f', wing2:'#f2dd86', belly:'#f8ecae',
-               beak:'#e0742a', sc:0.8,  speed:60,  flap:0.26, tag:'ground feeder' },
+               beak:'#e0742a', sc:0.52,  speed:60,  flap:0.26, tag:'ground feeder' },
   kite:      { n:'Kite',      body:'#c58a34', wing:'#6b4a26', wing2:'#e8b063', belly:'#f0d9a8',
-               beak:'#2f2a22', sc:1.5,  speed:40,  flap:1.10, tag:'soars, and they all watch it' },
+               beak:'#2f2a22', sc:0.95,  speed:40,  flap:1.10, tag:'soars, and they all watch it' },
 };
 
 const FLOCK = { list:[], layer:null, t:0 };
@@ -99,6 +99,24 @@ function birdKindArt(k){
 }
 
 /* ---------- who is in the sky ---------- */
+/* The mix, in the order a farm fills up: finches first, a raptor last and
+   only once there is enough cover to be worth hunting over. p134 decides
+   HOW MANY from the trees on the land; this only says which. */
+const BIRD_MIX = ['finch','finch','siskin','bluebird','finch','martin',
+                  'siskin','bluebird','martin','firecrest','finch','kite'];
+
+function birdMake(k, id){
+  return {
+    id:'bk'+id, k,
+    x: Math.random()*WPX, y: 40 + Math.random()*(HPX*0.5),
+    vx: (Math.random()<0.5?-1:1)*BIRD_KINDS[k].speed*0.6,
+    vy: (Math.random()-0.5)*20,
+    t: Math.random()*8, fear:0, mode:'cruise', hold:0,
+    knows:{}, fed:0, nest:null, roost:0,
+    home:{ x: Math.random()*WPX, y: 60 + Math.random()*(HPX*0.4) },
+  };
+}
+
 function birdSpawn(){
   const want = [
     ['finch',4], ['bluebird',2], ['martin',2], ['firecrest',1], ['siskin',2], ['kite',1],

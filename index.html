@@ -2018,6 +2018,13 @@ const SND = (function(){
              noiseHit(0.5, 280, 110, 0.045, 0.6); },
     whine(){ const b = 520 + Math.random()*80;
              tone(b, 0.42, 'sine', 0.05, null, b*1.7); },
+    /* birdsong: two or three rising notes, never quite the same twice —
+       this fires whenever a bird that trusts you passes, so it has to be
+       short, quiet and varied or it becomes a car alarm */
+    chirp(){ const b = 1500 + Math.random()*900;
+             const n0 = 2 + Math.floor(Math.random()*2);
+             for(let i=0;i<n0;i++)
+               setTimeout(()=>tone(b*(1 + i*0.16), 0.07, 'sine', 0.035, null, b*(1.3 + i*0.2)), i*85); },
     bee(){ tone(220, 0.5, 'sawtooth', 0.02, null, 210); },
     /* the rest of the yard. Kept small and soft - these fire often, so
        anything with a sharp attack becomes irritating within a minute. */
@@ -38054,17 +38061,17 @@ G.dragonWorldAudit = function(){
 
 const BIRD_KINDS = {
   finch:     { n:'Finch',     body:'#8a9a3f', wing:'#5e6b28', wing2:'#aebd63', belly:'#eef0c4',
-               beak:'#e8913a', sc:0.85, speed:64,  flap:0.28, tag:'flocks' },
+               beak:'#e8913a', sc:0.55, speed:64,  flap:0.28, tag:'flocks' },
   bluebird:  { n:'Bluebird',  body:'#3f7fd0', wing:'#2b5ea8', wing2:'#7fb0e8', belly:'#f6c9bd',
-               beak:'#4a6a8a', sc:0.9,  speed:52,  flap:0.34, tag:'pairs' },
+               beak:'#4a6a8a', sc:0.58,  speed:52,  flap:0.34, tag:'pairs' },
   martin:    { n:'Martin',    body:'#7b6fd8', wing:'#4f45a8', wing2:'#a99cf0', belly:'#cfc8f4',
-               beak:'#3a3550', sc:0.82, speed:96,  flap:0.22, tag:'hunts low' },
+               beak:'#3a3550', sc:0.53, speed:96,  flap:0.22, tag:'hunts low' },
   firecrest: { n:'Firecrest', body:'#e0442a', wing:'#9e2a1c', wing2:'#f4a288', belly:'#f6b9a0',
-               beak:'#e8913a', sc:0.95, speed:70,  flap:0.30, tag:'territorial' },
+               beak:'#e8913a', sc:0.60, speed:70,  flap:0.30, tag:'territorial' },
   siskin:    { n:'Siskin',    body:'#e8c33a', wing:'#7f8a2f', wing2:'#f2dd86', belly:'#f8ecae',
-               beak:'#e0742a', sc:0.8,  speed:60,  flap:0.26, tag:'ground feeder' },
+               beak:'#e0742a', sc:0.52,  speed:60,  flap:0.26, tag:'ground feeder' },
   kite:      { n:'Kite',      body:'#c58a34', wing:'#6b4a26', wing2:'#e8b063', belly:'#f0d9a8',
-               beak:'#2f2a22', sc:1.5,  speed:40,  flap:1.10, tag:'soars, and they all watch it' },
+               beak:'#2f2a22', sc:0.95,  speed:40,  flap:1.10, tag:'soars, and they all watch it' },
 };
 
 const FLOCK = { list:[], layer:null, t:0 };
@@ -38108,6 +38115,24 @@ function birdKindArt(k){
 }
 
 /* ---------- who is in the sky ---------- */
+/* The mix, in the order a farm fills up: finches first, a raptor last and
+   only once there is enough cover to be worth hunting over. p134 decides
+   HOW MANY from the trees on the land; this only says which. */
+const BIRD_MIX = ['finch','finch','siskin','bluebird','finch','martin',
+                  'siskin','bluebird','martin','firecrest','finch','kite'];
+
+function birdMake(k, id){
+  return {
+    id:'bk'+id, k,
+    x: Math.random()*WPX, y: 40 + Math.random()*(HPX*0.5),
+    vx: (Math.random()<0.5?-1:1)*BIRD_KINDS[k].speed*0.6,
+    vy: (Math.random()-0.5)*20,
+    t: Math.random()*8, fear:0, mode:'cruise', hold:0,
+    knows:{}, fed:0, nest:null, roost:0,
+    home:{ x: Math.random()*WPX, y: 60 + Math.random()*(HPX*0.4) },
+  };
+}
+
 function birdSpawn(){
   const want = [
     ['finch',4], ['bluebird',2], ['martin',2], ['firecrest',1], ['siskin',2], ['kite',1],
@@ -38820,6 +38845,910 @@ G.marketVisitAudit = function(){
     barInDom: !!document.getElementById('mktbar'),
     walkingThere: !!VISIT.travel,
     goButtonInDom: !!document.getElementById('mktgobtn'),
+  };
+};
+
+/* =====================================================================
+   BIRDS BELONG TO THE TREES, AND THEY REMEMBER WHO FED THEM
+
+   p132 put twelve birds in the sky and they were there whatever the farm
+   looked like — a field of bare soil had the same flock over it as an
+   orchard. They were also too big and too many. This makes them part of
+   the land instead of decoration on top of it.
+
+   THE TREES DECIDE HOW MANY. Two birds a tree, and a kite only once
+   there are six trees to hunt over. Plant a wood and it fills up over the
+   following days; fell the lot and they leave. No trees, no birds — you
+   can empty the sky by clearing the land, which is exactly what happens.
+   They arrive and leave a bird at a time so it reads as a population
+   rather than a switch.
+
+   THEY NEST. Each bird holds a tree and goes back to it — at night, and
+   through the day when it has nothing else on. It drops into the canopy,
+   the wings stop, and it sits there bobbing with a nest under it. That is
+   also why felling a tree matters: the bird in it loses its nest.
+
+   THEY EAT YOUR CROPS. A bird with no reason to like you will drop onto a
+   ripening bed and take some. Not catastrophic, but it accumulates, and
+   it is the reason the next two things exist.
+
+   A SCARECROW STOPS THEM. Build one and nothing will feed inside its
+   radius. It does not kill birds or drive them off the farm — it moves
+   them along, which is what a scarecrow does.
+
+   OR YOU FEED THEM, AND THEY REMEMBER YOU. Scatter grain and every bird
+   that comes to it learns who you are. Trust is per person, so the
+   farmer who feeds them is not the same to them as the one who never
+   has. Past half trust a bird stops raiding your beds entirely; past
+   three quarters it sings when you are near and flies loops around you.
+   You buy the crop protection with kindness rather than a stick, and
+   both work.
+   ===================================================================== */
+
+/* ---------- the trees are the carrying capacity ---------- */
+function birdTrees(){
+  return (S.objs||[]).filter(o=>{
+    const bp = BPMAP[o.bp];
+    return bp && /^tree_/.test(bp.art || '');
+  });
+}
+function birdCapacity(){
+  const t = birdTrees().length;
+  if(!t) return 0;
+  return Math.min(BIRD_MIX.length, Math.round(t*2));
+}
+/* the kite needs somewhere worth hunting over */
+function birdAllowed(k){
+  return k !== 'kite' || birdTrees().length >= 6;
+}
+
+function birdLifeState(){
+  if(!S.birdlife) S.birdlife = { day:-1, fedToday:0, raids:0, seed:0 };
+  if(S.birdlife.day !== S.day){ S.birdlife.day = S.day; S.birdlife.fedToday = 0; S.birdlife.raids = 0; }
+  return S.birdlife;
+}
+
+/* one in, one out, so the sky fills and empties gradually */
+let BIRD_POP_T = 0;
+function birdPopTick(dt){
+  BIRD_POP_T += dt;
+  if(BIRD_POP_T < 2.5) return;
+  BIRD_POP_T = 0;
+  const cap = birdCapacity();
+  if(FLOCK.list.length > cap){
+    /* the ones without a nest go first */
+    const idx = FLOCK.list.findIndex(b=>!b.nest);
+    const gone = FLOCK.list.splice(idx >= 0 ? idx : FLOCK.list.length-1, 1)[0];
+    if(gone){
+      const el = document.querySelector(`#birdlay [data-bk="${gone.id}"]`);
+      if(el) el.remove();
+    }
+    return;
+  }
+  if(FLOCK.list.length < cap){
+    const k = BIRD_MIX[FLOCK.list.length % BIRD_MIX.length];
+    if(!birdAllowed(k)) return;
+    FLOCK.list.push(birdMake(k, 'p'+Date.now()+FLOCK.list.length));
+  }
+}
+
+/* p132 spawns a fixed twelve when the list is empty; the trees own this now */
+if(typeof birdSpawn === 'function'){
+  birdSpawn = function(){
+    /* Seeds a few and lets birdPopTick grow the rest. Filling straight to
+       capacity made planting a wood switch the sky from empty to twelve
+       birds between one frame and the next — measured, it went 0 to 12
+       with no middle. They arrive one at a time now, which is the whole
+       point of tying them to the trees. */
+    FLOCK.list = [];
+    const cap = Math.min(birdCapacity(), 3);
+    for(let i=0;i<cap;i++){
+      const k = BIRD_MIX[i % BIRD_MIX.length];
+      if(birdAllowed(k)) FLOCK.list.push(birdMake(k, 'i'+i));
+    }
+  };
+}
+
+/* ---------- nests ---------- */
+function birdClaimNest(b){
+  const trees = birdTrees();
+  if(!trees.length){ b.nest = null; return null; }
+  let t = trees.find(o=>o.id === b.nestId);
+  if(!t){
+    /* prefer a tree nobody has taken */
+    const taken = new Set(FLOCK.list.map(o=>o.nestId).filter(Boolean));
+    t = trees.find(o=>!taken.has(o.id)) || trees[Math.floor(Math.random()*trees.length)];
+    b.nestId = t.id;
+  }
+  const f = footprint(BPMAP[t.bp], t.rot);
+  b.nest = { x:(t.tx + f.w/2)*T, y:(t.ty + f.h*0.42)*T, id:t.id };
+  return b.nest;
+}
+
+/* ---------- the scarecrow ---------- */
+(function scarecrowBlueprint(){
+  if(typeof BP === 'undefined' || BPMAP.scarecrow) return;
+  const bp = { id:'scarecrow', name:'Scarecrow', art:'scarecrow', cat:'land',
+    w:1, h:1, cost:45, lvl:1, kind:'decor', charm:2,
+    desc:'A coat on a cross-post. Birds will not feed anywhere near it.',
+    tip:'Stops birds taking from beds inside about four tiles. It moves them along rather than driving them off the farm.' };
+  BP.push(bp); BPMAP[bp.id] = bp;
+})();
+
+if(typeof ART === 'object' && !ART.scarecrow){
+  ART.scarecrow = (w,h)=>{
+    const cx = w/2;
+    let s = patch(w, h, '#9aad5e', 51, 2);
+    s += ao(cx-9, h*0.30, 18, h*0.62, 0.30);
+    /* the cross-post */
+    s += `<rect x="${n(cx-1.8)}" y="${n(h*0.24)}" width="3.6" height="${n(h*0.62)}" rx="1.4" fill="#7a5c3a"/>`;
+    s += `<rect x="${n(cx-11)}" y="${n(h*0.40)}" width="22" height="3" rx="1.4" fill="#8a6a45"/>`;
+    /* straw poking out at the wrists */
+    [-11, 8].forEach(x=>{
+      for(let i=0;i<3;i++)
+        s += `<path d="M${n(cx+x+ (x<0?0:3))} ${n(h*0.41)} l${n((x<0?-4:4)+i)} ${n(3+i*1.6)}"
+          stroke="url(#gStraw)" stroke-width="1.3" stroke-linecap="round" fill="none"/>`;
+    });
+    /* the coat */
+    s += `<path d="M${n(cx-8)} ${n(h*0.40)} L${n(cx+8)} ${n(h*0.40)}
+      L${n(cx+6)} ${n(h*0.70)} L${n(cx-6)} ${n(h*0.70)} Z" fill="#5f6b8a"/>`;
+    s += `<path d="M${n(cx-8)} ${n(h*0.40)} L${n(cx)} ${n(h*0.40)}
+      L${n(cx-1)} ${n(h*0.70)} L${n(cx-6)} ${n(h*0.70)} Z" fill="#78849f" opacity=".8"/>`;
+    /* head and a hat with a brim */
+    s += `<circle cx="${n(cx)}" cy="${n(h*0.32)}" r="${n(5.2)}" fill="#d8c48a"/>`;
+    s += `<circle cx="${n(cx-1.6)}" cy="${n(h*0.315)}" r="0.9" fill="#3a3026"/>`;
+    s += `<circle cx="${n(cx+1.8)}" cy="${n(h*0.315)}" r="0.9" fill="#3a3026"/>`;
+    s += `<path d="M${n(cx-3)} ${n(h*0.35)} q3 2 6 0" stroke="#3a3026" stroke-width="0.9"
+      fill="none" stroke-linecap="round"/>`;
+    s += `<ellipse cx="${n(cx)}" cy="${n(h*0.27)}" rx="9" ry="2.6" fill="#8a6a45"/>`;
+    s += `<path d="M${n(cx-5)} ${n(h*0.27)} q5 -7 10 0 z" fill="#a07d52"/>`;
+    return s;
+  };
+}
+
+const SCARE_R = 4.2*40;                 /* about four tiles */
+function scarecrows(){ return (S.objs||[]).filter(o=>o.bp === 'scarecrow'); }
+function scaredHere(x, y){
+  return scarecrows().some(o=>{
+    const f = footprint(BPMAP[o.bp], o.rot);
+    return Math.hypot((o.tx+f.w/2)*T - x, (o.ty+f.h/2)*T - y) < SCARE_R;
+  });
+}
+
+/* ---------- who they know ---------- */
+function birdTrust(b, who){ return (b.knows && b.knows[who]) || 0; }
+function birdLearn(b, who, amt){
+  b.knows = b.knows || {};
+  b.knows[who] = Math.min(1, (b.knows[who] || 0) + amt);
+  return b.knows[who];
+}
+/* the trust that matters for the crops is the best of anybody's */
+function birdBestTrust(b){
+  return Math.max(0, ...Object.values(b.knows || {}));
+}
+
+/* ---------- feeding ---------- */
+G.feedBirds = function(){
+  const L = birdLifeState();
+  if(!S.you){ return; }
+  if((S.feed || 0) < 2){ if(typeof toast==='function') toast('No feed in the barn','bad'); return; }
+  if(L.fedToday >= 3){ if(typeof toast==='function') toast('You have scattered enough today',''); return; }
+  if(typeof G.wakeTheWorld === 'function') G.wakeTheWorld();
+  S.feed = Math.max(0, (S.feed||0) - 2);
+  L.fedToday++;
+  L.seedX = S.you.x; L.seedY = S.you.y + 14; L.seed = 26;      /* seconds it stays down */
+  if(typeof toast === 'function') toast('Grain scattered', 'good');
+  if(typeof log === 'function') log('You scattered grain for the birds.', '', 'farm');
+};
+
+/* ---------- the life tick ---------- */
+function tickBirdLife(dt){
+  const L = birdLifeState();
+  birdPopTick(dt);
+  if(L.seed > 0) L.seed -= dt;
+
+  const night = (typeof isNight === 'function') ? isNight() : false;
+  const you = S.you;
+
+  FLOCK.list.forEach(b=>{
+    /* it always has a tree in mind, if there is one */
+    if(!b.nest || !(S.objs||[]).some(o=>o.id === b.nestId)) birdClaimNest(b);
+
+    /* 1. grain on the ground beats everything short of a raptor */
+    if(L.seed > 0 && b.fear < 0.35){
+      const d = Math.hypot(L.seedX - b.x, L.seedY - b.y);
+      if(d < 340){
+        b.life = 'toseed';
+        b.lx = L.seedX + (hash(b.id.length*3.1)-0.5)*30;
+        b.ly = L.seedY + (hash(b.id.length*7.3)-0.5)*18;
+        if(d < 26){
+          b.fed = (b.fed || 0) + dt;
+          const t = birdLearn(b, 'you', dt*0.09);
+          if(t > 0.5 && !b.friendSaid){
+            b.friendSaid = 1;
+            if(typeof log === 'function')
+              log(`A ${BIRD_KINDS[b.k].n.toLowerCase()} has decided you are all right. It will leave the beds alone.`,
+                  'good', 'farm');
+          }
+        }
+        return;
+      }
+    }
+
+    /* 2. roosting: at night, or when it has nothing else on */
+    b.roost = Math.max(0, (b.roost || 0) - dt);
+    if(b.nest && (night || (b.roost <= 0 && Math.random() < dt*0.03))){
+      b.life = 'nesting';
+      b.lx = b.nest.x; b.ly = b.nest.y;
+      if(!night && Math.hypot(b.x-b.nest.x, b.y-b.nest.y) < 12) b.roost = 8 + Math.random()*10;
+      return;
+    }
+
+    /* 3. raiding a bed — unless it likes you, or a scarecrow says no */
+    if(birdBestTrust(b) < 0.5 && b.k !== 'kite' && b.fear < 0.3){
+      if(!b.raidT || b.raidT <= 0){
+        const beds = (S.objs||[]).filter(o=>{
+          const bp = BPMAP[o.bp];
+          return bp && ['plot','perennial'].includes(bp.kind) && (o.crop || bp.kind==='perennial')
+            && (o.stage || 0) > 0.35;
+        }).filter(o=>{
+          const f = footprint(BPMAP[o.bp], o.rot);
+          return !scaredHere((o.tx+f.w/2)*T, (o.ty+f.h/2)*T);
+        });
+        if(beds.length && Math.random() < dt*0.06){
+          const o = beds[Math.floor(Math.random()*beds.length)];
+          const f = footprint(BPMAP[o.bp], o.rot);
+          b.raid = o.id; b.raidT = 9;
+          b.lx = (o.tx + Math.random()*f.w)*T;
+          b.ly = (o.ty + Math.random()*f.h)*T;
+        }
+      }
+      if(b.raidT > 0){
+        b.raidT -= dt;
+        b.life = 'raiding';
+        const o = (S.objs||[]).find(x=>x.id === b.raid);
+        if(o && Math.hypot(b.x-b.lx, b.y-b.ly) < 18){
+          if(scaredHere(b.x, b.y)){ b.raidT = 0; b.life = null; b.fear = Math.max(b.fear, 0.4); return; }
+          o.stage = Math.max(0, (o.stage||0) - dt*0.014);
+          if(Math.random() < dt*0.2){ L.raids++; }
+        }
+        return;
+      }
+    }
+
+    /* 4. a bird that trusts you comes and plays, and sings about it */
+    if(you && birdTrust(b, 'you') > 0.75 && b.fear < 0.25){
+      const d = Math.hypot(you.x-b.x, you.y-b.y);
+      if(d < 260){
+        b.life = 'playing';
+        const a = b.t*2.2;
+        b.lx = you.x + Math.cos(a)*54;
+        b.ly = you.y - 26 + Math.sin(a)*26;
+        b.sing = (b.sing || 0) - dt;
+        if(b.sing <= 0){ b.sing = 3 + Math.random()*4; try{ sfx('chirp'); }catch(e){} }
+        return;
+      }
+    }
+    b.life = null;
+  });
+}
+
+/* the life goals outrank the species steering in p132 */
+if(typeof birdThink === 'function'){
+  const _birdThinkLife = birdThink;
+  birdThink = function(b, dt){
+    const base = _birdThinkLife.apply(this, arguments);
+    try{
+      if(b.fear > 0.35) return base;             /* a raptor still beats everything */
+      if(b.life && b.lx !== undefined){
+        const K = BIRD_KINDS[b.k];
+        b.mode = b.life;
+        const dx = b.lx-b.x, dy = b.ly-b.y, d = Math.hypot(dx,dy)||1;
+        const slow = (b.life === 'nesting' || b.life === 'toseed') && d < 40;
+        return { vx: dx/d*K.speed*(slow?0.5:1.15), vy: dy/d*K.speed*(slow?0.4:0.9) };
+      }
+    }catch(e){}
+    return base;
+  };
+}
+
+/* a nesting or feeding bird folds its wings */
+if(typeof tickFlock === 'function'){
+  const _tickFlockLife = tickFlock;
+  tickFlock = function(dt){
+    const r = _tickFlockLife.apply(this, arguments);
+    try{
+      FLOCK.list.forEach(b=>{
+        const el = document.querySelector(`#birdlay [data-bk="${b.id}"]`);
+        if(!el) return;
+        const settled = (b.life === 'nesting' || b.life === 'toseed' || b.life === 'raiding')
+          && Math.hypot(b.x - (b.lx===undefined?b.x:b.lx), b.y - (b.ly===undefined?b.y:b.ly)) < 16;
+        el.classList.toggle('settled', !!settled);
+      });
+    }catch(e){}
+    return r;
+  };
+}
+
+/* nests in the trees, and the grain on the ground */
+function paintNests(){
+  const L = birdLifeState();
+  let g = document.getElementById('nestlay');
+  const nested = FLOCK.list.filter(b=>b.nest && b.life === 'nesting'
+    && Math.hypot(b.x-b.nest.x, b.y-b.nest.y) < 16);
+  if(!nested.length && !(L.seed > 0)){ if(g) g.remove(); return; }
+  if(!g){
+    const fg = document.getElementById('fg'); if(!fg) return;
+    g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.id = 'nestlay'; g.setAttribute('pointer-events','none');
+    fg.appendChild(g);
+  }
+  let s = '';
+  nested.forEach(b=>{
+    s += `<ellipse cx="${n(b.nest.x)}" cy="${n(b.nest.y+5)}" rx="7" ry="3.4" fill="#6b5335"/>`;
+    s += `<ellipse cx="${n(b.nest.x)}" cy="${n(b.nest.y+4)}" rx="5.4" ry="2.4" fill="#8a6f47"/>`;
+  });
+  if(L.seed > 0){
+    const k = Math.min(1, L.seed/26);
+    for(let i=0;i<9;i++){
+      const a = hash(i*4.7), b2 = hash(i*2.3);
+      s += `<circle cx="${n(L.seedX + (a-0.5)*30)}" cy="${n(L.seedY + (b2-0.5)*18)}"
+        r="1.3" fill="#e8c96a" opacity="${(0.85*k).toFixed(2)}"/>`;
+    }
+  }
+  g.innerHTML = s;
+}
+
+if(typeof tickPeople === 'function'){
+  const _tickPeopleLife = tickPeople;
+  tickPeople = function(dt){
+    const r = _tickPeopleLife.apply(this, arguments);
+    try{
+      tickBirdLife(Math.min(0.08, typeof dt === 'number' ? dt : 0.05));
+      paintNests();
+    }catch(e){}
+    return r;
+  };
+}
+
+/* the feed button, beside the other world buttons */
+if(typeof syncWorldButtons === 'function'){
+  const _syncFeed = syncWorldButtons;
+  syncWorldButtons = function(){
+    const r = _syncFeed.apply(this, arguments);
+    try{
+      const host = document.getElementById('zoomctl');
+      if(!host) return r;
+      let b = document.getElementById('feedbirdbtn');
+      if(!b){
+        b = document.createElement('button');
+        b.id = 'feedbirdbtn';
+        b.textContent = '🌾';
+        b.title = 'Scatter grain for the birds';
+        b.setAttribute('data-tip','<b>Feed the birds</b>Two feed from the barn. Every bird that comes learns who you are, and one that trusts you leaves the beds alone and sings when you pass.');
+        b.onclick = ()=>G.feedBirds();
+        host.insertBefore(b, host.firstChild);
+      }
+      b.style.display = FLOCK.list.length ? '' : 'none';
+    }catch(e){}
+    return r;
+  };
+}
+
+(function birdLifeCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #feedbirdbtn{ font-size:15px; line-height:1 }
+  /* a bird that has landed folds its wings and just breathes */
+  .bird.settled .bw{ animation: bksettle 2.6s ease-in-out infinite; }
+  @keyframes bksettle{ 0%,100%{ transform: rotate(-6deg) scaleY(.96) }
+                       50%  { transform: rotate(-2deg) scaleY(1.02) } }
+  @media (prefers-reduced-motion: reduce){ .bird.settled .bw{ animation:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- handle ---------- */
+G.birdLifeAudit = function(){
+  const L = birdLifeState();
+  const trees = birdTrees().length;
+  const by = {};
+  FLOCK.list.forEach(b=>{
+    const l = b.life || 'own business';
+    by[l] = (by[l]||0)+1;
+  });
+  return {
+    trees,
+    capacity: birdCapacity(),
+    inTheSky: FLOCK.list.length,
+    kiteAllowed: birdAllowed('kite') ? 'yes — six trees or more' : 'no — needs six trees',
+    doing: by,
+    nesting: FLOCK.list.filter(b=>b.life==='nesting').length,
+    withNests: FLOCK.list.filter(b=>b.nest).length,
+    scarecrows: scarecrows().length,
+    scarecrowRadius: (SCARE_R/40).toFixed(1)+' tiles',
+    trustInYou: FLOCK.list.map(b=>+birdTrust(b,'you').toFixed(2)).sort((a,b2)=>b2-a),
+    friendly: FLOCK.list.filter(b=>birdBestTrust(b) >= 0.5).length + ' will not touch the beds',
+    grainDown: L.seed > 0 ? Math.round(L.seed)+'s left' : 'none',
+    raidsToday: L.raids,
+    feedInBarn: S.feed || 0,
+  };
+};
+
+/* =====================================================================
+   THE MARKET IS SOMEWHERE ELSE, AND YOU DRIVE THERE
+
+   p133 let you walk onto the market ground, but the market ground is a
+   corner of your own farm — your beds and your barn are still in shot,
+   and it never stopped feeling like the same field with bunting on it.
+
+   So the market moves off the farm entirely. This is the ride's
+   architecture from p110, for the same reason the ride uses it: a place
+   that is not your farm should not be drawn by the thing that draws your
+   farm. A full-bleed overlay owns the whole screen, the farm is not
+   visible at all while you are away, and when you come back it is exactly
+   where you left it.
+
+   YOU DRIVE. Clicking go puts the family in the truck and takes them
+   down the lane — five parallax bands, hedges and poles going past, the
+   farm shrinking behind you and the market town coming up ahead. It takes
+   about seven seconds each way and you can skip it. Coming home is the
+   same road the other way round.
+
+   THE MARKET ITSELF is a street you walk along rather than a list: two
+   rows of stalls under a graded sky with hills behind, traders standing
+   at their pitches, a crowd moving through it. Arrow keys or click to
+   walk. Stand in front of a stall and it tells you what it is; the
+   judging tent, the supply stall, the relief fund, the sideshow and the
+   three ground games from p133 are all pitched along the street.
+
+   Every activity is the same call p133 already made, so nothing is
+   implemented twice — the dialog and its tabs are still what opens, and
+   the market's rules, prices and scoring are untouched.
+   ===================================================================== */
+
+let MTRIP = null;
+
+/* p133's on-farm visit is superseded: one market, not two. Its backdrop
+   and its bar are keyed off atTheMarket, so this switches both off
+   without unpicking the file. */
+if(typeof atTheMarket === 'function'){
+  atTheMarket = function(){ return false; };
+}
+
+const MSTALLS = [
+  { p:0.10, n:'Judging tent',    d:'Enter what you grew',            go:()=>marketOpenTab('Judging'),
+    c:'#c8583f' },
+  { p:0.24, n:'Supply stall',    d:'Seed, tools and stock',          go:()=>marketOpenTab('Supplies'),
+    c:'#4f7f96' },
+  { p:0.38, n:'Hook a duck',     d:'Three hooks, one pond',          go:()=>G.playHookDuck(),
+    c:'#6fb6d8' },
+  { p:0.52, n:'Coconut shy',     d:'Three balls at five coconuts',   go:()=>G.playCoconut(),
+    c:'#b98a4a' },
+  { p:0.66, n:'Guess the beast', d:'One guess at the prize bullock', go:()=>G.playHeaviest(),
+    c:'#8a9a3f' },
+  { p:0.80, n:'Sideshow row',    d:'Every game on the field',        go:()=>marketOpenTab('Sideshow'),
+    c:'#a98fd6' },
+  { p:0.93, n:'Relief fund',     d:'For growers who lost a season',  go:()=>marketOpenTab('Relief fund'),
+    c:'#e8a33d' },
+];
+
+/* ---------- the layer ---------- */
+function mktLayer(){
+  let el = document.getElementById('mktlay');
+  if(!el){
+    const host = document.getElementById('world') || document.body;
+    el = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    el.id = 'mktlay';
+    el.setAttribute('preserveAspectRatio','none');
+    el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:44;';
+    host.appendChild(el);
+  }
+  return el;
+}
+
+/* ---------- going ---------- */
+G.goToMarket = function(){
+  if(MTRIP) return;
+  if(!(S.market && S.market.active)){
+    if(typeof toast === 'function') toast('There is no market on today','bad');
+    return;
+  }
+  if(typeof G.wakeTheWorld === 'function') G.wakeTheWorld();
+  MTRIP = { phase:'out', t:0, dur:6.5, x:0, px:0.10, walk:0, near:null, dir:1 };
+  mktLayer();
+  mktBar();
+  document.addEventListener('keydown', mktKey);
+  if(typeof log === 'function') log('You took the family down to the market.', '', 'farm');
+  if(typeof sfx === 'function') try{ sfx('click'); }catch(e){}
+};
+
+G.leaveMarket = function(){
+  if(!MTRIP) return;
+  MTRIP.phase = 'home'; MTRIP.t = 0;
+};
+G.skipDrive = function(){
+  if(!MTRIP) return;
+  if(MTRIP.phase === 'out'){ MTRIP.phase = 'at'; MTRIP.t = 0; }
+  else if(MTRIP.phase === 'home') mktEnd();
+};
+
+function mktEnd(){
+  MTRIP = null;
+  document.removeEventListener('keydown', mktKey);
+  const el = document.getElementById('mktlay'); if(el) el.remove();
+  const b = document.getElementById('mktripbar'); if(b) b.remove();
+  if(typeof toast === 'function') toast('Home again', '');
+  if(typeof ui === 'function') try{ ui(); }catch(e){}
+  if(typeof save === 'function') try{ save(); }catch(e){}
+}
+
+function mktKey(e){
+  if(!MTRIP) return;
+  if(e.key === 'Escape'){ G.leaveMarket(); e.preventDefault(); return; }
+  if(MTRIP.phase !== 'at') return;
+  if(e.key === 'ArrowLeft'  || e.key === 'a'){ MTRIP.walk = -1; e.preventDefault(); }
+  if(e.key === 'ArrowRight' || e.key === 'd'){ MTRIP.walk =  1; e.preventDefault(); }
+  if(e.key === 'Enter' || e.key === ' '){
+    if(MTRIP.near){ try{ MTRIP.near.go(); }catch(err){} }
+    e.preventDefault();
+  }
+}
+document.addEventListener('keyup', (e)=>{
+  if(MTRIP && ['ArrowLeft','ArrowRight','a','d'].includes(e.key)) MTRIP.walk = 0;
+});
+
+/* ---------- the tick ---------- */
+function tickTrip(dt){
+  if(!MTRIP) return;
+  const M = MTRIP;
+  M.t += dt;
+  if(M.phase === 'out'){
+    M.x += dt * 240;
+    if(M.t >= M.dur){ M.phase = 'at'; M.t = 0; }
+  } else if(M.phase === 'home'){
+    M.x += dt * 240;
+    if(M.t >= M.dur){ mktEnd(); return; }
+  } else {
+    /* walking the street */
+    if(M.walk){ M.px = Math.max(0.03, Math.min(0.97, M.px + M.walk*dt*0.16)); M.dir = M.walk; }
+    M.near = null;
+    let best = 1;
+    MSTALLS.forEach(s=>{
+      const d = Math.abs(s.p - M.px);
+      if(d < 0.055 && d < best){ best = d; M.near = s; }
+    });
+  }
+  paintTrip();
+  mktBar();
+}
+
+/* JS % keeps the sign of the left operand, so once the journey counter
+   passes the tile width every roadside object computed a NEGATIVE offset
+   and every hedge, pole and road marking sat off the left of the screen.
+   The drive looked like an empty field going past. */
+function wrapX(v, m){ return ((v % m) + m) % m; }
+
+/* ---------- the drive ---------- */
+function driveArt(W, H, M){
+  const k = Math.min(1, M.t / M.dur);
+  const home = M.phase === 'home';
+  let s = '';
+  /* sky and the sun low over the lane */
+  s += `<defs><linearGradient id="gTrip" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#8fc0e4"/><stop offset="0.6" stop-color="#d8e8ef"/>
+    <stop offset="1" stop-color="#efe3c4"/></linearGradient></defs>`;
+  s += `<rect x="0" y="0" width="${n(W)}" height="${n(H)}" fill="url(#gTrip)"/>`;
+  s += `<circle cx="${n(W*0.76)}" cy="${n(H*0.20)}" r="${n(H*0.07)}" fill="#ffe9a8" opacity=".9"/>`;
+
+  const band = (rate, baseY, amp, fill, seed)=>{
+    const step = 120, off = -((M.x*rate) % step);
+    let d = `M${n(off-step)} ${n(H)}`;
+    for(let i=0;i<=Math.ceil(W/step)+3;i++){
+      const px = off - step + i*step;
+      const py = baseY*H - (hash(i*3.1+seed)*0.6 + hash(i*1.7+seed)*0.4)*amp*H;
+      d += ` L${n(px)} ${n(py)}`;
+    }
+    d += ` L${n(off + W + step*2)} ${n(H)} Z`;
+    return `<path d="${d}" fill="${fill}"/>`;
+  };
+  s += band(0.12, 0.56, 0.13, '#9fb6a8', 2);
+  s += band(0.30, 0.66, 0.10, '#7d9a72', 6);
+  s += band(0.55, 0.74, 0.06, '#6d8a5c', 9);
+
+  /* the lane */
+  const roadY = H*0.78;
+  s += `<rect x="0" y="${n(roadY)}" width="${n(W)}" height="${n(H-roadY)}" fill="#b9a882"/>`;
+  s += `<rect x="0" y="${n(roadY)}" width="${n(W)}" height="4" fill="#8d7f60"/>`;
+  for(let i=0;i<14;i++){
+    const dx = wrapX(i*140 - M.x*1.6, W+140) - 70;
+    s += `<rect x="${n(dx)}" y="${n(roadY + (H-roadY)*0.52)}" width="46" height="4" rx="2"
+      fill="#efe6cc" opacity=".8"/>`;
+  }
+  /* hedges and poles going past */
+  for(let i=0;i<10;i++){
+    const dx = wrapX(i*190 - M.x*1.15, W+220) - 110;
+    s += `<rect x="${n(dx)}" y="${n(roadY-56)}" width="5" height="56" fill="#6b5335"/>`;
+    s += `<rect x="${n(dx-16)}" y="${n(roadY-58)}" width="37" height="5" fill="#6b5335"/>`;
+  }
+  for(let i=0;i<16;i++){
+    const dx = wrapX(i*110 - M.x*1.5, W+140) - 70;
+    s += `<ellipse cx="${n(dx)}" cy="${n(roadY-8)}" rx="34" ry="15" fill="#5f7f48"/>`;
+    s += `<ellipse cx="${n(dx-9)}" cy="${n(roadY-13)}" rx="20" ry="9" fill="#749a58" opacity=".85"/>`;
+  }
+
+  /* where you are going, coming up ahead */
+  const townIn = Math.max(0, (k - 0.5)/0.5);
+  if(townIn > 0){
+    const tx = W*0.62, ty = roadY - 46;
+    s += `<g opacity="${townIn.toFixed(2)}">`;
+    for(let i=0;i<5;i++){
+      s += `<rect x="${n(tx + i*34)}" y="${n(ty - 18 - (i%2)*10)}" width="28"
+        height="${n(24 + (i%2)*10)}" fill="#c8b89a"/>`;
+      s += `<path d="M${n(tx + i*34 - 3)} ${n(ty - 18 - (i%2)*10)}
+        l17 -11 l17 11 z" fill="${['#c8583f','#4f7f96','#8a6a45','#6f8b52','#b98a4a'][i]}"/>`;
+    }
+    s += `</g>`;
+  }
+
+  /* the truck, and the family in it */
+  const cx = W*0.34 + Math.sin(M.t*9)*1.6, cy = roadY + (H-roadY)*0.30;
+  const flip = home ? -1 : 1;
+  s += `<g transform="translate(${n(cx)},${n(cy)}) scale(${flip},1)">`;
+  s += `<ellipse cx="6" cy="26" rx="60" ry="8" fill="#000" opacity=".18"/>`;
+  /* bed of the truck with the family standing in it */
+  s += `<rect x="-58" y="-14" width="62" height="30" rx="3" fill="#7d5f3c"/>`;
+  const fam = (typeof S.family === 'object' && S.family) ? S.family.slice(0,4) : [];
+  const riders = Math.max(2, fam.length + 1);
+  for(let i=0;i<riders;i++){
+    const rx = -50 + i*14, bob = Math.sin(M.t*7 + i)*1.4;
+    s += `<circle cx="${n(rx)}" cy="${n(-22+bob)}" r="5" fill="#efc9a4"/>`;
+    s += `<rect x="${n(rx-4)}" y="${n(-18+bob)}" width="8" height="10" rx="3"
+      fill="${['#c8583f','#4f7f96','#8a5f9c','#6f8b52','#e8a33d'][i%5]}"/>`;
+  }
+  /* cab */
+  s += `<rect x="4" y="-20" width="34" height="36" rx="4" fill="#c8583f"/>`;
+  s += `<rect x="10" y="-15" width="22" height="15" rx="2" fill="#cfe4ef" opacity=".9"/>`;
+  s += `<rect x="-60" y="10" width="100" height="8" rx="3" fill="#5a4630"/>`;
+  /* wheels, turning */
+  [-40, 26].forEach(wx=>{
+    s += `<circle cx="${n(wx)}" cy="18" r="11" fill="#2f2a26"/>`;
+    s += `<circle cx="${n(wx)}" cy="18" r="4.6" fill="#8d979d"/>`;
+    s += `<g transform="translate(${n(wx)},18) rotate(${(M.x*2.2)%360})">
+      <rect x="-4.6" y="-0.9" width="9.2" height="1.8" fill="#5f696f"/></g>`;
+  });
+  s += `</g>`;
+
+  /* dust behind */
+  for(let i=0;i<6;i++){
+    const a = hash(i*3.7 + Math.floor(M.t*4));
+    s += `<circle cx="${n(cx - 70 - i*16 - a*20)}" cy="${n(cy + 18 - a*8)}"
+      r="${n(5 + a*7)}" fill="#d8cbae" opacity="${(0.32 - i*0.045).toFixed(2)}"/>`;
+  }
+
+  s += `<text x="${n(W/2)}" y="${n(H*0.10)}" text-anchor="middle" font-size="15"
+    fill="#3d4a35" style="font-family:inherit" opacity=".8">${
+      home ? 'Heading home' : 'On the way to market'}</text>`;
+  return s;
+}
+
+/* ---------- the market street ---------- */
+function streetArt(W, H, M){
+  let s = '';
+  s += `<defs><linearGradient id="gStreet" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#8fc4e8"/><stop offset="0.52" stop-color="#d4e6ef"/>
+    <stop offset="1" stop-color="#e9ddc0"/></linearGradient></defs>`;
+  s += `<rect x="0" y="0" width="${n(W)}" height="${n(H)}" fill="url(#gStreet)"/>`;
+  const hz = H*0.40;
+  /* hills behind the town */
+  const ridge = (base, amp, fill, op, seed)=>{
+    let d = `M0 ${n(base+70)} L0 ${n(base)}`;
+    for(let i=0;i<=18;i++){
+      const px = W*i/18;
+      const py = base - (hash(i*3.1+seed)*0.55 + hash(i*1.9+seed)*0.45)*amp;
+      d += ` L${n(px)} ${n(py)}`;
+    }
+    d += ` L${n(W)} ${n(base+70)} Z`;
+    return `<path d="${d}" fill="${fill}" opacity="${op}"/>`;
+  };
+  s += ridge(hz-16, H*0.14, '#a6b8c0', 0.6, 4);
+  s += ridge(hz,    H*0.10, '#83997e', 0.85, 11);
+  /* the ground of the market */
+  s += `<rect x="0" y="${n(hz)}" width="${n(W)}" height="${n(H-hz)}" fill="#8fae5c"/>`;
+  s += `<rect x="0" y="${n(hz)}" width="${n(W)}" height="${n((H-hz)*0.10)}" fill="#a4c46e" opacity=".7"/>`;
+  /* the trodden street down the middle */
+  const roadY = hz + (H-hz)*0.52;
+  s += `<rect x="0" y="${n(roadY-26)}" width="${n(W)}" height="52" fill="#c2b18a"/>`;
+  s += `<rect x="0" y="${n(roadY-26)}" width="${n(W)}" height="3" fill="#a2916a" opacity=".7"/>`;
+
+  /* the stalls, laid along the street */
+  const spanX = (p)=> (p - M.px)*W*2.6 + W*0.5;
+  MSTALLS.forEach((st, i)=>{
+    const x = spanX(st.p);
+    if(x < -160 || x > W+160) return;
+    const back = i % 2 === 0;
+    const y = back ? roadY - 74 : roadY + 34;
+    const on = M.near === st;
+    s += `<g opacity="${back ? 1 : 1}">`;
+    /* awning */
+    s += `<rect x="${n(x-52)}" y="${n(y)}" width="104" height="34" rx="2" fill="#e9e2d0"/>`;
+    for(let k2=0;k2<6;k2++)
+      s += `<rect x="${n(x-52 + k2*17.4)}" y="${n(y)}" width="8.7" height="34" fill="${st.c}" opacity=".85"/>`;
+    s += `<rect x="${n(x-56)}" y="${n(y+30)}" width="112" height="7" rx="3" fill="#8a7a58"/>`;
+    /* counter and goods */
+    s += `<rect x="${n(x-44)}" y="${n(y+37)}" width="88" height="20" rx="2" fill="#a98a5c"/>`;
+    for(let k2=0;k2<5;k2++)
+      s += `<circle cx="${n(x-33 + k2*16)}" cy="${n(y+41)}" r="4"
+        fill="${['#c8583f','#e8a33d','#6f8b52','#b0524a','#d8c44a'][k2]}"/>`;
+    /* the trader */
+    s += `<circle cx="${n(x+16)}" cy="${n(y+30)}" r="5.4" fill="#efc9a4"/>`;
+    s += `<rect x="${n(x+11)}" y="${n(y+35)}" width="11" height="14" rx="4" fill="#5f6b8a"/>`;
+    /* sign */
+    s += `<rect x="${n(x-46)}" y="${n(y-22)}" width="92" height="19" rx="3"
+      fill="${on ? '#f0c14b' : '#efe6cc'}" stroke="#6b5335" stroke-width="1.4"/>`;
+    s += `<text x="${n(x)}" y="${n(y-8.5)}" text-anchor="middle" font-size="10.5"
+      fill="#3a2c18" style="font-family:inherit">${st.n}</text>`;
+    s += `</g>`;
+  });
+
+  /* the crowd going about it */
+  for(let i=0;i<16;i++){
+    const a = hash(i*5.3), b = hash(i*2.7);
+    const cx2 = wrapX(a*W*2.6 - M.px*W*2.6 + W*0.5 + i*37, W+120) - 60;
+    const cy2 = roadY + (b-0.5)*40 + Math.sin(M.t*1.4 + i)*2;
+    const col = ['#c8583f','#4f7f96','#8a5f9c','#6f8b52','#e8a33d','#a98fd6'][i%6];
+    s += `<ellipse cx="${n(cx2)}" cy="${n(cy2+11)}" rx="6" ry="2.4" fill="#000" opacity=".16"/>`;
+    s += `<circle cx="${n(cx2)}" cy="${n(cy2-8)}" r="4.6" fill="#efc9a4"/>`;
+    s += `<rect x="${n(cx2-4)}" y="${n(cy2-4)}" width="8" height="13" rx="3" fill="${col}"/>`;
+  }
+
+  /* you */
+  const yx = W*0.5, yy = roadY + 6;
+  s += `<g transform="translate(${n(yx)},${n(yy)}) scale(${M.dir},1)">`;
+  s += `<ellipse cx="0" cy="15" rx="8" ry="3" fill="#000" opacity=".2"/>`;
+  s += `<circle cx="0" cy="-11" r="6" fill="#efc9a4"/>`;
+  s += `<rect x="-6" y="-6" width="12" height="17" rx="4" fill="#c8583f"/>`;
+  s += `<rect x="-5" y="10" width="4" height="7" rx="2" fill="#3f4a5a"/>`;
+  s += `<rect x="1" y="10" width="4" height="7" rx="2" fill="#3f4a5a"/>`;
+  s += `<path d="M-9 -14 q9 -5 18 0" stroke="#8a6a45" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  s += `</g>`;
+
+  /* bunting over the street */
+  for(let i=0;i<26;i++){
+    const bx = (i*(W/24)) - 20;
+    const sag = Math.sin(i*0.6)*6;
+    s += `<path d="M${n(bx)} ${n(hz+10+sag)} l7 12 l7 -12 z"
+      fill="${['#c8583f','#4f7f96','#e8a33d','#6f8b52'][i%4]}" opacity=".9"/>`;
+  }
+  return s;
+}
+
+function paintTrip(){
+  const M = MTRIP; if(!M) return;
+  const el = mktLayer(); if(!el) return;
+  const box = el.getBoundingClientRect();
+  const W = Math.max(320, box.width), H = Math.max(240, box.height);
+  el.setAttribute('viewBox', `0 0 ${Math.round(W)} ${Math.round(H)}`);
+  el.innerHTML = (M.phase === 'at') ? streetArt(W, H, M) : driveArt(W, H, M);
+}
+
+/* ---------- the bar ---------- */
+function mktBar(){
+  const M = MTRIP;
+  let bar = document.getElementById('mktripbar');
+  if(!M){ if(bar) bar.remove(); return; }
+  const vp = document.getElementById('viewport') || document.body;
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'mktripbar';
+    vp.appendChild(bar);
+  }
+  if(M.phase !== 'at'){
+    bar.innerHTML = `<span class="mkt-where">${M.phase === 'home' ? 'Driving home' : 'On the way'}</span>
+      <button class="mkt-skip" onclick="G.skipDrive()">Skip the drive</button>`;
+    return;
+  }
+  bar.innerHTML = `<span class="mkt-where">Market</span>
+    <button class="mkt-do" id="mktdo" style="${M.near?'':'display:none'}"></button>
+    <span class="mkt-hint">← → to walk</span>
+    <button class="mkt-home" onclick="G.leaveMarket()">Drive home</button>`;
+  const d = bar.querySelector('#mktdo');
+  if(d && M.near){
+    d.textContent = `${M.near.n} — ${M.near.d}`;
+    d.onclick = ()=>{ try{ M.near.go(); }catch(e){} };
+  }
+}
+
+/* ---------- wire it in ---------- */
+if(typeof tickPeople === 'function'){
+  const _tickPeopleTrip = tickPeople;
+  tickPeople = function(dt){
+    const r = _tickPeopleTrip.apply(this, arguments);
+    try{ if(MTRIP) tickTrip(Math.min(0.06, typeof dt === 'number' ? dt : 0.05)); }catch(e){}
+    return r;
+  };
+}
+/* the drive must keep running even with the sim paused, or the screen
+   freezes mid-journey with a truck stopped on the road */
+(function tripFrame(){
+  let last = performance.now();
+  function f(now){
+    requestAnimationFrame(f);
+    const dt = Math.min(0.06, (now-last)/1000); last = now;
+    try{ if(MTRIP && (!S || S.speed === 0)) tickTrip(dt); }catch(e){}
+  }
+  requestAnimationFrame(f);
+})();
+
+if(typeof syncWorldButtons === 'function'){
+  const _syncTrip = syncWorldButtons;
+  syncWorldButtons = function(){
+    const r = _syncTrip.apply(this, arguments);
+    try{
+      const b = document.getElementById('mktgobtn');
+      if(b){
+        b.onclick = ()=>G.goToMarket();
+        b.title = 'Drive down to the market';
+        b.setAttribute('data-tip','<b>Go to the market</b>The family get in the truck and drive down. It is a different place — you will not see the farm until you come back.');
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+(function tripCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #mktlay{ animation: mktin .5s ease; }
+  @keyframes mktin{ from{ opacity:0 } to{ opacity:1 } }
+  #mktripbar{ position:absolute; left:50%; transform:translateX(-50%); bottom:14px; z-index:66;
+    display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:999px;
+    background:rgba(20,27,16,.94); border:1px solid var(--line2); box-shadow:var(--shadow);
+    font-family:var(--font); max-width:min(94vw,660px); }
+  .mkt-where{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--gold); padding:0 4px; white-space:nowrap; }
+  .mkt-hint{ font-size:11px; color:var(--ink3); white-space:nowrap; }
+  .mkt-do{ font-family:inherit; font-size:12.5px; font-weight:650; color:#0e1a09;
+    background:linear-gradient(180deg,#f0c14b,#c99a2c); border-radius:999px;
+    padding:7px 13px; cursor:pointer; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; max-width:300px; }
+  .mkt-home, .mkt-skip{ font-family:inherit; font-size:12px; color:var(--ink2);
+    background:var(--panel2); border:1px solid var(--line); border-radius:999px;
+    padding:6px 12px; cursor:pointer; white-space:nowrap; }
+  .mkt-home:hover, .mkt-skip:hover{ color:var(--ink); border-color:var(--green); }
+  @media (max-width:560px){ .mkt-hint{ display:none } }
+  @media (prefers-reduced-motion: reduce){ #mktlay{ animation:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* clicking the street walks you toward that point */
+document.addEventListener('click', (e)=>{
+  if(!MTRIP || MTRIP.phase !== 'at') return;
+  const el = document.getElementById('mktlay'); if(!el) return;
+  const box = el.getBoundingClientRect();
+  if(e.clientX < box.left || e.clientX > box.right) return;
+  if(e.clientY < box.top  || e.clientY > box.bottom) return;
+  if(e.target.closest && e.target.closest('#mktripbar')) return;
+  const rel = (e.clientX - box.left) / box.width;
+  MTRIP.px = Math.max(0.03, Math.min(0.97, MTRIP.px + (rel - 0.5) / 2.6));
+  MTRIP.dir = rel > 0.5 ? 1 : -1;
+}, true);
+
+/* ---------- handle ---------- */
+G.marketTripAudit = function(){
+  if(!MTRIP) return { away:false, stalls:MSTALLS.map(s=>s.n),
+    note:'the market is off the farm — you drive to it' };
+  return {
+    away:true,
+    phase: MTRIP.phase === 'out' ? 'driving there'
+         : MTRIP.phase === 'home' ? 'driving home' : 'at the market',
+    secondsIntoPhase: +MTRIP.t.toFixed(1),
+    alongTheStreet: +MTRIP.px.toFixed(2),
+    standingAt: MTRIP.near ? MTRIP.near.n : 'between stalls',
+    stalls: MSTALLS.map(s=>s.n),
+    farmVisible: !document.getElementById('mktlay') ? 'yes' : 'no — the overlay covers it',
+    ridersInTheTruck: 1 + ((S.family && S.family.length) || 0),
   };
 };
 
