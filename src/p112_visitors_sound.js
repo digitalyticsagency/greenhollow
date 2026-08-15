@@ -43,13 +43,17 @@
   if(typeof WILD !== 'object' || WILD.drifter) return;
   Object.assign(WILD, {
     drifter:  { n:'Drifter',   active:[20,4], threat:0, good:0, targets:['plot'],
-                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c' },
+                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
+                say:['…'], seen:'A pale light is drifting slowly over the beds.' },
     skitter:  { n:'Skitter',   active:[21,3], threat:1, good:0, targets:['plot','animal'],
-                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8' },
+                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
+                say:['!'], seen:'Something thin and quick went past the barn.' },
     watcher:  { n:'Watcher',   active:[22,3], threat:1, good:0, targets:['animal'],
-                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a' },
+                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
+                say:['…'], seen:'Something is hanging over the yard, not moving.' },
     harvester:{ n:'Harvester', active:[1,5],  threat:1, good:0, targets:['plot'],
-                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74' },
+                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
+                say:['…'], seen:'A squat machine has come into the far bed.' },
   });
 })();
 
@@ -90,6 +94,17 @@ if(typeof wildArt === 'function'){
     return s;
   };
 }
+
+/* spawnWild logs sp.seen directly, so a species without one puts the
+   literal word "undefined" in the farm log — which is exactly what the
+   four aliens did on their first outing. Belt and braces for anything
+   added later without one. */
+(function guardSeen(){
+  Object.keys(WILD).forEach(k=>{
+    if(!WILD[k].seen) WILD[k].seen = `A ${WILD[k].n.toLowerCase()} is on the land.`;
+    if(!WILD[k].say)  WILD[k].say = ['…'];
+  });
+})();
 
 /* ---------- 2. never the same thing twice running ---------- */
 if(typeof summonWild === 'function'){

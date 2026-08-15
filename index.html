@@ -32197,13 +32197,17 @@ G.trustAudit = function(){
   if(typeof WILD !== 'object' || WILD.drifter) return;
   Object.assign(WILD, {
     drifter:  { n:'Drifter',   active:[20,4], threat:0, good:0, targets:['plot'],
-                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c' },
+                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
+                say:['…'], seen:'A pale light is drifting slowly over the beds.' },
     skitter:  { n:'Skitter',   active:[21,3], threat:1, good:0, targets:['plot','animal'],
-                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8' },
+                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
+                say:['!'], seen:'Something thin and quick went past the barn.' },
     watcher:  { n:'Watcher',   active:[22,3], threat:1, good:0, targets:['animal'],
-                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a' },
+                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
+                say:['…'], seen:'Something is hanging over the yard, not moving.' },
     harvester:{ n:'Harvester', active:[1,5],  threat:1, good:0, targets:['plot'],
-                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74' },
+                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
+                say:['…'], seen:'A squat machine has come into the far bed.' },
   });
 })();
 
@@ -32244,6 +32248,17 @@ if(typeof wildArt === 'function'){
     return s;
   };
 }
+
+/* spawnWild logs sp.seen directly, so a species without one puts the
+   literal word "undefined" in the farm log — which is exactly what the
+   four aliens did on their first outing. Belt and braces for anything
+   added later without one. */
+(function guardSeen(){
+  Object.keys(WILD).forEach(k=>{
+    if(!WILD[k].seen) WILD[k].seen = `A ${WILD[k].n.toLowerCase()} is on the land.`;
+    if(!WILD[k].say)  WILD[k].say = ['…'];
+  });
+})();
 
 /* ---------- 2. never the same thing twice running ---------- */
 if(typeof summonWild === 'function'){
@@ -32414,6 +32429,124 @@ G.visitorAudit = function(){
     neverRepeats: 'the previous one is removed from the draw',
     sounds: ['hit','heavy','charge','beam','blast','rumble','whoosh','roar'],
     wasBefore: 'the pool held one species, so every summon was a fox',
+  };
+};
+
+/* =====================================================================
+   THE FOX WAS THERE. NOTHING DREW IT.
+
+   Reported as the fox not being visible — not the button, the animal.
+   Correct, and it is the same class of fault as the dog earlier in this
+   project: the thing exists, it moves, it gets chased, and no element on
+   the page represents it.
+
+   paintWild() finds an animal's element with
+
+       layer.querySelector(`[data-w="${w.id}"]`)
+
+   and moves it. It never creates one. The elements come from render(),
+   which emits the whole wildlife layer along with the rest of the scene.
+   Summoning does not call render(), and on a farm that is sitting still
+   render() may not run for minutes — so pressing the button spawned a
+   badger into S.wild, the chase drove it around, the dog gave chase, the
+   log narrated all of it, and the screen showed an empty field.
+
+   Measured: one animal in state, `#wildlife` layer absent entirely, zero
+   elements, so paintWild's lookup returned null on every frame.
+
+   THE FIX IS THE ONE THE REST OF THIS CODEBASE ALREADY USES. The ghost
+   layer, the chase layer, the dragon layer and the dog all build
+   themselves on demand and paint by moving what they built. Wildlife now
+   does the same: the layer is created if missing, an element is created
+   for any animal that lacks one, and elements for animals that have gone
+   are removed. It no longer depends on a full scene redraw ever
+   happening, which is what made it invisible.
+   ===================================================================== */
+
+function wildLayerEl(){
+  let g = document.getElementById('wildlife');
+  if(!g){
+    const fg = document.getElementById('fg');
+    if(!fg) return null;
+    g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.id = 'wildlife';
+    g.setAttribute('pointer-events','none');
+    fg.appendChild(g);
+  }
+  return g;
+}
+
+/* build or drop elements so the layer matches what is actually out there */
+function syncWildElements(){
+  const g = wildLayerEl(); if(!g) return null;
+  const list = (typeof wildList === 'function') ? wildList() : (S.wild || []);
+  const want = {};
+  list.forEach(w=>{ want[w.id] = w; });
+
+  /* remove anything that has gone home */
+  [...g.children].forEach(el=>{
+    const id = el.getAttribute('data-w');
+    if(!want[id]) el.remove();
+  });
+
+  /* create anything new */
+  list.forEach(w=>{
+    if(g.querySelector(`[data-w="${w.id}"]`)) return;
+    const sp = WILD[w.k]; if(!sp) return;
+    const el = document.createElementNS('http://www.w3.org/2000/svg','g');
+    el.setAttribute('data-w', w.id);
+    el.setAttribute('class', `wild ${w.k} ${w.state||''}`);
+    /* the inner group carries the facing flip, which is what paintWild
+       reaches for with querySelector('g') */
+    let art = '';
+    try{ art = wildArt(w); }catch(e){ art = `<circle r="6" fill="#a8663a"/>`; }
+    el.innerHTML = `<g>${art}</g>`;
+    g.appendChild(el);
+  });
+  return g;
+}
+
+/* paintWild moves elements; it now also makes sure they exist */
+if(typeof paintWild === 'function'){
+  const _paintWildBase = paintWild;
+  paintWild = function(){
+    try{ syncWildElements(); }catch(e){}
+    return _paintWildBase.apply(this, arguments);
+  };
+}
+
+/* and paint the moment something arrives, rather than waiting for a frame */
+if(typeof spawnWild === 'function'){
+  const _spawnWildPaint = spawnWild;
+  spawnWild = function(){
+    const w = _spawnWildPaint.apply(this, arguments);
+    try{ paintWild(); }catch(e){}
+    return w;
+  };
+}
+if(typeof G.summonWildlife === 'function'){
+  const _summonPaint = G.summonWildlife;
+  G.summonWildlife = function(){
+    const r = _summonPaint.apply(this, arguments);
+    try{ paintWild(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.wildPaintAudit = function(){
+  const g = document.getElementById('wildlife');
+  const list = (typeof wildList === 'function') ? wildList() : (S.wild || []);
+  return {
+    animalsInState: list.length,
+    layerExists: !!g,
+    elementsDrawn: g ? g.children.length : 0,
+    everyAnimalDrawn: list.every(w=>g && g.querySelector(`[data-w="${w.id}"]`)),
+    each: list.map(w=>{
+      const el = g && g.querySelector(`[data-w="${w.id}"]`);
+      return `${WILD[w.k].n}: ${el ? 'drawn at ' + (el.getAttribute('transform')||'0,0') : 'MISSING'}`;
+    }),
+    wasBefore: 'elements only ever came from a full render(); summoning never triggered one',
   };
 };
 
