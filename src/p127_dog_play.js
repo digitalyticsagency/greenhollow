@@ -50,7 +50,10 @@ function dogReward(key, bond, charm, msg, cls){
   P.played[key] = 1;
   const d = S.dog;
   if(d && bond) d.bond = Math.min(1, (d.bond === undefined ? 0.35 : d.bond) + bond);
-  if(charm && typeof S.charm === 'number') S.charm += charm;
+  /* S.charm is not a field — charm is computed by stat(), and S.charmGift
+     is what feeds into it. Guarding on typeof S.charm meant every charm
+     reward in here silently did nothing. */
+  if(charm) S.charmGift = (S.charmGift || 0) + charm;
   if(bond > 0) P.won++;
   if(typeof log === 'function') log(msg, cls || '', 'home');
   if(typeof sfx === 'function') sfx(bond >= 0.04 ? 'level' : 'click');

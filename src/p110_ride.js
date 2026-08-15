@@ -354,7 +354,10 @@ function endRide(){
     d.bond = Math.max(0, Math.min(1, d.bond + (net > 0 ? 0.05 : -0.02)));
     if(d.mind) d.mind.pride = Math.max(0, d.mind.pride - 0.4);   /* it was admired */
   }
-  if(net > 0 && typeof S.charm === 'number') S.charm += Math.min(6, Math.round(net/4));
+  /* Was guarded on typeof S.charm === 'number'. There is no S.charm —
+     charm is computed by stat() and S.charmGift is the field that feeds
+     it, so the ride has never actually paid the charm it promises. */
+  if(net > 0) S.charmGift = (S.charmGift || 0) + Math.min(6, Math.round(net/4));
   if(typeof log === 'function')
     log(`Back on the roost. ${R.cheers} greeted you over ${R.scene.n}`
       + (R.scares ? `, ${R.scares} ran for cover.` : '.'), net>0?'gold':'', 'farm');
