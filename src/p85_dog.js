@@ -87,8 +87,12 @@ function tickDog(dt){
     d.state = t.mode === 'sleep' ? 'sleep' : (t.mode === 'work' ? 'work' : 'sit');
     /* reaching a stray sends it home, which is the one useful thing she does */
     if(t.mode === 'work' && t.stray){
-      if(typeof G.roundUp === 'function'){
+      /* same per-frame spam guard as p92 — this path is superseded but
+         must not be able to bring the problem back */
+      d.roundCool = Math.max(0, (d.roundCool || 0) - 0.05);
+      if(typeof G.roundUp === 'function' && d.roundCool <= 0){
         G.roundUp();
+        d.roundCool = 4;
         log(`${d.name} brought the loose stock back in.`, 'good', 'farm');
         toast(`${d.name} rounded them up`,'good');
       }

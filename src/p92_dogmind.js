@@ -173,11 +173,21 @@ function tickDogMind(dt){
       m.energy = Math.min(1, m.energy + dt * 0.10);
     } else if(goal.mode === 'work'){
       d.state = 'work';
-      if(typeof G.roundUp === 'function'){
+      /* This branch runs every frame the dog is stood over a stray, so
+         without a guard it called roundUp and raised a toast sixty times
+         a second — the screen filled with a column of identical
+         "rounded them up" notices. One announcement per round-up, and a
+         short lockout before another can happen. */
+      d.roundCool = Math.max(0, (d.roundCool || 0) - dt);
+      if(typeof G.roundUp === 'function' && d.roundCool <= 0){
+        const had = (typeof strayList === 'function') ? strayList().length : 0;
         G.roundUp();
-        d.bond = Math.min(1, (d.bond||0.35) + 0.05);
-        log(`${d.name} brought the loose stock back in.`, 'good', 'farm');
-        toast(`${d.name} rounded them up`, 'good');
+        d.roundCool = 4;
+        if(had){
+          d.bond = Math.min(1, (d.bond||0.35) + 0.05);
+          log(`${d.name} brought ${had === 1 ? 'a stray' : had + ' strays'} back in.`, 'good', 'farm');
+          toast(`${d.name} rounded them up`, 'good');
+        }
       }
     } else if(goal.mode === 'play'){
       d.state = 'run';
