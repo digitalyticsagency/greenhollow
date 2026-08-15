@@ -85,6 +85,18 @@ const SND = (function(){
              tone(b, 0.07, 'square', 0.05, null, b*1.5);
              setTimeout(()=>tone(b*0.8, 0.09, 'square', 0.04, null, b*0.6), 80); },
     bleat(){ tone(320, 0.3, 'sawtooth', 0.045, null, 250); },
+    /* the dog. A bark is a hard consonant then a falling vowel, which is
+       a noise transient and a dropping square — pitched a little
+       differently each time so a run of them is not a machine. */
+    bark(){ const b = 230 + Math.random()*70;
+            noiseHit(0.06, 1900, 700, 0.09, 0.9);
+            tone(b, 0.10, 'square', 0.065, null, b*0.55);
+            setTimeout(()=>tone(b*0.78, 0.07, 'sawtooth', 0.035, null, b*0.5), 72); },
+    growl(){ const b = 88 + Math.random()*22;
+             tone(b, 0.55, 'sawtooth', 0.05, null, b*0.82);
+             noiseHit(0.5, 280, 110, 0.045, 0.6); },
+    whine(){ const b = 520 + Math.random()*80;
+             tone(b, 0.42, 'sine', 0.05, null, b*1.7); },
     bee(){ tone(220, 0.5, 'sawtooth', 0.02, null, 210); },
     /* the rest of the yard. Kept small and soft - these fire often, so
        anything with a sharp attack becomes irritating within a minute. */

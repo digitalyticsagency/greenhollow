@@ -136,11 +136,14 @@ if(typeof ART === 'object' && !ART.kennel){
 
 /* ---------- where home is ---------- */
 function kennelObj(){ return (S.objs || []).find(o=>o.bp === 'kennel') || null; }
-/* the mouth of it, which is where she actually lies */
+/* Inside it, not on the grass in front. The first pass put her a fifth of
+   a tile below the footprint, which read as a dog lying next to a kennel
+   rather than a dog in one. This is the mouth itself, so she curls in the
+   dark of the arch. */
 function kennelSpot(){
   const k = kennelObj(); if(!k) return null;
   const f = footprint(BPMAP[k.bp], k.rot);
-  return { x:(k.tx + f.w/2)*T, y:(k.ty + f.h + 0.2)*T, obj:k };
+  return { x:(k.tx + f.w/2)*T, y:(k.ty + f.h*0.80)*T, obj:k };
 }
 /* weather she will not lie out in */
 function kennelWeather(){ return ['rain','storm','frost'].includes(S.weather); }
