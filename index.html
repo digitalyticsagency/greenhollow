@@ -37495,11 +37495,19 @@ G.dogWorldAudit = function(){
    flies and breathes fire could do, and every one of them feeds a drive
    it already had:
 
-     Burn off a bed   pick a plot. It goes up, crosses the farm, hangs
-                      over the bed and puts a jet of flame straight down.
-                      The weeds are gone. That is a chore off you, and
-                      heat has to go somewhere anyway — burning is the
-                      only thing in p108 that discharges it.
+     Set a tree alight
+                      pick one of your trees. It crosses the farm, hangs
+                      over it and puts a jet of flame down, and the tree
+                      CATCHES — it does not vanish. It burns for the best
+                      part of half a minute, the crown blackening and
+                      shrinking under the flames, sparks going up, until
+                      there is nothing there but hot ground. Only trees
+                      burn; soil does not catch, and burning the weeds off
+                      a bed was a tidy little chore rather than a dragon
+                      setting fire to something. It costs you the charm
+                      the tree was providing, so it is a decision. Heat
+                      has to go somewhere anyway — burning is the only
+                      thing in p108 that discharges it.
      Hunt             it leaves the map entirely, is gone a while, and
                       comes back with something. Feed in the store, and
                       its hunger down. The one command that costs you
@@ -37561,7 +37569,7 @@ G.openDragonMenu = function(){
   m.innerHTML = `
     <div class="dragonmenu-h">${d.name}</div>
     ${listens ? `
-      <button class="dragonmenu-b" onclick="G.dragonBurnStart()">🔥 Burn off a bed</button>
+      <button class="dragonmenu-b" onclick="G.dragonBurnStart()">🔥 Set a tree alight</button>
       <button class="dragonmenu-b" onclick="G.dragonHunt()">🍖 Go and hunt</button>
       <button class="dragonmenu-b" onclick="G.dragonShow()">🌀 Fly a circuit</button>
       <button class="dragonmenu-b" onclick="G.dragonCome()">✋ Come down</button>
@@ -37618,30 +37626,150 @@ G.dragonHunt = function(){
   if(typeof log === 'function') log(`${d.name} went out over the ridge to hunt.`, '', 'farm');
 };
 
+/* ---------- what will burn ----------
+   Only trees. A bed of soil does not catch, and burning the weeds off one
+   was a tidy little chore rather than a dragon setting fire to something.
+   The three trees are the only things on this farm that are actually
+   flammable, and losing one costs you the charm it was standing there
+   providing — so this is a decision, not a free tidy-up. */
+function isFlammable(o){
+  const bp = BPMAP[o.bp];
+  return !!(bp && /^tree_/.test(bp.art || ''));
+}
+function flammableAt(wx, wy){
+  return (S.objs||[]).find(o=>{
+    if(!isFlammable(o)) return false;
+    const f = footprint(BPMAP[o.bp], o.rot);
+    return wx >= o.tx*T && wx <= (o.tx+f.w)*T && wy >= o.ty*T && wy <= (o.ty+f.h)*T;
+  });
+}
+
 G.dragonBurnStart = function(){
-  const beds = (S.objs||[]).filter(o=>BPMAP[o.bp] && BPMAP[o.bp].kind === 'plot');
-  if(!beds.length){ dragonMenuClose(); return toast('There are no beds to burn off','bad'); }
+  const trees = (S.objs||[]).filter(isFlammable);
+  if(!trees.length){ dragonMenuClose(); return toast('Nothing on the farm will burn — plant a tree','bad'); }
   dragonMenuClose();
   DRAGONAIM = true;
   document.body.classList.add('dragon-aiming');
-  if(typeof toast === 'function') toast('Click the bed to burn off', 'good');
+  if(typeof toast === 'function') toast('Click a tree to set alight', 'good');
 };
 
 function dragonBurnAt(wx, wy){
-  /* the plot under the click, if there is one */
-  const bed = (S.objs||[]).find(o=>{
-    const bp = BPMAP[o.bp]; if(!bp || bp.kind !== 'plot') return false;
-    const f = footprint(bp, o.rot);
-    return wx >= o.tx*T && wx <= (o.tx+f.w)*T && wy >= o.ty*T && wy <= (o.ty+f.h)*T;
-  });
+  const tree = flammableAt(wx, wy);
   /* a miss keeps you aiming rather than silently dropping the whole
-     command — beds are small and the cursor is a crosshair for a reason */
-  if(!bed){ if(typeof toast === 'function') toast('Not a bed — click a plot, or Esc', 'bad'); return; }
+     command — trees are small and the cursor is a crosshair for a reason */
+  if(!tree){ if(typeof toast === 'function') toast('That will not burn — click a tree, or Esc', 'bad'); return; }
+  if(tree.alight){ if(typeof toast === 'function') toast('That one is already going','' ); return; }
   DRAGONAIM = false;
   document.body.classList.remove('dragon-aiming');
-  const f = footprint(BPMAP[bed.bp], bed.rot);
-  dragonCmd({ mode:'burn', bedId:bed.id, t:0,
-              x:(bed.tx + f.w/2)*T, y:(bed.ty + f.h/2)*T - 26 });
+  const f = footprint(BPMAP[tree.bp], tree.rot);
+  dragonCmd({ mode:'burn', treeId:tree.id, t:0,
+              x:(tree.tx + f.w/2)*T, y:(tree.ty + f.h/2)*T - 30 });
+}
+
+/* ---------- a tree on fire ----------
+   It does not vanish when the dragon breathes on it. It catches, burns
+   for the best part of half a minute while the crown goes and the flames
+   drop into the trunk, and then there is nothing there. Held on the
+   object so it survives a render, and ticked with everything else. */
+const BURN_DUR = 26;                 /* seconds from catching to gone */
+
+function lightTree(o){
+  if(!o || o.alight) return;
+  o.alight = 0.0001;                 /* progress 0..1, truthy from the off */
+}
+function burnTick(dt){
+  const objs = S.objs || [];
+  let done = null;
+  for(const o of objs){
+    if(!o.alight) continue;
+    o.alight = Math.min(1, o.alight + dt/BURN_DUR);
+    if(o.alight >= 1) done = o;
+  }
+  if(done){
+    const bp = BPMAP[done.bp];
+    S.objs = objs.filter(x=>x !== done);
+    S.embers = (S.embers || []).concat([{ x:(done.tx+1)*T, y:(done.ty+1)*T, t:0 }]);
+    if(typeof log === 'function')
+      log(`The ${(bp && bp.name || 'tree').toLowerCase()} burned down to nothing. The ground is still hot.`,
+          'bad', 'farm');
+    if(typeof render === 'function') try{ render(); }catch(e){}
+    if(typeof ui === 'function') try{ ui(); }catch(e){}
+  }
+  if(S.embers && S.embers.length){
+    S.embers.forEach(e=>e.t += dt);
+    S.embers = S.embers.filter(e=>e.t < 40);
+  }
+}
+
+/* flames drawn per frame in their own layer, so the scene is not rebuilt */
+function paintBurn(){
+  const alight = (S.objs||[]).filter(o=>o.alight);
+  const embers = S.embers || [];
+  let g = document.getElementById('burnlay');
+  if(!alight.length && !embers.length){ if(g) g.remove(); return; }
+  if(!g){
+    const fg = document.getElementById('fg');
+    if(!fg) return;
+    g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.id = 'burnlay';
+    g.setAttribute('pointer-events','none');
+    fg.appendChild(g);
+  }
+  const now = (performance.now()/1000);
+  let s = '';
+
+  alight.forEach(o=>{
+    const f = footprint(BPMAP[o.bp], o.rot);
+    const cx = (o.tx + f.w/2)*T, cy = (o.ty + f.h/2)*T;
+    const k = o.alight;
+    /* the fire builds, holds, then falls into the trunk as the crown goes */
+    const size = k < 0.25 ? k/0.25 : k > 0.75 ? Math.max(0.18, (1-k)/0.25) : 1;
+    const h0 = (f.h*T) * (0.30 + 0.55*size);
+    /* the crown darkens and shrinks under it */
+    s += `<ellipse cx="${n(cx)}" cy="${n(cy - f.h*T*0.10)}" rx="${n(f.w*T*0.44*(1-k*0.45))}"
+      ry="${n(f.h*T*0.34*(1-k*0.45))}" fill="#221610" opacity="${(0.20 + k*0.62).toFixed(2)}"/>`;
+    /* tongues, each on its own wobble */
+    for(let i=0;i<5;i++){
+      const a = hash(i*3.7 + o.tx);
+      const sway = Math.sin(now*(3.4 + a*2.6) + i*1.9) * (5 + a*4);
+      const hh = h0 * (0.55 + a*0.5);
+      const bx = cx + (i-2)*(f.w*T*0.13) + sway*0.35;
+      const by = cy + f.h*T*0.16;
+      const tongue = (sc, col, op)=>`<path d="M${n(bx-6*sc)} ${n(by)}
+        Q${n(bx-3*sc+sway)} ${n(by-hh*0.55*sc)} ${n(bx+sway*1.1)} ${n(by-hh*sc)}
+        Q${n(bx+3*sc+sway)} ${n(by-hh*0.55*sc)} ${n(bx+6*sc)} ${n(by)} Z"
+        fill="${col}" opacity="${op}"/>`;
+      s += tongue(1.0, '#e24a12', 0.55);
+      s += tongue(0.68, '#ff9a2a', 0.80);
+      s += tongue(0.36, '#ffe07a', 0.92);
+    }
+    /* sparks going up */
+    for(let i=0;i<4;i++){
+      const a = hash(i*5.1 + o.ty);
+      const rise = ((now*(26 + a*30) + a*90) % 90);
+      const ex = cx + (a-0.5)*f.w*T*0.7 + Math.sin(now*2 + i)*5;
+      s += `<circle cx="${n(ex)}" cy="${n(cy - rise)}" r="${(1 + a*1.6).toFixed(1)}"
+        fill="#ffc46a" opacity="${(0.75*(1 - rise/90)).toFixed(2)}"/>`;
+    }
+    /* the light it throws on the ground */
+    s += `<ellipse cx="${n(cx)}" cy="${n(cy + f.h*T*0.30)}" rx="${n(f.w*T*0.75*size)}"
+      ry="${n(f.h*T*0.30*size)}" fill="#ff8a3a" opacity="${(0.13*size).toFixed(3)}"/>`;
+  });
+
+  /* what is left afterwards, cooling for a while */
+  embers.forEach(e=>{
+    const k = 1 - e.t/40;
+    s += `<ellipse cx="${n(e.x)}" cy="${n(e.y)}" rx="${n(T*0.62)}" ry="${n(T*0.42)}"
+      fill="#1b1410" opacity="${(0.55*k).toFixed(3)}"/>`;
+    for(let i=0;i<3;i++){
+      const a = hash(i*2.3 + e.x);
+      s += `<circle cx="${n(e.x + (a-0.5)*T*0.7)}" cy="${n(e.y + (hash(i+9)-0.5)*T*0.4)}"
+        r="${(1.2 + a).toFixed(1)}" fill="#ff7a2a"
+        opacity="${(0.5*k*(0.4 + 0.6*Math.abs(Math.sin(now*2 + i)))).toFixed(3)}"/>`;
+    }
+  });
+
+  g.innerHTML = s;
 }
 
 (function dragonAimClick(){
@@ -37682,10 +37810,9 @@ function dragonWorldTick(dt){
 
   if(c.mode === 'burn'){
     if(fly(c.x, c.y, 190)){
-      const bed = (S.objs||[]).find(o=>o.id === c.bedId);
-      if(bed){
-        const had = bed.weeds || 0;
-        bed.weeds = 0;
+      const tree = (S.objs||[]).find(o=>o.id === c.treeId);
+      if(tree && !tree.alight){
+        lightTree(tree);
         d.flameT = 1.6;                       /* p114 draws this on its own layer */
         d.state = 'burn';
         if(m) m.heat = Math.max(0, m.heat - 0.4);
@@ -37693,11 +37820,8 @@ function dragonWorldTick(dt){
         dragonWorldState().burns++;
         try{ G.bang('roar'); }catch(e){}
         if(typeof log === 'function')
-          log(had > 0.05
-            ? `${d.name} burned the weeds off a bed. Nothing left but clean soil.`
-            : `${d.name} scorched a bed that had nothing wrong with it. It enjoyed itself.`,
-            had > 0.05 ? 'good' : '', 'farm');
-        if(typeof render === 'function') try{ render(); }catch(e){}
+          log(`${d.name} put a jet of flame into the ${(BPMAP[tree.bp].name||'tree').toLowerCase()}. It has caught.`,
+              'bad', 'farm');
       }
       d.cmd = null;
     }
@@ -37771,6 +37895,21 @@ function dragonWorldTick(dt){
   return false;
 }
 
+/* A tree burns whether or not the dragon is still standing over it, and
+   whether or not you have one — so this rides tickPeople rather than the
+   dragon's own tick, which only runs while a dragon exists. */
+if(typeof tickPeople === 'function'){
+  const _tickPeopleBurn = tickPeople;
+  tickPeople = function(dt){
+    const r = _tickPeopleBurn.apply(this, arguments);
+    try{
+      burnTick(Math.min(0.08, typeof dt === 'number' ? dt : 0.05));
+      paintBurn();
+    }catch(e){}
+    return r;
+  };
+}
+
 if(typeof tickDragon === 'function'){
   const _tickDragonWorld = tickDragon;
   tickDragon = function(dt){
@@ -37816,7 +37955,7 @@ if(typeof syncWorldButtons === 'function'){
       if(b){
         b.onclick = ()=>G.openDragonMenu();
         b.title = 'Tell the dragon to do something';
-        b.setAttribute('data-tip','<b>The dragon</b>Burn off a bed, send it hunting, ask for a circuit — or ride out.');
+        b.setAttribute('data-tip','<b>The dragon</b>Set a tree alight, send it hunting, ask for a circuit — or ride out.');
       }
     }catch(e){}
     return r;
@@ -37847,7 +37986,7 @@ if(typeof syncWorldButtons === 'function'){
 /* ---------- handle ---------- */
 G.dragonWorldAudit = function(){
   const d = S.dragon;
-  if(!d) return { dragon:false, commands:['burn a bed','hunt','fly a circuit','come down','roost'] };
+  if(!d) return { dragon:false, commands:['set a tree alight','hunt','fly a circuit','come down','roost'] };
   const W = dragonWorldState();
   const m = (typeof dragonMind === 'function') ? dragonMind() : null;
   return {
@@ -37859,7 +37998,10 @@ G.dragonWorldAudit = function(){
     aimingAtABed: DRAGONAIM,
     at:[Math.round(d.x), Math.round(d.y)], state:d.state,
     drives: m ? { hunger:+m.hunger.toFixed(2), pride:+m.pride.toFixed(2), heat:+m.heat.toFixed(2) } : null,
-    today: { bedsBurned:W.burns, hunts:W.hunts, circuits:W.shows },
+    today: { treesSetAlight:W.burns, hunts:W.hunts, circuits:W.shows },
+    burningNow: (S.objs||[]).filter(o=>o.alight).map(o=>({
+      tree:(BPMAP[o.bp]||{}).name, gone:Math.round((o.alight||0)*100)+'%' })),
+    coolingGround: (S.embers||[]).length,
     feed: S.feed,
     menuOpen: !!document.getElementById('dragonmenu'),
   };
