@@ -99,12 +99,32 @@ function almSee(kind, id, extra){
   e.n++; e.last = S.day;
   if(extra) Object.keys(extra).forEach(k=>{
     const v = extra[k];
-    if(typeof v !== 'number') return;
-    if(e[k+'Lo'] === undefined || v < e[k+'Lo']) e[k+'Lo'] = v;
-    if(e[k+'Hi'] === undefined || v > e[k+'Hi']) e[k+'Hi'] = v;
+    /* NaN is a number, and a range is a one-way door: once a bound is NaN
+       every later comparison against it is false, so the entry can never
+       recover. Keep non-finite readings out entirely. */
+    if(typeof v !== 'number' || !isFinite(v)) return;
+    const lo = e[k+'Lo'], hi = e[k+'Hi'];
+    if(lo === undefined || !isFinite(lo) || v < lo) e[k+'Lo'] = v;
+    if(hi === undefined || !isFinite(hi) || v > hi) e[k+'Hi'] = v;
   });
   return e;
 }
+
+/* entries already spoiled by a NaN reading in an existing save */
+(function repairAlmanacRanges(){
+  try{
+    const a = almInit();
+    Object.keys(a).forEach(kind=>{
+      const group = a[kind]; if(!group || typeof group !== 'object') return;
+      Object.keys(group).forEach(id=>{
+        const e = group[id]; if(!e || typeof e !== 'object') return;
+        Object.keys(e).forEach(k=>{
+          if(typeof e[k] === 'number' && !isFinite(e[k])) delete e[k];
+        });
+      });
+    });
+  }catch(e){}
+})();
 
 if(typeof spawnWild === 'function'){
   const _spawnAlm = spawnWild;
@@ -194,9 +214,13 @@ function ledgerForecast(){
   const w = b.worth;
   /* the next round number worth aiming at */
   const steps = [50e3,100e3,250e3,500e3,1e6,2.5e6,5e6,10e6,25e6,50e6,100e6];
-  const next = steps.find(x=>x > w);
-  if(perDay > 0 && next){
-    return { perDay, target:next, days:Math.ceil((next - w)/perDay), day:b.d + Math.ceil((next-w)/perDay) };
+  /* Past the end of the table the scale simply continues in hundreds of
+     millions. It used to return no target at all, and the card rendered
+     "NaN around day undefined" for anyone who got that far. */
+  const next = steps.find(x=>x > w) || (Math.floor(w/100e6) + 1) * 100e6;
+  if(perDay > 0){
+    const days = Math.ceil((next - w)/perDay);
+    return { perDay, target:next, days, day:b.d + days };
   }
   if(perDay < 0){
     const zero = Math.ceil(w / -perDay);

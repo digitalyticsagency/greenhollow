@@ -84,7 +84,11 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketBuy.apply(this, arguments);
     marketInit();
     if(!S.market.active) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119. The
+       descendant lookups below worked either way, but the beforeend
+       fallback further down would have dropped this straight onto the
+       backdrop as a sibling of the dialog. */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkstock')) return r;
     if(!S.bought) S.bought = {};
     const html = `

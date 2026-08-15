@@ -175,6 +175,11 @@ function patch(w,h,fill,seed,inset,lit){
 /* pitched-roof building, lit from upper left.
    Reads as a building at small sizes: eave overhang shadow, two roof planes
    meeting at a lit ridge, gable-end shading, gutter, wall band with a door. */
+/* Set for the duration of one art call by p122, so the buildings that all
+   share building() can each supply their own fittings without threading an
+   option through twenty-eight art functions that never asked for one. */
+let BUILDING_INSIDE = null;
+
 function building(w,h,o){
   o=o||{};
   const roof=o.roof||'url(#gRoof)', wall=o.wall||'url(#gTimber)';
@@ -218,6 +223,34 @@ function building(w,h,o){
     s += `<rect x="${n(m+1.5)}" y="${n(bh+skirt-1.2)}" width="${n(w-2*m-3)}" height="1.2" fill="#000" opacity=".4"/>`;
   }
 
+  /* ---------- what is under the roof ----------
+     The Roof button fades .shed-roof out and .shed-in in — the pattern the
+     animal pens have used since p53. Every building drawn through here
+     picks it up at once, which is why this lives in the shared primitive
+     rather than in twenty-eight art functions.
+
+     Only emitted while the roof is actually lifted. An interior nobody can
+     see is pure string length, and string length is the real cost in a
+     scene that re-serialises every render. */
+  if(typeof SET === 'function' && SET('roofOff')){
+    const ix = m+1.5, iy = m+1.5, iw = w-2*m-3, ih = bh-m-2;
+    s += `<g class="shed-in">`;
+    /* the floor, and the walls seen from inside with the sun still upper-left */
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="1.6" fill="#6d635a"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="1.6" fill="url(#gSoil)" opacity=".22"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="2.4" fill="#000" opacity=".30"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="2.4" height="${n(ih)}" fill="#000" opacity=".22"/>`;
+    /* the fittings, in their own local coordinates */
+    const fit = o.inside || BUILDING_INSIDE;
+    if(typeof fit === 'function'){
+      let inner = '';
+      try{ inner = fit(iw, ih) || ''; }catch(e){ inner = ''; }
+      if(inner) s += `<g transform="translate(${n(ix)},${n(iy)})">${inner}</g>`;
+    }
+    s += `</g>`;
+  }
+
+  s += `<g class="shed-roof">`;
   /* eave overhang: dark plate slightly larger than the roof */
   s += `<rect x="${n(m-0.8)}" y="${n(m-0.8)}" width="${n(w-2*m+1.6)}" height="${n(bh-m+1.6)}" rx="2" fill="#2a3238" opacity=".85"/>`;
 
@@ -268,6 +301,8 @@ function building(w,h,o){
     s += `<rect x="${n(w*0.3)}" y="${n(m+ (ridge-m)*0.3)}" width="${n(w*0.18)}" height="${n((ridge-m)*0.42)}" rx="0.8"
       fill="url(#gGlass)" stroke="#5f6b72" stroke-width="0.7"/>`;
   }
+  s += `</g>`;   /* end .shed-roof */
+
   s += grain(0,0,w,h,0.09);
   return s;
 }

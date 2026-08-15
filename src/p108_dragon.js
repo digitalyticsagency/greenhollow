@@ -131,11 +131,24 @@ function dragonDecide(){
      when called, and there is no point pretending otherwise. */
   const listens = d.bond > 0.35;
 
+  /* A dragon outlives its roost — nothing stops you demolishing the thing
+     it sleeps on, and summoning only checks for one at the time. After
+     that roostSpot() is null, and two of the four branches below read .x
+     straight off it: heat > 0.8 and pride > 0.7 both threw on every frame
+     the drive stayed up. tickDragon's caller swallows it, so the dragon
+     did not crash the game — it silently stopped deciding and froze.
+
+     Falling through to the next branch would not be enough either.
+     Burning is the only thing that discharges heat, and sulking is the
+     only thing that discharges pride when you are not there to show off
+     to, so a roostless dragon would have had both pinned at maximum for
+     good. It does them where it stands instead, which is also what a
+     creature with nowhere in particular to be would do. */
+  const perch = roostSpot() || { x:d.x, y:d.y };
+
   /* heat has to go somewhere */
-  if(m.heat > 0.8){
-    const spot = roostSpot();
-    return { mode:'burn', x:spot.x, y:spot.y - 30, say:'…' };
-  }
+  if(m.heat > 0.8) return { mode:'burn', x:perch.x, y:perch.y - 30, say:'…' };
+
   /* hungry, and not bonded enough to be polite about it */
   if(m.hunger > 0.75){
     const pen = (S.objs||[]).find(o=>BPMAP[o.bp] && BPMAP[o.bp].kind==='animal' && o.animals>0);
@@ -143,19 +156,16 @@ function dragonDecide(){
       const f = footprint(BPMAP[pen.bp], pen.rot);
       return { mode:'raid', x:(pen.tx+f.w/2)*T, y:(pen.ty+f.h/2)*T, pen };
     }
-    const spot = roostSpot();
-    if(spot) return { mode:'feed', x:spot.x, y:spot.y - 20 };
+    return { mode:'feed', x:perch.x, y:perch.y - 20 };
   }
   /* wants an audience */
   if(m.pride > 0.7){
     if(listens && S.you) return { mode:'show', x:S.you.x + 40, y:S.you.y - 30, say:'!' };
-    const spot = roostSpot();
-    return { mode:'sulk', x:spot.x, y:spot.y - 6 };
+    return { mode:'sulk', x:perch.x, y:perch.y - 6 };
   }
   /* otherwise: near you if it rates you, else circling its own roost */
   if(listens && S.you) return { mode:'follow', x:S.you.x - 44, y:S.you.y - 26 };
-  const spot = roostSpot();
-  return spot ? { mode:'circle', x:spot.x, y:spot.y - 34 } : null;
+  return { mode:'circle', x:perch.x, y:perch.y - 34 };
 }
 
 function tickDragon(dt){

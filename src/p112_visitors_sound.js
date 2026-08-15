@@ -42,19 +42,43 @@
 (function alienSpecies(){
   if(typeof WILD !== 'object' || WILD.drifter) return;
   Object.assign(WILD, {
+    /* bold is not optional. spawnWild varies it per individual, and the
+       two gates that decide whether wildlife does anything at all — the
+       nerve to hold its ground, and the patience to finish — both read
+       it. A species without one produced NaN, which fails every
+       comparison, so these four could neither be seen off nor ever get
+       what they came for. Each is set to its own character. */
     drifter:  { n:'Drifter',   active:[20,4], threat:0, good:0, targets:['plot'],
-                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
+                speed:42,  wary:0.05, bold:0.70, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
                 say:['…'], seen:'A pale light is drifting slowly over the beds.' },
     skitter:  { n:'Skitter',   active:[21,3], threat:1, good:0, targets:['plot','animal'],
-                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
+                speed:150, wary:0.55, bold:0.35, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
                 say:['!'], seen:'Something thin and quick went past the barn.' },
     watcher:  { n:'Watcher',   active:[22,3], threat:1, good:0, targets:['animal'],
-                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
+                speed:30,  wary:0.02, bold:0.95, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
                 say:['…'], seen:'Something is hanging over the yard, not moving.' },
     harvester:{ n:'Harvester', active:[1,5],  threat:1, good:0, targets:['plot'],
-                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
+                speed:56,  wary:0.10, bold:0.90, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
                 say:['…'], seen:'A squat machine has come into the far bed.' },
   });
+})();
+
+/* Saves made before the line above carry aliens whose bold is already NaN,
+   and nothing downstream can recover from that on its own. boot() has
+   loaded the save by the time this file is parsed, so repair it here. */
+(function repairAlienNerve(){
+  try{
+    const list = (typeof wildList === 'function') ? wildList() : S.wild;
+    if(!Array.isArray(list)) return;
+    list.forEach(w=>{
+      const sp = WILD[w.k]; if(!sp) return;
+      ['bold','wary'].forEach(key=>{
+        if(typeof w[key] === 'number' && isFinite(w[key])) return;
+        const base = (typeof sp[key] === 'number' && isFinite(sp[key])) ? sp[key] : 0.5;
+        w[key] = base;
+      });
+    });
+  }catch(e){}
 })();
 
 if(typeof wildArt === 'function'){

@@ -152,25 +152,25 @@ const ARCH = {
     if(t >= 1){
       /* the lean-to you build first, plus a hardstand to work on */
       s += apron(w*0.02, h*0.70, w*0.62, h*0.26, 2);
-      s += `<g transform="translate(${n(w*0.66)},${n(h*0.16)})">${annex(w*0.30, h*0.40, {roof:'#8a969c'})}</g>`;
+      s += `<g class="shed-roof" transform="translate(${n(w*0.66)},${n(h*0.16)})">${annex(w*0.30, h*0.40, {roof:'#8a969c'})}</g>`;
       s += miniTank(w*0.90, h*0.72, Math.min(w,h)*0.09);
     }
     if(t >= 2){
       /* pulled into one compact footprint: clerestory over the main volume */
-      s += `<g transform="translate(${n(w*0.04)},${n(h*0.02)})">${monitor(w*0.60, h*0.56)}</g>`;
+      s += `<g class="shed-roof" transform="translate(${n(w*0.04)},${n(h*0.02)})">${monitor(w*0.60, h*0.56)}</g>`;
       s += apron(w*0.02, h*0.70, w*0.94, h*0.26, 2);
-      s += `<rect x="${n(w*0.06)}" y="${n(h*0.60)}" width="${n(w*0.88)}" height="1.6" rx="0.8"
+      s += `<rect class="shed-roof" x="${n(w*0.06)}" y="${n(h*0.60)}" width="${n(w*0.88)}" height="1.6" rx="0.8"
         fill="#cfd6da" opacity=".8"/>`;
       s += planter(w*0.06, h*0.90, w*0.40, h*0.07, seed);
     }
     if(t >= 3){
       /* architectural: green roof over the annex, glazed end, full solar */
-      s += `<g transform="translate(${n(w*0.66)},${n(h*0.14)})">${roofGarden(0, 0, w*0.30, h*0.30, seed)}</g>`;
-      s += `<rect x="${n(w*0.08)}" y="${n(h*0.06)}" width="${n(w*0.52)}" height="${n(h*0.10)}" rx="1"
+      s += `<g class="shed-roof" transform="translate(${n(w*0.66)},${n(h*0.14)})">${roofGarden(0, 0, w*0.30, h*0.30, seed)}</g>`;
+      s += `<rect class="shed-roof" x="${n(w*0.08)}" y="${n(h*0.06)}" width="${n(w*0.52)}" height="${n(h*0.10)}" rx="1"
         fill="url(#gGlass)" stroke="#5f6b72" stroke-width="0.6" opacity=".95"/>`;
       s += verandah(w*0.06, h*0.62, w*0.56, h*0.09);
       s += planter(w*0.52, h*0.90, w*0.42, h*0.07, seed+3);
-      s += `<circle cx="${n(w*0.90)}" cy="${n(h*0.10)}" r="2" fill="#7cc24f"/>`;
+      s += `<circle class="shed-roof" cx="${n(w*0.90)}" cy="${n(h*0.10)}" r="2" fill="#7cc24f"/>`;
     }
     return s;
   },

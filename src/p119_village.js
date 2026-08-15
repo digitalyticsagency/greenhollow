@@ -212,8 +212,18 @@ if(typeof G.openValley === 'function'){
     try{
       if(!villageOn()) return r;
       const V = villSync();
-      const body = document.querySelector('.mbox, .modal, #modal') || document.body;
-      if(body.querySelector('.villcard')) return r;
+      /* #modalBody is the dialog. #modal is the flex backdrop it sits in,
+         and a selector list returns the first match in DOCUMENT order — so
+         '.mbox, .modal, #modal' resolved to the backdrop, the parent, every
+         single time. Appending here made this card a flex sibling of the
+         dialog rather than content inside it: measured at 683px wide
+         floating beside it, with the dialog squeezed from 680 to 537 and
+         shoved to x=20 at the left edge. It also survived into whatever
+         modal you opened next — a village card sitting next to the farmers
+         market — because modal() only replaces the contents of #modalBody
+         and never touches anything appended to the backdrop itself. */
+      const body = document.getElementById('modalBody');
+      if(!body || body.querySelector('.villcard')) return r;
       const div = document.createElement('div');
       div.className = 'card villcard';
       div.innerHTML = `<div class="eyebrow">The village</div>

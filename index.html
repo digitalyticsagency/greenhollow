@@ -582,6 +582,11 @@ function patch(w,h,fill,seed,inset,lit){
 /* pitched-roof building, lit from upper left.
    Reads as a building at small sizes: eave overhang shadow, two roof planes
    meeting at a lit ridge, gable-end shading, gutter, wall band with a door. */
+/* Set for the duration of one art call by p122, so the buildings that all
+   share building() can each supply their own fittings without threading an
+   option through twenty-eight art functions that never asked for one. */
+let BUILDING_INSIDE = null;
+
 function building(w,h,o){
   o=o||{};
   const roof=o.roof||'url(#gRoof)', wall=o.wall||'url(#gTimber)';
@@ -625,6 +630,34 @@ function building(w,h,o){
     s += `<rect x="${n(m+1.5)}" y="${n(bh+skirt-1.2)}" width="${n(w-2*m-3)}" height="1.2" fill="#000" opacity=".4"/>`;
   }
 
+  /* ---------- what is under the roof ----------
+     The Roof button fades .shed-roof out and .shed-in in — the pattern the
+     animal pens have used since p53. Every building drawn through here
+     picks it up at once, which is why this lives in the shared primitive
+     rather than in twenty-eight art functions.
+
+     Only emitted while the roof is actually lifted. An interior nobody can
+     see is pure string length, and string length is the real cost in a
+     scene that re-serialises every render. */
+  if(typeof SET === 'function' && SET('roofOff')){
+    const ix = m+1.5, iy = m+1.5, iw = w-2*m-3, ih = bh-m-2;
+    s += `<g class="shed-in">`;
+    /* the floor, and the walls seen from inside with the sun still upper-left */
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="1.6" fill="#6d635a"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="1.6" fill="url(#gSoil)" opacity=".22"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="2.4" fill="#000" opacity=".30"/>`;
+    s += `<rect x="${n(ix)}" y="${n(iy)}" width="2.4" height="${n(ih)}" fill="#000" opacity=".22"/>`;
+    /* the fittings, in their own local coordinates */
+    const fit = o.inside || BUILDING_INSIDE;
+    if(typeof fit === 'function'){
+      let inner = '';
+      try{ inner = fit(iw, ih) || ''; }catch(e){ inner = ''; }
+      if(inner) s += `<g transform="translate(${n(ix)},${n(iy)})">${inner}</g>`;
+    }
+    s += `</g>`;
+  }
+
+  s += `<g class="shed-roof">`;
   /* eave overhang: dark plate slightly larger than the roof */
   s += `<rect x="${n(m-0.8)}" y="${n(m-0.8)}" width="${n(w-2*m+1.6)}" height="${n(bh-m+1.6)}" rx="2" fill="#2a3238" opacity=".85"/>`;
 
@@ -675,6 +708,8 @@ function building(w,h,o){
     s += `<rect x="${n(w*0.3)}" y="${n(m+ (ridge-m)*0.3)}" width="${n(w*0.18)}" height="${n((ridge-m)*0.42)}" rx="0.8"
       fill="url(#gGlass)" stroke="#5f6b72" stroke-width="0.7"/>`;
   }
+  s += `</g>`;   /* end .shed-roof */
+
   s += grain(0,0,w,h,0.09);
   return s;
 }
@@ -9742,25 +9777,25 @@ const ARCH = {
     if(t >= 1){
       /* the lean-to you build first, plus a hardstand to work on */
       s += apron(w*0.02, h*0.70, w*0.62, h*0.26, 2);
-      s += `<g transform="translate(${n(w*0.66)},${n(h*0.16)})">${annex(w*0.30, h*0.40, {roof:'#8a969c'})}</g>`;
+      s += `<g class="shed-roof" transform="translate(${n(w*0.66)},${n(h*0.16)})">${annex(w*0.30, h*0.40, {roof:'#8a969c'})}</g>`;
       s += miniTank(w*0.90, h*0.72, Math.min(w,h)*0.09);
     }
     if(t >= 2){
       /* pulled into one compact footprint: clerestory over the main volume */
-      s += `<g transform="translate(${n(w*0.04)},${n(h*0.02)})">${monitor(w*0.60, h*0.56)}</g>`;
+      s += `<g class="shed-roof" transform="translate(${n(w*0.04)},${n(h*0.02)})">${monitor(w*0.60, h*0.56)}</g>`;
       s += apron(w*0.02, h*0.70, w*0.94, h*0.26, 2);
-      s += `<rect x="${n(w*0.06)}" y="${n(h*0.60)}" width="${n(w*0.88)}" height="1.6" rx="0.8"
+      s += `<rect class="shed-roof" x="${n(w*0.06)}" y="${n(h*0.60)}" width="${n(w*0.88)}" height="1.6" rx="0.8"
         fill="#cfd6da" opacity=".8"/>`;
       s += planter(w*0.06, h*0.90, w*0.40, h*0.07, seed);
     }
     if(t >= 3){
       /* architectural: green roof over the annex, glazed end, full solar */
-      s += `<g transform="translate(${n(w*0.66)},${n(h*0.14)})">${roofGarden(0, 0, w*0.30, h*0.30, seed)}</g>`;
-      s += `<rect x="${n(w*0.08)}" y="${n(h*0.06)}" width="${n(w*0.52)}" height="${n(h*0.10)}" rx="1"
+      s += `<g class="shed-roof" transform="translate(${n(w*0.66)},${n(h*0.14)})">${roofGarden(0, 0, w*0.30, h*0.30, seed)}</g>`;
+      s += `<rect class="shed-roof" x="${n(w*0.08)}" y="${n(h*0.06)}" width="${n(w*0.52)}" height="${n(h*0.10)}" rx="1"
         fill="url(#gGlass)" stroke="#5f6b72" stroke-width="0.6" opacity=".95"/>`;
       s += verandah(w*0.06, h*0.62, w*0.56, h*0.09);
       s += planter(w*0.52, h*0.90, w*0.42, h*0.07, seed+3);
-      s += `<circle cx="${n(w*0.90)}" cy="${n(h*0.10)}" r="2" fill="#7cc24f"/>`;
+      s += `<circle class="shed-roof" cx="${n(w*0.90)}" cy="${n(h*0.10)}" r="2" fill="#7cc24f"/>`;
     }
     return s;
   },
@@ -14092,7 +14127,11 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketBuy.apply(this, arguments);
     marketInit();
     if(!S.market.active) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119. The
+       descendant lookups below worked either way, but the beforeend
+       fallback further down would have dropped this straight onto the
+       backdrop as a sibling of the dialog. */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkstock')) return r;
     if(!S.bought) S.bought = {};
     const html = `
@@ -14885,7 +14924,8 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketGames.apply(this, arguments);
     marketInit();
     if(!S.market.active) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119 */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkmore')) return r;
     const games = [
       ['dowse', 'Water divining', 'Find the water under nine boards. Fills your tanks.'],
@@ -15200,7 +15240,8 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketWhere.apply(this, arguments);
     marketInit();
     if(!S.market.active || !S.market.onCommon) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119 */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkwhere')) return r;
     const sub = body.querySelector('.sub');
     if(sub) sub.insertAdjacentHTML('afterend',
@@ -25184,7 +25225,9 @@ function tickDog(dt){
     if(t.mode === 'work' && t.stray){
       /* same per-frame spam guard as p92 — this path is superseded but
          must not be able to bring the problem back */
-      d.roundCool = Math.max(0, (d.roundCool || 0) - 0.05);
+      /* dt, not a fixed step: at 60fps a hardcoded 0.05 drained the four
+         second lockout in about one and a third real seconds */
+      d.roundCool = Math.max(0, (d.roundCool || 0) - dt);
       if(typeof G.roundUp === 'function' && d.roundCool <= 0){
         G.roundUp();
         d.roundCool = 4;
@@ -26755,7 +26798,15 @@ function spawnWild(key){
   const seed = Math.random();
   /* the species sets the middle of the range; the individual varies round
      it, so no two foxes behave alike */
-  const vary = (base, spread)=> Math.max(0.05, Math.min(1, base + (Math.random()-0.5)*spread));
+  /* A species that declares no base for one of these used to produce NaN,
+     and NaN spreads quietly: it fails every comparison downstream, so the
+     animal could never take fright and never finish what it came for. The
+     four aliens in p112 were exactly that case. Fall back to the middle of
+     the range rather than letting it through. */
+  const vary = (base, spread)=>{
+    const b = (typeof base === 'number' && isFinite(base)) ? base : 0.5;
+    return Math.max(0.05, Math.min(1, b + (Math.random()-0.5)*spread));
+  };
   const edge = Math.floor(Math.random()*4);
   const pad = 2;
   let x, y;
@@ -31058,11 +31109,24 @@ function dragonDecide(){
      when called, and there is no point pretending otherwise. */
   const listens = d.bond > 0.35;
 
+  /* A dragon outlives its roost — nothing stops you demolishing the thing
+     it sleeps on, and summoning only checks for one at the time. After
+     that roostSpot() is null, and two of the four branches below read .x
+     straight off it: heat > 0.8 and pride > 0.7 both threw on every frame
+     the drive stayed up. tickDragon's caller swallows it, so the dragon
+     did not crash the game — it silently stopped deciding and froze.
+
+     Falling through to the next branch would not be enough either.
+     Burning is the only thing that discharges heat, and sulking is the
+     only thing that discharges pride when you are not there to show off
+     to, so a roostless dragon would have had both pinned at maximum for
+     good. It does them where it stands instead, which is also what a
+     creature with nowhere in particular to be would do. */
+  const perch = roostSpot() || { x:d.x, y:d.y };
+
   /* heat has to go somewhere */
-  if(m.heat > 0.8){
-    const spot = roostSpot();
-    return { mode:'burn', x:spot.x, y:spot.y - 30, say:'…' };
-  }
+  if(m.heat > 0.8) return { mode:'burn', x:perch.x, y:perch.y - 30, say:'…' };
+
   /* hungry, and not bonded enough to be polite about it */
   if(m.hunger > 0.75){
     const pen = (S.objs||[]).find(o=>BPMAP[o.bp] && BPMAP[o.bp].kind==='animal' && o.animals>0);
@@ -31070,19 +31134,16 @@ function dragonDecide(){
       const f = footprint(BPMAP[pen.bp], pen.rot);
       return { mode:'raid', x:(pen.tx+f.w/2)*T, y:(pen.ty+f.h/2)*T, pen };
     }
-    const spot = roostSpot();
-    if(spot) return { mode:'feed', x:spot.x, y:spot.y - 20 };
+    return { mode:'feed', x:perch.x, y:perch.y - 20 };
   }
   /* wants an audience */
   if(m.pride > 0.7){
     if(listens && S.you) return { mode:'show', x:S.you.x + 40, y:S.you.y - 30, say:'!' };
-    const spot = roostSpot();
-    return { mode:'sulk', x:spot.x, y:spot.y - 6 };
+    return { mode:'sulk', x:perch.x, y:perch.y - 6 };
   }
   /* otherwise: near you if it rates you, else circling its own roost */
   if(listens && S.you) return { mode:'follow', x:S.you.x - 44, y:S.you.y - 26 };
-  const spot = roostSpot();
-  return spot ? { mode:'circle', x:spot.x, y:spot.y - 34 } : null;
+  return { mode:'circle', x:perch.x, y:perch.y - 34 };
 }
 
 function tickDragon(dt){
@@ -32210,19 +32271,43 @@ G.trustAudit = function(){
 (function alienSpecies(){
   if(typeof WILD !== 'object' || WILD.drifter) return;
   Object.assign(WILD, {
+    /* bold is not optional. spawnWild varies it per individual, and the
+       two gates that decide whether wildlife does anything at all — the
+       nerve to hold its ground, and the patience to finish — both read
+       it. A species without one produced NaN, which fails every
+       comparison, so these four could neither be seen off nor ever get
+       what they came for. Each is set to its own character. */
     drifter:  { n:'Drifter',   active:[20,4], threat:0, good:0, targets:['plot'],
-                speed:42,  wary:0.05, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
+                speed:42,  wary:0.05, bold:0.70, size:1.0, alien:1, c:'#8fe8d0', c2:'#3fa88c',
                 say:['…'], seen:'A pale light is drifting slowly over the beds.' },
     skitter:  { n:'Skitter',   active:[21,3], threat:1, good:0, targets:['plot','animal'],
-                speed:150, wary:0.55, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
+                speed:150, wary:0.55, bold:0.35, size:0.8, alien:1, c:'#c9a4ff', c2:'#6a4ad8',
                 say:['!'], seen:'Something thin and quick went past the barn.' },
     watcher:  { n:'Watcher',   active:[22,3], threat:1, good:0, targets:['animal'],
-                speed:30,  wary:0.02, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
+                speed:30,  wary:0.02, bold:0.95, size:1.2, alien:1, c:'#ffd88f', c2:'#c88a2a',
                 say:['…'], seen:'Something is hanging over the yard, not moving.' },
     harvester:{ n:'Harvester', active:[1,5],  threat:1, good:0, targets:['plot'],
-                speed:56,  wary:0.10, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
+                speed:56,  wary:0.10, bold:0.90, size:1.4, alien:1, c:'#b8c4cc', c2:'#5a6a74',
                 say:['…'], seen:'A squat machine has come into the far bed.' },
   });
+})();
+
+/* Saves made before the line above carry aliens whose bold is already NaN,
+   and nothing downstream can recover from that on its own. boot() has
+   loaded the save by the time this file is parsed, so repair it here. */
+(function repairAlienNerve(){
+  try{
+    const list = (typeof wildList === 'function') ? wildList() : S.wild;
+    if(!Array.isArray(list)) return;
+    list.forEach(w=>{
+      const sp = WILD[w.k]; if(!sp) return;
+      ['bold','wary'].forEach(key=>{
+        if(typeof w[key] === 'number' && isFinite(w[key])) return;
+        const base = (typeof sp[key] === 'number' && isFinite(sp[key])) ? sp[key] : 0.5;
+        w[key] = base;
+      });
+    });
+  }catch(e){}
 })();
 
 if(typeof wildArt === 'function'){
@@ -33621,12 +33706,32 @@ function almSee(kind, id, extra){
   e.n++; e.last = S.day;
   if(extra) Object.keys(extra).forEach(k=>{
     const v = extra[k];
-    if(typeof v !== 'number') return;
-    if(e[k+'Lo'] === undefined || v < e[k+'Lo']) e[k+'Lo'] = v;
-    if(e[k+'Hi'] === undefined || v > e[k+'Hi']) e[k+'Hi'] = v;
+    /* NaN is a number, and a range is a one-way door: once a bound is NaN
+       every later comparison against it is false, so the entry can never
+       recover. Keep non-finite readings out entirely. */
+    if(typeof v !== 'number' || !isFinite(v)) return;
+    const lo = e[k+'Lo'], hi = e[k+'Hi'];
+    if(lo === undefined || !isFinite(lo) || v < lo) e[k+'Lo'] = v;
+    if(hi === undefined || !isFinite(hi) || v > hi) e[k+'Hi'] = v;
   });
   return e;
 }
+
+/* entries already spoiled by a NaN reading in an existing save */
+(function repairAlmanacRanges(){
+  try{
+    const a = almInit();
+    Object.keys(a).forEach(kind=>{
+      const group = a[kind]; if(!group || typeof group !== 'object') return;
+      Object.keys(group).forEach(id=>{
+        const e = group[id]; if(!e || typeof e !== 'object') return;
+        Object.keys(e).forEach(k=>{
+          if(typeof e[k] === 'number' && !isFinite(e[k])) delete e[k];
+        });
+      });
+    });
+  }catch(e){}
+})();
 
 if(typeof spawnWild === 'function'){
   const _spawnAlm = spawnWild;
@@ -33716,9 +33821,13 @@ function ledgerForecast(){
   const w = b.worth;
   /* the next round number worth aiming at */
   const steps = [50e3,100e3,250e3,500e3,1e6,2.5e6,5e6,10e6,25e6,50e6,100e6];
-  const next = steps.find(x=>x > w);
-  if(perDay > 0 && next){
-    return { perDay, target:next, days:Math.ceil((next - w)/perDay), day:b.d + Math.ceil((next-w)/perDay) };
+  /* Past the end of the table the scale simply continues in hundreds of
+     millions. It used to return no target at all, and the card rendered
+     "NaN around day undefined" for anyone who got that far. */
+  const next = steps.find(x=>x > w) || (Math.floor(w/100e6) + 1) * 100e6;
+  if(perDay > 0){
+    const days = Math.ceil((next - w)/perDay);
+    return { perDay, target:next, days, day:b.d + days };
   }
   if(perDay < 0){
     const zero = Math.ceil(w / -perDay);
@@ -34013,8 +34122,18 @@ if(typeof G.openValley === 'function'){
     try{
       if(!villageOn()) return r;
       const V = villSync();
-      const body = document.querySelector('.mbox, .modal, #modal') || document.body;
-      if(body.querySelector('.villcard')) return r;
+      /* #modalBody is the dialog. #modal is the flex backdrop it sits in,
+         and a selector list returns the first match in DOCUMENT order — so
+         '.mbox, .modal, #modal' resolved to the backdrop, the parent, every
+         single time. Appending here made this card a flex sibling of the
+         dialog rather than content inside it: measured at 683px wide
+         floating beside it, with the dialog squeezed from 680 to 537 and
+         shoved to x=20 at the left edge. It also survived into whatever
+         modal you opened next — a village card sitting next to the farmers
+         market — because modal() only replaces the contents of #modalBody
+         and never touches anything appended to the backdrop itself. */
+      const body = document.getElementById('modalBody');
+      if(!body || body.querySelector('.villcard')) return r;
       const div = document.createElement('div');
       div.className = 'card villcard';
       div.innerHTML = `<div class="eyebrow">The village</div>
@@ -34304,6 +34423,1861 @@ G.rideGamesAudit = function(){
     cargo: R.cargo ? `${R.cargo.q} × ${GOODS[R.cargo.k].n}${R.delivered?' — delivered':''}` : 'none',
     score: Math.round(R.score||0),
     greeted:R.cheers, scattered:R.scares,
+  };
+};
+
+/* =====================================================================
+   A DOG HOUSE, AND SOMEWHERE OF HER OWN TO BE
+
+   The dog has a mind, drives, a bond with you and an opinion of the
+   dragon. What she has never had is an address. Read p92 and she sleeps
+   by the firepit if one is lit, and otherwise lies down in the dirt
+   wherever you happen to be standing — the only animal on the farm with
+   nowhere to go.
+
+   THE OBJECT. Two tiles. A pitched box with an arched mouth, a bowl, a
+   chewed bone, and the grass worn off around it because that is what
+   happens where a dog lives. Her name is over the door, so it is her
+   kennel rather than a kennel.
+
+   THE BEHAVIOUR is the half that matters, and it is four rules:
+
+     a dry bed beats a fire in the wet
+                    On a fine night a lit firepit still wins, because
+                    that was always the nicest thing about her. In rain,
+                    frost or a storm she goes home instead. She does not
+                    sit out in it, and she no longer sleeps rough beside
+                    you when there is a bed with her name on it.
+
+     rest is worth more indoors
+                    Sleeping in the kennel refills her energy at twice
+                    the rate of sleeping on the ground, and she starts
+                    each day rested. That is the reason to build it
+                    rather than a decoration you are asked to like.
+
+     somewhere to retreat to
+                    While she is still wary of the dragon (p118, stage
+                    'wary') and it comes near, she now has a destination
+                    instead of merely backing away from one.
+
+     and somewhere to be when you are not there
+                    With no you to follow she used to stop dead in the
+                    open field. She goes home.
+
+   No new tick: everything hangs off dogDecide and the existing tickDog,
+   which is also why the kennel had to wait until the dog had a mind
+   worth giving a house to.
+
+   NOT UPGRADEABLE, deliberately. The generic Mk II–IV skin bolts steel
+   trim, a service light and plant tanks onto whatever it is given, which
+   is right for a dairy and absurd on a dog box.
+   ===================================================================== */
+
+/* ---------- the blueprint ---------- */
+(function kennelBlueprint(){
+  if(typeof BP === 'undefined' || BPMAP.kennel) return;
+  const bp = { id:'kennel', name:'Dog kennel', art:'kennel', cat:'animal',
+    w:2, h:2, cost:140, lvl:1, kind:'bonus', charm:6,
+    desc:'A pitched box, a dry bed and a water bowl. Her name goes over the door.',
+    tip:'She sleeps in it rather than out in the wet, and wakes rested. No use at all without a dog.' };
+  BP.push(bp); BPMAP[bp.id] = bp;
+})();
+
+/* The generic tier skin is wrong on something this small — see the header. */
+if(typeof canUpgrade === 'function'){
+  const _canUpgradeKennel = canUpgrade;
+  canUpgrade = function(o){
+    if(o && o.bp === 'kennel') return false;
+    return _canUpgradeKennel.apply(this, arguments);
+  };
+}
+
+/* ---------- how it looks ---------- */
+if(typeof ART === 'object' && !ART.kennel){
+  ART.kennel = (w, h)=>{
+    const name = (S.dog && S.dog.name) ? S.dog.name : '';
+    /* the box sits left of centre, the bowl beside it */
+    const bx = w*0.08, bw = w*0.60;
+    const top = h*0.20, eave = h*0.58, base = h*0.78;
+
+    /* the grass is worn off where a dog lives */
+    let s = patch(w, h, '#a48e60', 71, 2);
+    s += ao(bx-2, top, bw+4, base-top+3, 0.30);
+
+    /* Roof: the same two-plane idiom building() uses, so it sits in the
+       scene as a roof seen from above rather than a façade. Far plane
+       catches the upper-left sun, near plane falls away. */
+    const ridge = top + (eave - top)*0.45;
+    s += `<rect x="${n(bx-0.8)}" y="${n(top-0.8)}" width="${n(bw+1.6)}" height="${n(eave-top+1.6)}" rx="2"
+      fill="#2a3238" opacity=".85"/>`;
+    s += `<rect x="${n(bx)}" y="${n(top)}" width="${n(bw)}" height="${n(ridge-top)}" rx="1.4" fill="url(#gRoofRed)"/>`;
+    s += `<rect x="${n(bx)}" y="${n(ridge)}" width="${n(bw)}" height="${n(eave-ridge)}" rx="1.4" fill="url(#gRoofRed)"/>`;
+    s += `<rect x="${n(bx)}" y="${n(top)}" width="${n(bw)}" height="${n(ridge-top)}" fill="#ffffff" opacity=".16"/>`;
+    s += `<rect x="${n(bx)}" y="${n(ridge)}" width="${n(bw)}" height="${n(eave-ridge)}" fill="#000000" opacity=".20"/>`;
+    /* corrugation down the pitch */
+    for(let i = bx+3; i < bx+bw-1; i += 4){
+      s += `<line x1="${n(i)}" y1="${n(top+0.5)}" x2="${n(i)}" y2="${n(eave-0.5)}" stroke="#ffffff" stroke-opacity=".11" stroke-width="0.6"/>`;
+      s += `<line x1="${n(i+1.5)}" y1="${n(top+0.5)}" x2="${n(i+1.5)}" y2="${n(eave-0.5)}" stroke="#000000" stroke-opacity=".10" stroke-width="0.6"/>`;
+    }
+    /* ridge cap, and the eave lip that shades the wall below */
+    s += `<rect x="${n(bx)}" y="${n(ridge-0.9)}" width="${n(bw)}" height="1.8" rx="0.8" fill="#ffffff" opacity=".22"/>`;
+    s += `<rect x="${n(bx-1.6)}" y="${n(eave-2)}" width="${n(bw+3.2)}" height="3.2" rx="1.4" fill="#8a3f30"/>`;
+
+    /* the wall band under the eave */
+    s += `<rect x="${n(bx+1.6)}" y="${n(eave+1)}" width="${n(bw-3.2)}" height="${n(base-eave)}" fill="url(#gTimber)"/>`;
+    s += `<rect x="${n(bx+1.6)}" y="${n(eave+1)}" width="${n(bw-3.2)}" height="1.8" fill="#000000" opacity=".28"/>`;
+
+    /* the mouth, arched, with straw showing at the bottom of it */
+    const dw = bw*0.42, dx = bx + bw/2 - dw/2, dh = base - eave;
+    s += `<path d="M${n(dx)} ${n(base)} L${n(dx)} ${n(eave+dh*0.45)}
+      Q${n(dx+dw/2)} ${n(eave-0.5)} ${n(dx+dw)} ${n(eave+dh*0.45)}
+      L${n(dx+dw)} ${n(base)} Z" fill="#241a12"/>`;
+    s += `<rect x="${n(dx+0.8)}" y="${n(base-2.2)}" width="${n(dw-1.6)}" height="2.2" fill="url(#gStraw)" opacity=".85"/>`;
+
+    /* her name over the door */
+    if(name){
+      const nw = Math.max(16, Math.min(bw-6, name.length*4.6 + 6));
+      /* on the near plane, below the ridge, where it faces you */
+      const ny = ridge + (eave - ridge)*0.18;
+      s += `<rect x="${n(bx+bw/2-nw/2)}" y="${n(ny)}" width="${n(nw)}" height="7" rx="1.6"
+        fill="#e8d8b2" stroke="#8a6b45" stroke-width="0.7"/>`;
+      s += `<text x="${n(bx+bw/2)}" y="${n(ny+5.2)}" text-anchor="middle"
+        font-size="5.2" fill="#4b3520" style="font-family:inherit">${esc(name)}</text>`;
+    }
+
+    /* the water bowl, on its own contact shadow */
+    const wx = w*0.85, wy = h*0.66;
+    s += `<ellipse cx="${n(wx+0.8)}" cy="${n(wy+1.2)}" rx="6.2" ry="3.2" fill="url(#gShadow)" opacity=".55"/>`;
+    s += `<ellipse cx="${n(wx)}" cy="${n(wy)}" rx="6" ry="3.1" fill="#7d6a55"/>`;
+    s += `<ellipse cx="${n(wx)}" cy="${n(wy-0.3)}" rx="4.4" ry="2.1" fill="url(#gWater)"/>`;
+    s += `<ellipse cx="${n(wx-1.4)}" cy="${n(wy-1)}" rx="1.6" ry="0.7" fill="#ffffff" opacity=".45"/>`;
+
+    /* a bone she has left out */
+    const kx = w*0.20, ky = h*0.90;
+    s += `<g transform="translate(${n(kx)},${n(ky)}) rotate(-18)">
+      <rect x="-4" y="-1" width="8" height="2" rx="1" fill="#e6ddc8"/>
+      <circle cx="-4.4" cy="-1.4" r="1.5" fill="#e6ddc8"/><circle cx="-4.4" cy="1.2" r="1.5" fill="#e6ddc8"/>
+      <circle cx="4.4" cy="-1.4" r="1.5" fill="#efe7d5"/><circle cx="4.4" cy="1.2" r="1.5" fill="#efe7d5"/></g>`;
+    return s;
+  };
+}
+
+/* ---------- where home is ---------- */
+function kennelObj(){ return (S.objs || []).find(o=>o.bp === 'kennel') || null; }
+/* the mouth of it, which is where she actually lies */
+function kennelSpot(){
+  const k = kennelObj(); if(!k) return null;
+  const f = footprint(BPMAP[k.bp], k.rot);
+  return { x:(k.tx + f.w/2)*T, y:(k.ty + f.h + 0.2)*T, obj:k };
+}
+/* weather she will not lie out in */
+function kennelWeather(){ return ['rain','storm','frost'].includes(S.weather); }
+
+/* ---------- the four rules ---------- */
+if(typeof dogDecide === 'function'){
+  const _decideKennel = dogDecide;
+  dogDecide = function(){
+    const goal = _decideKennel.apply(this, arguments);
+    try{
+      const home = kennelSpot(); if(!home) return goal;
+      const d = S.dog; if(!d) return goal;
+
+      /* duty still beats having a house — a dog that ignores loose stock
+         because it is raining is not a farm dog */
+      if(goal && goal.mode === 'work') return goal;
+
+      /* 1. somewhere to retreat to, while the dragon is still a stranger */
+      if(S.dragon && typeof dogDragonStage === 'function' && dogDragonStage() === 0
+         && S.dragon.x !== undefined){
+        const gap = Math.hypot(d.x - S.dragon.x, d.y - S.dragon.y);
+        if(gap < 170 && Math.hypot(d.x - home.x, d.y - home.y) > 10)
+          return { mode:'sleep', x:home.x, y:home.y, say:'…', home:1, from:'dragon' };
+      }
+
+      /* 2. her own bed, unless it is a fine night and the fire is lit */
+      if(goal && goal.mode === 'sleep'){
+        const fire = (S.objs || []).find(o=>o.bp === 'firepit');
+        const night = (typeof isNight === 'function') && isNight();
+        const fireIsBetter = fire && night && !kennelWeather();
+        if(!fireIsBetter) return { mode:'sleep', x:home.x, y:home.y, say:goal.say, home:1 };
+      }
+
+      /* 3. she will not stand out in the weather with a bed going spare */
+      if(goal && (goal.mode === 'follow' || goal.mode === 'sit') && kennelWeather())
+        return { mode:'sleep', x:home.x, y:home.y, home:1, from:'weather' };
+
+      /* 4. and she goes home rather than stopping dead in a field */
+      if(goal && goal.mode === 'sit' && !S.you)
+        return { mode:'sleep', x:home.x, y:home.y, home:1 };
+    }catch(e){}
+    return goal;
+  };
+}
+
+/* ---------- a dry bed is worth more than the ground ----------
+   tickDog is the live tick (p92 assigned tickDogMind into it, and p118
+   wrapped that), so this wraps tickDog rather than tickDogMind — wrapping
+   the inner name would leave the wrapper unreachable. */
+if(typeof tickDog === 'function'){
+  const _tickDogKennel = tickDog;
+  tickDog = function(dt){
+    const r = _tickDogKennel.apply(this, arguments);
+    try{
+      const d = S.dog; if(!d) return r;
+      const home = kennelSpot();
+      if(!home){ d.inKennel = 0; d.homeT = 0; return r; }
+      const atHome = Math.hypot(d.x - home.x, d.y - home.y) < 14 && d.state === 'sleep';
+      d.inKennel = atHome ? 1 : 0;
+      if(!atHome){ d.homeT = 0; return r; }
+
+      /* the base tick already gave her 0.10/s for sleeping; this doubles
+         it, so a night in the kennel is worth two on the ground */
+      const m = (typeof dogMind === 'function') ? dogMind() : null;
+      if(m) m.energy = Math.min(1, m.energy + dt * 0.10);
+      d.homeT = (d.homeT || 0) + dt;
+      if(!d.kennelKnown && d.homeT > 2){
+        d.kennelKnown = 1;
+        if(typeof log === 'function')
+          log(`${d.name} has taken to the kennel. It is hers now.`, 'good', 'home');
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* she wakes rested, and a dog with a home settles */
+if(typeof advanceDay === 'function'){
+  const _advanceDayKennel = advanceDay;
+  advanceDay = function(){
+    const r = _advanceDayKennel.apply(this, arguments);
+    try{
+      if(S.dog && kennelObj()){
+        const m = (typeof dogMind === 'function') ? dogMind() : null;
+        if(m) m.energy = 1;
+        S.dog.bond = Math.min(1, (S.dog.bond === undefined ? 0.35 : S.dog.bond) + 0.01);
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* the name over the door has to change when you rename her */
+if(typeof G.renameDog === 'function'){
+  const _renameKennel = G.renameDog;
+  G.renameDog = function(){
+    const r = _renameKennel.apply(this, arguments);
+    try{ if(kennelObj() && typeof render === 'function') render(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.kennelAudit = function(){
+  const k = kennelObj(), d = S.dog;
+  if(!k) return { built:false, price:140,
+    wouldChange:'she sleeps by the fire, or rough beside you' };
+  if(!d) return { built:true, dog:false, note:'a kennel and no dog in it' };
+  const home = kennelSpot();
+  const goal = (typeof dogDecide === 'function') ? dogDecide() : null;
+  const m = (typeof dogMind === 'function') ? dogMind() : null;
+  return {
+    built:true, dog:d.name,
+    at:`${Math.round(home.x)},${Math.round(home.y)}`,
+    inKennelNow: !!d.inKennel,
+    wants: goal ? (goal.home ? 'the kennel' + (goal.from ? ` (${goal.from})` : '') : goal.mode) : 'nothing',
+    weather: S.weather + (kennelWeather() ? ' — she goes in' : ' — she stays out'),
+    firepitOnFarm: (S.objs||[]).some(o=>o.bp === 'firepit'),
+    energy: m ? +m.energy.toFixed(2) : '—',
+    bond: +(d.bond || 0).toFixed(2),
+    hasUsedIt: !!d.kennelKnown,
+    upgradeable: (typeof canUpgrade === 'function') ? canUpgrade(k) : '—',
+  };
+};
+
+/* =====================================================================
+   LIFT THE ROOF AND THERE IS SOMETHING UNDER IT
+
+   The Roof button has existed since p31. Until now it worked in exactly
+   two places: the house, which has furnished rooms, and the animal pens,
+   which show the stock inside. Measured across ten working buildings —
+   dairy, bakery, workshop, cidery, smokehouse, cafe, packing, kitchen,
+   wool shed, gift shop — nought of ten had a liftable roof. Lifting the
+   roof on a bakery showed you the roof.
+
+   The reason is that all twenty-eight of them are drawn by the single
+   building() primitive in p2, which never emitted the .shed-roof /
+   .shed-in pair the pen art has used since p53. That is now fixed in
+   building() itself, so the mechanism arrives for all of them at once,
+   and this file supplies what each one actually has inside.
+
+   WHY IT IS WORTH THE TROUBLE. The buildings are near enough identical
+   from above — measured at 57% shared shape vocabulary at Mk I, rising to
+   82% at Mk IV. A bakery and a wool shed are the same rectangle in
+   different colours. The inside is where they differ: an oven and proving
+   racks, or a sorting table and fleece bales. This is the cheapest
+   identity available, because the silhouette does not have to change.
+
+   COST. Interiors are only drawn while the roof is up. An interior nobody
+   can see is pure string length, and the whole foreground SVG is
+   re-serialised every render, so the normal case pays nothing at all.
+   The trade is that the reveal is instant rather than a quarter-second
+   fade, because the art and the class land in the same frame.
+   ===================================================================== */
+
+/* ---------- a small kit, all of it aerial and lit from upper-left ---------- */
+const KIT = {
+  /* timber worktop */
+  bench(x, y, w, d){
+    return `<rect x="${n(x+1)}" y="${n(y+1.4)}" width="${n(w)}" height="${n(d)}" rx="1.2" fill="#000000" opacity=".22"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1.2" fill="#9a7748"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="1.5" rx="0.7" fill="#c4a071"/>`;
+  },
+  /* shelving: a run of boards with things on them */
+  shelf(x, y, w, d, seed){
+    let s = `<rect x="${n(x+1)}" y="${n(y+1.2)}" width="${n(w)}" height="${n(d)}" rx="1" fill="#000000" opacity=".20"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1" fill="#7d6449"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="1.2" fill="#a58a63"/>`;
+    const cnt = Math.max(2, Math.round(w/9));
+    for(let i=0;i<cnt;i++)
+      s += `<rect x="${n(x+2+i*(w-3)/cnt)}" y="${n(y+1.6)}" width="${n((w-3)/cnt-2)}" height="${n(d-3)}" rx="0.6"
+        fill="#d8cbb0" opacity="${(0.5+hash(seed+i)*0.4).toFixed(2)}"/>`;
+    return s;
+  },
+  /* steel tank from above */
+  vat(cx, cy, r){
+    return `<ellipse cx="${n(cx+1)}" cy="${n(cy+1.2)}" rx="${n(r)}" ry="${n(r*0.9)}" fill="#000000" opacity=".24"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#9aa6ac"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.74)}" fill="#c3ccd2"/>`
+      + `<circle cx="${n(cx-r*0.3)}" cy="${n(cy-r*0.32)}" r="${n(r*0.26)}" fill="#ffffff" opacity=".45"/>`;
+  },
+  /* wooden barrel from above */
+  barrel(cx, cy, r){
+    return `<ellipse cx="${n(cx+0.8)}" cy="${n(cy+1)}" rx="${n(r)}" ry="${n(r*0.9)}" fill="#000000" opacity=".24"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#7a5433"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.78)}" fill="#9a6d44"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r*0.3)}" fill="#5f4127"/>`;
+  },
+  /* stacked crate */
+  crate(x, y, s0){
+    return `<rect x="${n(x+0.8)}" y="${n(y+1)}" width="${n(s0)}" height="${n(s0*0.8)}" rx="0.8" fill="#000000" opacity=".22"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(s0)}" height="${n(s0*0.8)}" rx="0.8" fill="#a8813f"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(s0)}" height="${n(s0*0.24)}" rx="0.8" fill="#c39d5c"/>`
+      + `<line x1="${n(x+s0*0.5)}" y1="${n(y)}" x2="${n(x+s0*0.5)}" y2="${n(y+s0*0.8)}" stroke="#6f5427" stroke-width="0.7"/>`;
+  },
+  /* a sack, slumped */
+  sack(cx, cy, r){
+    return `<ellipse cx="${n(cx+0.8)}" cy="${n(cy+1)}" rx="${n(r)}" ry="${n(r*0.72)}" fill="#000000" opacity=".22"/>`
+      + `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(r)}" ry="${n(r*0.72)}" fill="#c8b48a"/>`
+      + `<ellipse cx="${n(cx-r*0.22)}" cy="${n(cy-r*0.2)}" rx="${n(r*0.5)}" ry="${n(r*0.34)}" fill="#ddcaa4" opacity=".8"/>`;
+  },
+  /* a machine: grey body, dark panel, one indicator */
+  machine(x, y, w, d, lit){
+    return `<rect x="${n(x+1)}" y="${n(y+1.4)}" width="${n(w)}" height="${n(d)}" rx="1.4" fill="#000000" opacity=".24"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1.4" fill="#8d979d"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="1.6" rx="0.8" fill="#c3ccd2"/>`
+      + `<rect x="${n(x+w*0.18)}" y="${n(y+d*0.30)}" width="${n(w*0.64)}" height="${n(d*0.40)}" rx="0.8" fill="#3b444a"/>`
+      + (lit ? `<circle cx="${n(x+w*0.86)}" cy="${n(y+d*0.5)}" r="1.4" fill="#7cc24f"/>` : '');
+  },
+  /* brick oven or firebox, with a mouth that glows */
+  oven(x, y, w, d, glow){
+    return `<rect x="${n(x+1)}" y="${n(y+1.4)}" width="${n(w)}" height="${n(d)}" rx="1.6" fill="#000000" opacity=".26"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1.6" fill="#8a5b47"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="1.8" rx="0.9" fill="#a9755b"/>`
+      + `<rect x="${n(x+w*0.22)}" y="${n(y+d*0.34)}" width="${n(w*0.56)}" height="${n(d*0.40)}" rx="1" fill="#2a1b12"/>`
+      + (glow ? `<rect x="${n(x+w*0.28)}" y="${n(y+d*0.42)}" width="${n(w*0.44)}" height="${n(d*0.24)}" rx="0.8" fill="#e8862e" opacity=".85"/>` : '');
+  },
+  /* a bed seen from above */
+  bunk(x, y, w, d){
+    return `<rect x="${n(x+0.8)}" y="${n(y+1.2)}" width="${n(w)}" height="${n(d)}" rx="1.4" fill="#000000" opacity=".20"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1.4" fill="#6f7f8c"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d*0.34)}" rx="1.4" fill="#e6e0d2"/>`
+      + `<rect x="${n(x+w*0.12)}" y="${n(y+d*0.06)}" width="${n(w*0.76)}" height="${n(d*0.20)}" rx="1" fill="#fbf7ee"/>`;
+  },
+  /* a round table with chairs */
+  table(cx, cy, r){
+    let s = `<ellipse cx="${n(cx+0.8)}" cy="${n(cy+1)}" rx="${n(r)}" ry="${n(r*0.9)}" fill="#000000" opacity=".20"/>`
+      + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#a8804c"/>`
+      + `<circle cx="${n(cx-r*0.22)}" cy="${n(cy-r*0.22)}" r="${n(r*0.52)}" fill="#c19b62" opacity=".7"/>`;
+    for(let i=0;i<3;i++){ const a=(i/3)*6.28+0.6;
+      s += `<circle cx="${n(cx+Math.cos(a)*r*1.6)}" cy="${n(cy+Math.sin(a)*r*1.5)}" r="${n(r*0.42)}" fill="#6f5a3f"/>`; }
+    return s;
+  },
+  /* a stacked bale */
+  bale(x, y, w, d){
+    return `<rect x="${n(x+0.8)}" y="${n(y+1)}" width="${n(w)}" height="${n(d)}" rx="1" fill="#000000" opacity=".20"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(d)}" rx="1" fill="url(#gStraw)"/>`
+      + `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="1.3" rx="0.6" fill="#ffffff" opacity=".28"/>`
+      + `<line x1="${n(x+w*0.34)}" y1="${n(y)}" x2="${n(x+w*0.34)}" y2="${n(y+d)}" stroke="#8a7442" stroke-width="0.7"/>`;
+  },
+  /* seed trays / growing racks */
+  trays(x, y, w, d, seed, col){
+    let s = '';
+    const rows = 2, cols = Math.max(2, Math.round(w/14));
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const tx = x + c*(w/cols), ty = y + r*(d/rows);
+      s += `<rect x="${n(tx)}" y="${n(ty)}" width="${n(w/cols-1.6)}" height="${n(d/rows-1.6)}" rx="0.8" fill="#5d4a34"/>`;
+      s += `<rect x="${n(tx+0.8)}" y="${n(ty+0.8)}" width="${n(w/cols-3.2)}" height="${n(d/rows-3.2)}" rx="0.6"
+        fill="${col || '#6ea63f'}" opacity="${(0.55+hash(seed+r*3+c)*0.4).toFixed(2)}"/>`;
+    }
+    return s;
+  },
+  /* things hung from the rafters */
+  hanging(x, y, w, cnt, col){
+    let s = `<line x1="${n(x)}" y1="${n(y)}" x2="${n(x+w)}" y2="${n(y)}" stroke="#5a4a38" stroke-width="1.4"/>`;
+    for(let i=0;i<cnt;i++){
+      const hx = x + 3 + i*((w-6)/Math.max(1,cnt-1));
+      s += `<ellipse cx="${n(hx+0.6)}" cy="${n(y+4.6)}" rx="2.6" ry="3.6" fill="#000000" opacity=".2"/>`;
+      s += `<ellipse cx="${n(hx)}" cy="${n(y+4)}" rx="2.4" ry="3.4" fill="${col}"/>`;
+    }
+    return s;
+  },
+};
+
+/* ---------- what is in each one ----------
+   Fractions of the interior box, so they hold at every building size. */
+const INTERIORS = {
+  shed:        (w,h)=> KIT.bench(w*0.06,h*0.14,w*0.44,h*0.16) + KIT.crate(w*0.60,h*0.16,h*0.22)
+                     + KIT.crate(w*0.60,h*0.50,h*0.22) + KIT.shelf(w*0.06,h*0.62,w*0.44,h*0.18,3),
+  workshop:    (w,h)=> KIT.bench(w*0.06,h*0.12,w*0.52,h*0.16) + KIT.machine(w*0.64,h*0.14,w*0.28,h*0.30,1)
+                     + KIT.shelf(w*0.06,h*0.60,w*0.52,h*0.20,7) + KIT.crate(w*0.68,h*0.62,h*0.22),
+  cellar:      (w,h)=> [0,1,2].map(i=>KIT.barrel(w*(0.20+i*0.30), h*0.30, h*0.15)).join('')
+                     + [0,1,2].map(i=>KIT.barrel(w*(0.20+i*0.30), h*0.72, h*0.15)).join(''),
+  packing:     (w,h)=> KIT.bench(w*0.06,h*0.36,w*0.62,h*0.20) + KIT.machine(w*0.72,h*0.14,w*0.22,h*0.24,1)
+                     + KIT.crate(w*0.08,h*0.66,h*0.20) + KIT.crate(w*0.34,h*0.66,h*0.20) + KIT.crate(w*0.60,h*0.66,h*0.20),
+  dairy:       (w,h)=> KIT.vat(w*0.24,h*0.32,h*0.17) + KIT.vat(w*0.56,h*0.32,h*0.17)
+                     + KIT.bench(w*0.08,h*0.64,w*0.56,h*0.16) + KIT.machine(w*0.76,h*0.58,w*0.18,h*0.26,1),
+  kitchen:     (w,h)=> KIT.oven(w*0.06,h*0.14,w*0.32,h*0.28) + KIT.bench(w*0.44,h*0.16,w*0.48,h*0.18)
+                     + KIT.table(w*0.36,h*0.68,h*0.13) + KIT.shelf(w*0.66,h*0.60,w*0.28,h*0.18,4),
+  honey_lab:   (w,h)=> KIT.vat(w*0.24,h*0.30,h*0.16) + KIT.bench(w*0.46,h*0.20,w*0.46,h*0.16)
+                     + KIT.shelf(w*0.10,h*0.64,w*0.80,h*0.20,11),
+  gift_shop:   (w,h)=> KIT.bench(w*0.10,h*0.66,w*0.62,h*0.16) + KIT.shelf(w*0.06,h*0.12,w*0.40,h*0.20,2)
+                     + KIT.shelf(w*0.52,h*0.12,w*0.40,h*0.20,5) + KIT.crate(w*0.78,h*0.62,h*0.20),
+  nursery:     (w,h)=> KIT.trays(w*0.06,h*0.12,w*0.88,h*0.36,3,'#7cc24f')
+                     + KIT.trays(w*0.06,h*0.56,w*0.88,h*0.34,9,'#8fd45c'),
+  worker_cottage:(w,h)=> KIT.bunk(w*0.08,h*0.14,w*0.34,h*0.30) + KIT.table(w*0.68,h*0.32,h*0.13)
+                     + KIT.oven(w*0.60,h*0.66,w*0.30,h*0.22,1) + KIT.shelf(w*0.08,h*0.62,w*0.40,h*0.18,6),
+  ai_hub:      (w,h)=> KIT.machine(w*0.08,h*0.14,w*0.20,h*0.60,1) + KIT.machine(w*0.34,h*0.14,w*0.20,h*0.60,1)
+                     + KIT.bench(w*0.62,h*0.30,w*0.30,h*0.16),
+  mushroom_shed:(w,h)=> KIT.trays(w*0.06,h*0.12,w*0.88,h*0.34,5,'#b9a98c')
+                     + KIT.trays(w*0.06,h*0.54,w*0.88,h*0.34,8,'#a8977a'),
+  hay_barn:    (w,h)=> [0,1,2].map(i=>KIT.bale(w*(0.06+i*0.31), h*0.14, w*0.26, h*0.34)).join('')
+                     + [0,1].map(i=>KIT.bale(w*(0.16+i*0.36), h*0.56, w*0.30, h*0.32)).join(''),
+  bakery:      (w,h)=> KIT.oven(w*0.06,h*0.12,w*0.36,h*0.34,1) + KIT.bench(w*0.48,h*0.16,w*0.44,h*0.18)
+                     + KIT.shelf(w*0.06,h*0.60,w*0.86,h*0.22,2) + KIT.sack(w*0.14,h*0.90,h*0.08),
+  smokehouse:  (w,h)=> KIT.oven(w*0.34,h*0.70,w*0.32,h*0.22,1) + KIT.hanging(w*0.10,h*0.20,w*0.80,5,'#a8613c')
+                     + KIT.hanging(w*0.10,h*0.44,w*0.80,4,'#94512f'),
+  cidery:      (w,h)=> KIT.machine(w*0.08,h*0.14,w*0.32,h*0.32,0) + KIT.vat(w*0.68,h*0.28,h*0.16)
+                     + [0,1,2].map(i=>KIT.barrel(w*(0.16+i*0.28), h*0.74, h*0.14)).join(''),
+  wool_shed:   (w,h)=> KIT.bench(w*0.08,h*0.16,w*0.56,h*0.20) + KIT.bale(w*0.70,h*0.12,w*0.24,h*0.30)
+                     + KIT.bale(w*0.70,h*0.52,w*0.24,h*0.30) + KIT.sack(w*0.22,h*0.72,h*0.11)
+                     + KIT.sack(w*0.44,h*0.74,h*0.10),
+  candle_room: (w,h)=> KIT.vat(w*0.22,h*0.30,h*0.15) + KIT.vat(w*0.50,h*0.30,h*0.15)
+                     + KIT.hanging(w*0.10,h*0.62,w*0.80,7,'#f0e0b0') + KIT.bench(w*0.68,h*0.16,w*0.26,h*0.16),
+  cafe:        (w,h)=> KIT.bench(w*0.06,h*0.12,w*0.52,h*0.16) + KIT.table(w*0.26,h*0.56,h*0.12)
+                     + KIT.table(w*0.66,h*0.40,h*0.12) + KIT.table(w*0.72,h*0.78,h*0.11),
+  bunkhouse:   (w,h)=> [0,1,2].map(i=>KIT.bunk(w*(0.06+i*0.31), h*0.12, w*0.26, h*0.32)).join('')
+                     + [0,1,2].map(i=>KIT.bunk(w*(0.06+i*0.31), h*0.56, w*0.26, h*0.32)).join(''),
+  bunk_annexe: (w,h)=> KIT.bunk(w*0.08,h*0.14,w*0.36,h*0.32) + KIT.bunk(w*0.54,h*0.14,w*0.36,h*0.32)
+                     + KIT.shelf(w*0.20,h*0.64,w*0.56,h*0.18,4),
+  laundry:     (w,h)=> KIT.machine(w*0.08,h*0.16,w*0.24,h*0.30,1) + KIT.machine(w*0.38,h*0.16,w*0.24,h*0.30,0)
+                     + KIT.vat(w*0.80,h*0.30,h*0.15) + KIT.hanging(w*0.10,h*0.68,w*0.80,6,'#e8eef2'),
+  mud_room:    (w,h)=> KIT.bench(w*0.08,h*0.20,w*0.50,h*0.16) + KIT.shelf(w*0.08,h*0.58,w*0.50,h*0.20,1)
+                     + KIT.crate(w*0.68,h*0.22,h*0.22) + KIT.crate(w*0.68,h*0.60,h*0.22),
+  guest_wing:  (w,h)=> KIT.bunk(w*0.08,h*0.16,w*0.34,h*0.30) + KIT.bunk(w*0.56,h*0.16,w*0.34,h*0.30)
+                     + KIT.table(w*0.50,h*0.72,h*0.12),
+  root_store:  (w,h)=> [0,1,2].map(i=>KIT.crate(w*(0.08+i*0.30), h*0.16, h*0.26)).join('')
+                     + [0,1,2].map(i=>KIT.sack(w*(0.18+i*0.30), h*0.72, h*0.11)).join(''),
+};
+
+/* The diesel backup, the inverter and the server rack are deliberately not
+   in that list. They are 2×2 pieces of equipment rather than buildings you
+   go inside, they are not drawn by building(), and fittings for them would
+   be code that can never run. */
+
+/* These two are working stores that are also not drawn by building() — the
+   cellar is an earth mound and the nursery is glass — so they get the two
+   layers wrapped round their own art instead. */
+const ODD_INTERIORS = ['cellar', 'nursery'];
+
+/* ---------- hand each art function its own fittings ----------
+   building() reads BUILDING_INSIDE (declared in p2) for the duration of
+   one call. Threading it this way rather than as an option means the
+   twenty-eight art functions in p3 and p67 do not each have to be
+   rewritten to pass something they were never written to know about.
+   try/finally so a throw inside the art cannot leave it set. */
+(function wireInteriors(){
+  if(typeof ART !== 'object') return;
+  let wired = 0;
+  Object.keys(INTERIORS).forEach(art=>{
+    const base = ART[art];
+    if(typeof base !== 'function' || ODD_INTERIORS.includes(art)) return;
+    ART[art] = function(w, h, ob){
+      BUILDING_INSIDE = INTERIORS[art];
+      try{ return base.call(this, w, h, ob); }
+      finally{ BUILDING_INSIDE = null; }
+    };
+    wired++;
+  });
+
+  /* the mound and the glasshouse: whole art becomes the roof, floor under it */
+  ODD_INTERIORS.forEach(art=>{
+    const base = ART[art];
+    if(typeof base !== 'function' || typeof INTERIORS[art] !== 'function') return;
+    ART[art] = function(w, h, ob){
+      const out = base.call(this, w, h, ob);
+      if(!(typeof SET === 'function' && SET('roofOff'))) return out;
+      const ix = 1, iy = 1, iw = w-2, ih = h-2;
+      let s = `<g class="shed-in">`;
+      s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="3" fill="#6d635a"/>`;
+      s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ih)}" rx="3" fill="url(#gSoil)" opacity=".22"/>`;
+      s += `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="2.4" fill="#000000" opacity=".30"/>`;
+      let inner = '';
+      try{ inner = INTERIORS[art](iw, ih) || ''; }catch(e){ inner = ''; }
+      if(inner) s += `<g transform="translate(${n(ix)},${n(iy)})">${inner}</g>`;
+      s += `</g>`;
+      return s + `<g class="shed-roof">${out}</g>`;
+    };
+    wired++;
+  });
+  INTERIORS._wired = wired;
+})();
+
+/* ---------- handle ---------- */
+G.interiorsAudit = function(){
+  const has = (art)=>{
+    let s = '';
+    try{ s = ART[art] ? ART[art](140, 110, {tier:0, id:'x', rot:0}) : ''; }catch(e){}
+    return { roofLayer:/shed-roof/.test(s), interior:/shed-in/.test(s), chars:s.length };
+  };
+  const names = Object.keys(INTERIORS).filter(k=>k[0] !== '_');
+  const roofOff = (typeof SET === 'function') && SET('roofOff');
+  const sample = names.filter(a=>ART[a]).map(a=>[a, has(a)]);
+  return {
+    roofCurrentlyLifted: !!roofOff,
+    interiorsDefined: names.length,
+    artFunctionsWired: INTERIORS._wired,
+    withLiftableRoof: `${sample.filter(([,v])=>v.roofLayer).length} of ${sample.length}`,
+    withInteriorRightNow: `${sample.filter(([,v])=>v.interior).length} of ${sample.length}`,
+    note: roofOff ? 'interiors are drawn because the roof is up'
+                  : 'interiors cost nothing while the roof is on',
+    avgChars: Math.round(sample.reduce((s,[,v])=>s+v.chars,0) / Math.max(1,sample.length)),
+    wasBefore: '0 of 10 working buildings had anything under the roof',
+  };
+};
+
+/* =====================================================================
+   THE DRAGON DOES NOT WATCH A FIGHT ON ITS OWN LAND
+
+   Two champions come down over the farm, level a building each and leave
+   you the marks — and the dragon you spent twelve of those marks on sits
+   on its roost through the whole thing. It has a mind, it has three
+   breaths it uses on the ride, and it has never once been part of the one
+   event on this farm that is actually a fight.
+
+   IT COMES IN AT THE STRUGGLE, which is the only moment worth arriving
+   at. The staged beats already build to a beam lock the hero is losing;
+   that is where a third party changes an outcome rather than decorating
+   one. It crosses in during the charge, holds station off the hero's
+   shoulder through the beam, and breathes on the villain through the
+   struggle. The hero pushes through faster and harder than he ever does
+   alone, and the numbers say so: push climbs at roughly two and a half
+   times the unaided rate while the breath is on the villain.
+
+   THREE BREATHS, AND THEY ARE NOT RESKINS.
+
+     fire    a jet, and the hardest shove of the three. Embers.
+     frost   a cone of shards. It does less pushing and instead holds the
+             villain — his aura is smothered to almost nothing while the
+             rime is on him, so the lock breaks because he stops pushing
+             back rather than because he is overpowered.
+     water   a heavy torrent with a droop on it, and a splash that throws
+             him downward.
+
+   Which one you get is the dragon's own temperature, not a dice roll: a
+   dragon running hot breathes fire, a cold one frost, and one in between
+   reaches for water. Feed it and fly it and you will notice it changes.
+
+   IT HAS TO RATE YOU FIRST. Below a bond of 0.5 it stays on the roost and
+   the fight goes exactly as it always did. That is the same trust that
+   gates riding, one notch higher, because carrying you is a favour and
+   fighting for you is a bigger one. The log says so when it refuses,
+   because a mechanic nobody is told about is a bug.
+
+   No filters here either — the breaths are stacked translucent shapes
+   drawn per frame into the duel layer, the same way the beams are.
+   ===================================================================== */
+
+const DUEL_BREATHS = {
+  fire:  { n:'fire',  c:['#ff4a12','#ff9a2a','#ffe07a'], push:0.62, smother:0.25, sound:'blast' },
+  frost: { n:'frost', c:['#5fa8d8','#bfe4f4','#ffffff'], push:0.34, smother:0.85, sound:'heavy' },
+  water: { n:'water', c:['#1f6aa8','#4a9ed0','#cfeaf8'], push:0.48, smother:0.45, sound:'whoosh' },
+};
+
+/* the bond it will fight for — one notch above the 0.35 that gets you a ride */
+const DRAGON_FIGHT_BOND = 0.5;
+
+function dragonWillFight(){
+  const d = S.dragon;
+  return !!(d && (d.bond || 0) >= DRAGON_FIGHT_BOND);
+}
+
+/* its own temperature picks the breath */
+function dragonBreathChoice(){
+  const m = (S.dragon && S.dragon.mind) || {};
+  const heat = (m.heat === undefined) ? 0.5 : m.heat;
+  return heat > 0.66 ? 'fire' : heat < 0.34 ? 'frost' : 'water';
+}
+
+function beatIndex(k){ return BEATS.findIndex(b=>b.k === k); }
+
+/* ---------- set up when the champions arrive ---------- */
+if(typeof G.startDuel === 'function'){
+  const _startDuelDragon = G.startDuel;
+  G.startDuel = function(){
+    const r = _startDuelDragon.apply(this, arguments);
+    try{
+      if(!DUEL || DUEL.over) return r;
+      const d = S.dragon;
+      if(!d){ DUEL.dg = null; return r; }
+      if(!dragonWillFight()){
+        DUEL.dg = null;
+        if(typeof log === 'function')
+          log(`${d.name} watched from the roost and did not move. It does not rate you enough to fight for you.`,
+              '', 'farm');
+        return r;
+      }
+      DUEL.dg = {
+        phase:'wait', t:0, fired:0, said:0,
+        kind: dragonBreathChoice(),
+        x: (FARM.x - 4)*T, y: DUEL.cy - 150,
+      };
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- what it does, beat by beat ---------- */
+function dragonDuelTick(dt){
+  if(!DUEL || DUEL.over) return;
+  const D = DUEL, g = D.dg;
+  if(!g) return;
+  const d = S.dragon; if(!d) return;
+  g.t += dt;
+
+  /* station: off the hero's shoulder, high and behind */
+  const hoverX = D.hx - 52, hoverY = D.hy - 82;
+  const glide = (tx, ty, rate)=>{
+    g.x += (tx - g.x) * Math.min(1, dt*rate);
+    g.y += (ty - g.y) * Math.min(1, dt*rate);
+  };
+
+  if(g.phase === 'wait'){
+    /* it crosses in as the hero starts charging */
+    if(D.beat >= beatIndex('charge')){
+      g.phase = 'incoming';
+      if(typeof G.bang === 'function') try{ G.bang('roar'); }catch(e){}
+      if(typeof log === 'function')
+        log(`${d.name} came in over the ridge.`, 'gold', 'farm');
+      if(typeof toast === 'function') toast(`${d.name} is coming in`, 'gold');
+    }
+    return;
+  }
+
+  if(g.phase === 'incoming'){
+    glide(hoverX, hoverY, 1.9);
+    if(Math.hypot(g.x - hoverX, g.y - hoverY) < 26 || D.beat >= beatIndex('beam')) g.phase = 'hold';
+    return;
+  }
+
+  if(g.phase === 'hold'){
+    glide(hoverX, hoverY, 3.2);
+    if(D.beat >= beatIndex('struggle')) g.phase = 'breathe';
+    return;
+  }
+
+  if(g.phase === 'breathe'){
+    glide(hoverX, hoverY, 3.2);
+    const B = DUEL_BREATHS[g.kind] || DUEL_BREATHS.fire;
+    if(!g.fired){
+      g.fired = 1;
+      if(typeof G.bang === 'function') try{ G.bang(B.sound); }catch(e){}
+      if(typeof log === 'function')
+        log(`${d.name} breathed ${B.n} across the lock. ${D.villain.n} could not hold it.`, 'gold', 'farm');
+    }
+    /* The help, and the reason to have a dragon at all.
+       Note it drives the beat clock rather than D.push. The struggle beat
+       recomputes push from its own progress on every frame, so adding to
+       push directly is overwritten within one tick — measured at 0.910 vs
+       0.941 at the end of the lock, which is nothing. Pushing the clock
+       forward runs the hero along the game's own curve faster and
+       shortens the lock, which is what winning sooner actually looks
+       like. */
+    D.bt += B.push * dt;
+    D.vpow = Math.max(0, (D.vpow || 0) - B.smother * dt);
+    D.shake = Math.max(D.shake || 0, 0.55);
+    if(Math.random() < dt*7)
+      boom(D.vx + (Math.random()-0.5)*30, D.vy - 14 + (Math.random()-0.5)*24, B.c[1]);
+    D.dragonHelped = 1;
+    if(D.beat >= beatIndex('finish')) g.phase = 'pull';
+    return;
+  }
+
+  if(g.phase === 'pull'){
+    /* it lifts away from the blast rather than sitting in it */
+    glide(hoverX - 20, hoverY - 46, 2.4);
+    if(D.beat >= beatIndex('settle')){
+      g.phase = 'leave';
+      if(typeof G.bang === 'function') try{ G.bang('roar'); }catch(e){}
+    }
+    return;
+  }
+
+  if(g.phase === 'leave') glide((FARM.x + FARM.w + 6)*T, D.cy - 210, 1.3);
+}
+
+/* ---------- the breaths ----------
+   Drawn along +x inside a rotated group, so each one is authored straight
+   and aimed by the transform rather than by trigonometry per shape. */
+function duelBreathArt(kind, x0, y0, x1, y1, k){
+  const B = DUEL_BREATHS[kind] || DUEL_BREATHS.fire;
+  const dx = x1 - x0, dy = y1 - y0;
+  const len = Math.max(24, Math.hypot(dx, dy));
+  const deg = Math.atan2(dy, dx) * 180 / Math.PI;
+  const reach = len * Math.min(1, k*1.5);
+  if(reach < 8) return '';
+  const spread = 9 + 13*Math.sin(Math.min(1,k)*Math.PI);
+  let s = `<g transform="translate(${n(x0)},${n(y0)}) rotate(${deg.toFixed(1)})">`;
+
+  if(kind === 'frost'){
+    /* a cone, and shards riding down it */
+    const cone = (r, sp, col, op)=>`<path d="M0 0 L${n(r)} ${n(-sp)} L${n(r)} ${n(sp)} Z"
+      fill="${col}" opacity="${op}"/>`;
+    s += cone(reach, spread*1.15, B.c[0], 0.42);
+    s += cone(reach*0.82, spread*0.78, B.c[1], 0.62);
+    s += cone(reach*0.55, spread*0.42, B.c[2], 0.85);
+    for(let i=0;i<7;i++){
+      const px = reach*(0.16 + (i/7)*0.82), py = (hash(i*3.7)-0.5)*spread*1.5;
+      s += `<path d="M${n(px)} ${n(py-3)} L${n(px+3.4)} ${n(py)} L${n(px)} ${n(py+3)} L${n(px-3.4)} ${n(py)} Z"
+        fill="#ffffff" opacity=".8"/>`;
+    }
+  } else if(kind === 'water'){
+    /* a heavy stream with a droop, and droplets under it */
+    const arc = (r, sp, col, op)=>`<path d="M0 ${n(-sp*0.5)} Q${n(r*0.55)} ${n(-sp*0.2)} ${n(r)} ${n(sp*0.9)}
+      L${n(r)} ${n(sp*2.0)} Q${n(r*0.55)} ${n(sp*1.2)} 0 ${n(sp*0.5)} Z" fill="${col}" opacity="${op}"/>`;
+    s += arc(reach, spread, B.c[0], 0.55);
+    s += arc(reach*0.86, spread*0.72, B.c[1], 0.7);
+    s += arc(reach*0.6, spread*0.44, B.c[2], 0.85);
+    for(let i=0;i<8;i++){
+      const px = reach*(0.3 + (i/8)*0.7), py = spread*(1.0 + hash(i*5.1)*1.4);
+      s += `<circle cx="${n(px)}" cy="${n(py)}" r="${(1.4 + hash(i)*1.8).toFixed(1)}" fill="${B.c[2]}" opacity=".7"/>`;
+    }
+  } else {
+    /* fire: a tapered jet, brightest at the core, with embers */
+    const jet = (r, sp, col, op)=>`<path d="M0 0 Q${n(r*0.5)} ${n(-sp)} ${n(r)} 0
+      Q${n(r*0.5)} ${n(sp)} 0 0 Z" fill="${col}" opacity="${op}"/>`;
+    s += jet(reach, spread*1.1, B.c[0], 0.55);
+    s += jet(reach*0.78, spread*0.72, B.c[1], 0.78);
+    s += jet(reach*0.5, spread*0.42, B.c[2], 0.92);
+    for(let i=0;i<6;i++){
+      const px = reach*(0.55 + (i/6)*0.5), py = (hash(i*2.3)-0.5)*spread*2.2;
+      s += `<circle cx="${n(px)}" cy="${n(py)}" r="${(1 + hash(i*7)*1.7).toFixed(1)}" fill="#ffd27a" opacity=".85"/>`;
+    }
+  }
+  s += `</g>`;
+  return s;
+}
+
+/* frost keeps hold of him after the cone lands */
+function rimeArt(x, y, k){
+  let s = `<circle cx="${n(x)}" cy="${n(y)}" r="${n(16 + 5*Math.sin(k*7))}" fill="none"
+    stroke="#cfeaf8" stroke-width="2" opacity=".55"/>`;
+  for(let i=0;i<6;i++){
+    const a = (i/6)*Math.PI*2 + k;
+    s += `<path d="M${n(x + Math.cos(a)*13)} ${n(y + Math.sin(a)*13)}
+      l${n(Math.cos(a)*7)} ${n(Math.sin(a)*7)}" stroke="#ffffff" stroke-width="2"
+      stroke-linecap="round" opacity=".7"/>`;
+  }
+  return s;
+}
+
+/* ---------- drawn into the duel layer ---------- */
+if(typeof duelPaint === 'function'){
+  const _duelPaintDragon = duelPaint;
+  duelPaint = function(){
+    const r = _duelPaintDragon.apply(this, arguments);
+    try{
+      if(!DUEL || DUEL.over) return r;
+      const D = DUEL, g = D.dg;
+      if(!g || g.phase === 'wait') return r;
+      const el = document.getElementById('duellay'); if(!el) return r;
+      const d = S.dragon; if(!d) return r;
+
+      let s = '';
+      /* the breath first, so the dragon sits on top of its own jet */
+      if(g.phase === 'breathe'){
+        const k = Math.min(1, g.t*0.9);
+        s += duelBreathArt(g.kind, g.x + 26, g.y - 12, D.vx, D.vy - 14, k);
+        if(g.kind === 'frost') s += rimeArt(D.vx, D.vy - 14, g.t*2);
+      }
+      /* it beats its wings the whole time it is up there */
+      const lift = Math.sin(g.t*11) * 3;
+      s += `<g transform="translate(${n(g.x)},${n(g.y + lift)})">`;
+      s += (typeof dragonArt === 'function')
+        ? dragonArt({ ...d, state:'fly' })
+        : `<ellipse cx="0" cy="0" rx="20" ry="8" fill="#8a4a3a"/>`;
+      s += `</g>`;
+
+      el.innerHTML += s;
+      const body = el.querySelector('.dragon');
+      if(body) body.classList.add('flying');
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- it cannot be in two places ----------
+   The farm layer goes on painting the dragon at S.dragon.x/y for the whole
+   duel, so there were two of them on screen — one hovering over the fight
+   and one still sat on the roost. Confirmed by counting: one .dragon node
+   before the duel, two during.
+
+   The suppression goes in paintDragon, which is the roost copy's own
+   per-frame painter, rather than on the layer element. render() destroys
+   and rebuilds #dragonlay — a style set anywhere else is wiped the first
+   time a building gets levelled. */
+function dragonIsAtTheDuel(){
+  return !!(typeof DUEL !== 'undefined' && DUEL && !DUEL.over
+            && DUEL.dg && DUEL.dg.phase !== 'wait');
+}
+if(typeof paintDragon === 'function'){
+  const _paintDragonDuel = paintDragon;
+  paintDragon = function(){
+    const r = _paintDragonDuel.apply(this, arguments);
+    try{
+      const g = document.getElementById('dragonlay');
+      if(g) g.style.display = dragonIsAtTheDuel() ? 'none' : '';
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- the tick, after the beats have moved ---------- */
+if(typeof duelTick === 'function'){
+  const _duelTickDragon = duelTick;
+  duelTick = function(dt){
+    const r = _duelTickDragon.apply(this, arguments);
+    try{ dragonDuelTick(typeof dt === 'number' ? dt : 0.05); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- it earned its share ---------- */
+if(typeof duelEnd === 'function'){
+  const _duelEndDragon = duelEnd;
+  duelEnd = function(){
+    let helped = false, name = '';
+    try{ helped = !!(DUEL && DUEL.dragonHelped); name = (S.dragon && S.dragon.name) || ''; }catch(e){}
+    const r = _duelEndDragon.apply(this, arguments);
+    try{
+      if(helped && S.dragon){
+        S.marks = (S.marks || 0) + 1;
+        S.dragon.bond = Math.min(1, (S.dragon.bond || 0) + 0.04);
+        if(S.dragon.mind) S.dragon.mind.pride = Math.min(1, (S.dragon.mind.pride || 0) + 0.3);
+        if(typeof log === 'function')
+          log(`${name} took a mark for itself, and thought rather well of the whole business.`, 'gold', 'farm');
+        if(typeof save === 'function') try{ save(); }catch(e){}
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.dragonDuelAudit = function(){
+  const d = S.dragon;
+  if(!d) return { haveDragon:false, needsBond:DRAGON_FIGHT_BOND };
+  const base = {
+    dragon:d.name, bond:+(d.bond||0).toFixed(2), needsBond:DRAGON_FIGHT_BOND,
+    willFight: dragonWillFight(),
+    breathItWouldUse: dragonBreathChoice(),
+    heat: d.mind ? +(d.mind.heat === undefined ? 0.5 : d.mind.heat).toFixed(2) : '—',
+    breaths: Object.keys(DUEL_BREATHS),
+  };
+  if(!DUEL || DUEL.over) return Object.assign(base, { duelRunning:false });
+  const g = DUEL.dg;
+  return Object.assign(base, {
+    duelRunning:true,
+    beat: BEATS[DUEL.beat] ? BEATS[DUEL.beat].k : 'done',
+    dragonPhase: g ? g.phase : 'staying on the roost',
+    usingBreath: g ? g.kind : '—',
+    push: +(DUEL.push||0).toFixed(2),
+    villainPower: +(DUEL.vpow||0).toFixed(2),
+    helpedYet: !!DUEL.dragonHelped,
+  });
+};
+
+/* =====================================================================
+   THE HUB SENDS SOMETHING OUT
+
+   The farm control hub does twelve to fifty-five visits a day depending
+   on its Mark, and every one of them happens in a single silent batch at
+   the day rollover. Beds get watered, pens get collected, jars get
+   carried in from the kitchen, and nothing whatsoever crosses the yard.
+   The most expensive automation in the game is a box that hums.
+
+   THE ROUND IS NOW DRIVEN. One machine per Mark rolls out of the hub,
+   takes the next job off the day's round, drives to it, works it, and
+   goes to the next. When the round is done they come home and dock. The
+   queue is the hub's real plan — the same hubPlan() the automation ran,
+   in the same household priority order — so the length of the queue and
+   the number of machines are the true capacity, and you can watch a Mk I
+   run out of trips while the beds it never reached sit there.
+
+   IT SHOWS THE ROUND, IT DOES NOT GATE IT. Being straight about this: the
+   work itself still lands in one batch at rollover, as it always has.
+   Making arrival the moment the water actually goes on would mean a bed
+   watered at 4pm instead of midnight, and that is an economy change
+   dressed up as a graphics change. The machines are an honest picture of
+   a round that really happened, in the real order, at the real capacity —
+   not a simulation laid over the top of it.
+
+   A COLOUR PER JOB, because a machine crossing the yard should tell you
+   what it is going to do: blue for water, green for harvest and picking,
+   amber for the animals, grey for tidying up.
+
+   THE BAYS. The hub has one docking bay per machine, and lifting the roof
+   shows which are empty. That is the clearest read of "it is working"
+   available, and it costs nothing while the roof is on because p122 only
+   draws interiors when the roof is up.
+
+   Moved by transform on the existing element, never by regenerating the
+   SVG — the mistake p92 documents for the dog, where she was following
+   you invisibly for a whole release because nothing ever moved her node.
+   ===================================================================== */
+
+const BOT_JOB_COL = {
+  water:   { c:'#4f93b5', lit:'#8fd0e8' },
+  harvest: { c:'#5f8f3f', lit:'#9ed46a' },
+  animals: { c:'#c08a3a', lit:'#f0c070' },
+  tidy:    { c:'#7a828a', lit:'#c3ccd2' },
+};
+
+/* one machine per Mark, so upgrading puts another one on the yard */
+function botFleet(){ return Math.max(0, Math.min(4, (typeof hubMark === 'function') ? hubMark() : 0)); }
+
+function hubDoor(){
+  const h = (typeof hub === 'function') ? hub() : null;
+  if(!h) return null;
+  const f = footprint(BPMAP[h.bp], h.rot);
+  return { x:(h.tx + f.w/2)*T, y:(h.ty + f.h + 0.3)*T, obj:h };
+}
+
+function botState(){
+  if(!S.bots) S.bots = { units:[], queue:[], day:-1 };
+  return S.bots;
+}
+
+/* where a job sits on the ground */
+function botTargetOf(o){
+  if(!o) return null;
+  const bp = BPMAP[o.bp]; if(!bp) return null;
+  const f = footprint(bp, o.rot);
+  return { x:(o.tx + f.w/2)*T, y:(o.ty + f.h*0.72)*T };
+}
+
+/* ---------- the round is set when the hub runs it ---------- */
+if(typeof runAutomation === 'function'){
+  const _runAutoBots = runAutomation;
+  runAutomation = function(){
+    const r = _runAutoBots.apply(this, arguments);
+    try{
+      const B = botState();
+      const door = hubDoor();
+      if(!door){ B.units = []; B.queue = []; return r; }
+      const plan = (typeof hubPlan === 'function') ? hubPlan() : null;
+      if(!plan) return r;
+      /* the day's round, in the order the hub actually worked it */
+      B.day = S.day;
+      B.queue = plan.doing.map(d=>({ id:d.o.id, g:d.g })).filter(q=>q.id !== undefined);
+      B.waiting = plan.waiting;
+      /* the fleet, docked and ready */
+      const want = botFleet();
+      while(B.units.length > want) B.units.pop();
+      while(B.units.length < want)
+        B.units.push({ i:B.units.length, x:door.x, y:door.y, dir:1,
+                       state:'dock', jobId:null, g:'tidy', t:0, work:0 });
+      B.units.forEach(u=>{ if(u.state !== 'dock'){ u.state='home'; } });
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- they work the round across the day ---------- */
+function tickBots(dt){
+  const B = botState();
+  const door = hubDoor();
+  if(!door){ if(B.units.length) B.units = []; return; }
+  if(!B.units.length && botFleet()){
+    B.units = []; for(let i=0;i<botFleet();i++)
+      B.units.push({ i, x:door.x, y:door.y, dir:1, state:'dock', jobId:null, g:'tidy', t:0, work:0 });
+  }
+
+  B.units.forEach(u=>{
+    u.t += dt;
+    const speed = 54;
+
+    if(u.state === 'dock' || u.state === 'home'){
+      /* home: take the next job if there is one */
+      if(B.queue && B.queue.length){
+        const q = B.queue.shift();
+        const o = (S.objs||[]).find(x=>x.id === q.id);
+        const tgt = botTargetOf(o);
+        if(tgt){ u.jobId = q.id; u.g = q.g || 'tidy'; u.tx = tgt.x; u.ty = tgt.y; u.state = 'out'; u.work = 0; }
+        return;
+      }
+      /* nothing to do: sit in the bay */
+      u.x += (door.x + (u.i - 1.5)*9 - u.x) * Math.min(1, dt*3);
+      u.y += (door.y - u.y) * Math.min(1, dt*3);
+      u.state = 'dock';
+      return;
+    }
+
+    if(u.state === 'out'){
+      const dx = u.tx - u.x, dy = u.ty - u.y, d = Math.hypot(dx, dy) || 1;
+      if(d > 7){
+        const k = Math.min(1, speed*dt/d);
+        u.x += dx*k; u.y += dy*k;
+        if(Math.abs(dx) > 1) u.dir = dx < 0 ? -1 : 1;
+      } else u.state = 'work';
+      return;
+    }
+
+    if(u.state === 'work'){
+      u.work += dt;
+      if(u.work > 2.2){ u.state = 'back'; u.jobId = null; }
+      return;
+    }
+
+    if(u.state === 'back'){
+      const bx = door.x + (u.i - 1.5)*9, by = door.y;
+      const dx = bx - u.x, dy = by - u.y, d = Math.hypot(dx, dy) || 1;
+      if(d > 5){
+        const k = Math.min(1, speed*dt/d);
+        u.x += dx*k; u.y += dy*k;
+        if(Math.abs(dx) > 1) u.dir = dx < 0 ? -1 : 1;
+      } else {
+        u.state = 'home';
+        /* a bay lighting up is worth a repaint, but only if you can see in */
+        if(typeof SET === 'function' && SET('roofOff') && typeof render === 'function')
+          try{ render(); }catch(e){}
+      }
+      return;
+    }
+  });
+}
+
+/* ---------- how a machine looks ---------- */
+function botArt(u){
+  const col = BOT_JOB_COL[u.g] || BOT_JOB_COL.tidy;
+  const working = u.state === 'work';
+  let s = `<ellipse cx="1.4" cy="5.2" rx="7" ry="2.4" fill="url(#gShadow)" opacity=".55"/>`;
+  /* chassis, lit from upper-left */
+  s += `<rect x="-6.4" y="-5.4" width="12.8" height="10" rx="2.6" fill="#8d979d"/>`;
+  s += `<rect x="-6.4" y="-5.4" width="12.8" height="3" rx="2.2" fill="#c3ccd2"/>`;
+  s += `<rect x="3.4" y="-5.4" width="3" height="10" rx="2" fill="#000000" opacity=".18"/>`;
+  /* sensor band and the light that says what it is out for */
+  s += `<rect x="-4.6" y="-3.2" width="9.2" height="3.2" rx="1.2" fill="#2f373d"/>`;
+  s += `<circle class="botlamp" cx="0" cy="-1.6" r="1.5" fill="${col.lit}" style="--i:${u.i%4}"/>`;
+  /* A band in the job colour. At farm scale the whole machine is about
+     fourteen pixels across, so this is a pixel and a half — it needs the
+     depth and the lit top edge or the colour does not survive the size. */
+  s += `<rect x="-6.4" y="1.2" width="12.8" height="3.4" fill="${col.c}"/>`;
+  s += `<rect x="-6.4" y="1.2" width="12.8" height="1" fill="${col.lit}" opacity=".75"/>`;
+  /* tracks */
+  s += `<rect x="-7.4" y="-3.4" width="1.8" height="7" rx="0.9" fill="#4a5157"/>`;
+  s += `<rect x="5.6" y="-3.4" width="1.8" height="7" rx="0.9" fill="#3f464b"/>`;
+  /* the arm, down only while it is actually on a job */
+  if(working)
+    s += `<path class="botarm" d="M0 0 L0 7" stroke="${col.c}" stroke-width="1.8" stroke-linecap="round"/>`;
+  return s;
+}
+
+function botLayer(){
+  let g = document.getElementById('botlay');
+  if(!g){
+    const fg = document.getElementById('fg');
+    if(!fg) return null;
+    g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.id = 'botlay';
+    g.setAttribute('pointer-events','none');
+    fg.appendChild(g);
+  }
+  return g;
+}
+
+/* Built once and moved, never rebuilt — a CSS-animated lamp on an element
+   that is recreated every frame restarts from zero every frame and sits
+   frozen at the first keyframe, which is the p115 wing bug. */
+function paintBots(){
+  const B = botState();
+  const g = botLayer(); if(!g) return;
+  const have = {};
+  [...g.children].forEach(el=>{ have[el.getAttribute('data-b')] = el; });
+  B.units.forEach(u=>{
+    let el = have[u.i];
+    if(!el){
+      el = document.createElementNS('http://www.w3.org/2000/svg','g');
+      el.setAttribute('data-b', u.i);
+      el.innerHTML = botArt(u);
+      g.appendChild(el);
+    } else if(el.dataset.look !== u.g + (u.state === 'work' ? '1' : '0')){
+      el.innerHTML = botArt(u);            /* only when what it shows changed */
+    }
+    el.dataset.look = u.g + (u.state === 'work' ? '1' : '0');
+    delete have[u.i];
+    el.setAttribute('transform', `translate(${n(u.x)},${n(u.y)}) scale(${u.dir},1)`);
+    el.style.opacity = (u.state === 'dock' && !(typeof SET==='function' && SET('roofOff'))) ? '0.85' : '1';
+  });
+  Object.keys(have).forEach(k=>have[k].remove());
+}
+
+if(typeof tickPeople === 'function'){
+  const _tickPeopleBots = tickPeople;
+  tickPeople = function(dt){
+    const r = _tickPeopleBots.apply(this, arguments);
+    try{
+      if(typeof hub === 'function' && hub()){
+        tickBots(Math.min(0.08, typeof dt === 'number' ? dt : 0.05));
+        paintBots();
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- the bays, seen when the roof comes off ----------
+   p122 gave the hub server racks. It gets a rank of docking bays as well,
+   lit where a machine is home and dark where one is out. */
+if(typeof INTERIORS === 'object'){
+  INTERIORS.ai_hub = (w, h)=>{
+    const B = botState();
+    let s = KIT.machine(w*0.06, h*0.06, w*0.19, h*0.34, 1)
+          + KIT.machine(w*0.29, h*0.06, w*0.19, h*0.34, 1)
+          + KIT.bench(w*0.56, h*0.08, w*0.36, h*0.14);
+    /* The bays sit in the middle band, not along the bottom. Down there
+       they were completely hidden at Mk III and IV — the apron, verandah
+       and planters are ground furniture, so they correctly stay put when
+       the roof lifts, and they were sitting straight on top of the bays. */
+    const bays = Math.max(1, botFleet());
+    for(let i=0;i<bays;i++){
+      const bx = w*0.07 + i*(w*0.86/bays), bw = w*0.86/bays - w*0.035;
+      const u = B.units[i];
+      const home = !u || u.state === 'dock' || u.state === 'home';
+      s += `<rect x="${n(bx)}" y="${n(h*0.48)}" width="${n(bw)}" height="${n(h*0.20)}" rx="1.6"
+        fill="#3f464b"/>`;
+      s += `<rect x="${n(bx+1.4)}" y="${n(h*0.50)}" width="${n(bw-2.8)}" height="${n(h*0.16)}" rx="1.2"
+        fill="${home ? '#5c6a58' : '#22282c'}"/>`;
+      /* green when it is home, dim amber when the bay is empty */
+      s += `<circle cx="${n(bx+bw-3.6)}" cy="${n(h*0.535)}" r="1.7"
+        fill="${home ? '#7cc24f' : '#8a5a3a'}"/>`;
+      if(home)
+        s += `<rect x="${n(bx+3)}" y="${n(h*0.545)}" width="${n(bw-9)}" height="${n(h*0.09)}" rx="1"
+          fill="#8d979d"/>`;
+    }
+    return s;
+  };
+}
+
+/* ---------- the hub says it is working ---------- */
+(function botCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  .botlamp{ animation: botpulse 1.9s ease-in-out infinite; animation-delay: calc(var(--i)*.35s); }
+  @keyframes botpulse{ 0%,100%{ opacity:.55 } 50%{ opacity:1 } }
+  .botarm{ animation: botwork .5s ease-in-out infinite alternate; transform-origin: 0 0; }
+  @keyframes botwork{ from{ transform: rotate(-13deg) } to{ transform: rotate(13deg) } }
+  @media (prefers-reduced-motion: reduce){
+    .botlamp, .botarm{ animation:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- handle ---------- */
+G.hubRobotAudit = function(){
+  const h = (typeof hub === 'function') ? hub() : null;
+  if(!h) return { hub:false, note:'no farm control hub built' };
+  const B = botState();
+  const by = {}; B.units.forEach(u=>{ by[u.state] = (by[u.state]||0)+1; });
+  return {
+    mark: (typeof hubMark === 'function') ? 'Mk '+hubMark() : '—',
+    capacityToday: (typeof hubCapacity === 'function') ? hubCapacity() : '—',
+    machines: B.units.length,
+    doing: by,
+    jobsLeftOnTheRound: (B.queue || []).length,
+    jobsItCouldNotReach: B.waiting || 0,
+    outNow: B.units.filter(u=>u.state !== 'dock' && u.state !== 'home').length,
+    carrying: B.units.map(u=>u.g),
+    inDom: !!document.getElementById('botlay'),
+    honestly: 'the round is shown, not gated — the work still lands at rollover',
+  };
+};
+
+/* =====================================================================
+   A DRAGON LORD OVER THE ARENA
+
+   From the screenshot: the arena sky is two thirds of the frame and there
+   is nothing in it. The fighters stand on a line at the bottom, the
+   mountains sit behind them, and the whole upper half is empty grey with
+   rain falling through it. The helper dragon is one small shape in the
+   corner. The staging has no scale to it.
+
+   So the sky gets an occupant. A serpent dragon — long ribbon body, no
+   wings, antlers, whiskers, a mane down its back, four short clawed legs
+   — coiling across the arena behind the fight and breathing fire as it
+   goes. It is scenery with presence rather than a participant: it never
+   touches the beats, never wrecks a building, and the outcome of the duel
+   is exactly what it was.
+
+   ON THE LIKENESS, same rule this file's neighbours already follow. p104
+   says it plainly: the champions are original characters in the shared
+   vocabulary of the genre because copying protected designs is the one
+   part of this that would put the author at risk. The same applies here.
+   The long four-legged sky serpent is a traditional East Asian form that
+   predates every cartoon by a thousand years and belongs to nobody — that
+   is what this is built from. It is not the specific wish-granting dragon
+   from any particular series, it is not that character's colouring or
+   proportions, and it has no name from one. It gets its own palette,
+   drawn from traditional dragon colours, and a different one each fight.
+
+   HOW IT MOVES. The head travels a slow lissajous across the sky, so it
+   wanders rather than crossing in a straight line, and the body is the
+   head's own recent history sampled backwards. That is what gives a
+   serpent its undulation for free — no per-segment physics, and the body
+   can never tie itself in a knot, because it is literally where the head
+   has already been.
+
+   WHERE IT SITS. arenaArt is prepended to the duel layer by p107, and the
+   fighters are in the layer's own content after it. Appending to the
+   arena's output rather than to the layer puts the lord in the one gap
+   that reads correctly: in front of the peaks, behind the fight.
+   ===================================================================== */
+
+/* traditional dragon colourways, one picked per fight */
+/* Lifted a couple of stops from the first pass — these sit against five
+   different arena skies, and the muted versions disappeared on two of
+   them. Bright body, pale horn and mane, dark contour underneath. */
+const LORD_SKINS = [
+  { n:'jade',     body:'#3fa86c', lit:'#7fd6a0', deep:'#1d5236', horn:'#f4ebc8', mane:'#f0d878', belly:'#cfe4c8' },
+  { n:'vermilion',body:'#d4553c', lit:'#f5876a', deep:'#71241c', horn:'#f8e6bc', mane:'#f6c65c', belly:'#f0cfb4' },
+  { n:'indigo',   body:'#5563c8', lit:'#8f9cf0', deep:'#1f2752', horn:'#eef2ff', mane:'#b9c6ff', belly:'#c8cfe8' },
+  { n:'gold',     body:'#c9902f', lit:'#f0bf63', deep:'#5c3f18', horn:'#fbf3d6', mane:'#ffd97a', belly:'#e6d2a8' },
+];
+
+let LORD = null;
+
+function lordSky(){
+  /* the same box arenaArt builds its backdrop in */
+  const x = -T*2, y = -T*2, w = WPX + T*4, h = HPX + T*4;
+  return { x, y, w, h, horizon: y + h*0.46 };
+}
+
+function lordInit(){
+  const sk = lordSky();
+  LORD = {
+    skin: LORD_SKINS[Math.floor(Math.random()*LORD_SKINS.length)],
+    t: Math.random()*10,
+    trail: [],
+    fire: 0, fireT: 0, next: 1.2 + Math.random()*1.6,
+    cx: sk.x + sk.w*0.5, cy: sk.y + (sk.horizon - sk.y)*0.46,
+    ax: sk.w*0.34, ay: (sk.horizon - sk.y)*0.30,
+    head: { x:0, y:0, a:0 },
+  };
+}
+
+/* head on a slow lissajous, body is where the head has already been */
+function lordTick(dt){
+  if(!LORD) return;
+  const L = LORD;
+  L.t += dt;
+  const px = L.head.x, py = L.head.y;
+  /* the slow wander, plus a faster weave — the weave is what the body
+     inherits as undulation, because the body is the head's own history */
+  L.head.x = L.cx + Math.cos(L.t*0.23) * L.ax + Math.cos(L.t*1.9) * 16;
+  L.head.y = L.cy + Math.sin(L.t*0.37) * L.ay + Math.sin(L.t*2.3) * 12;
+  if(px || py) L.head.a = Math.atan2(L.head.y - py, L.head.x - px);
+
+  L.trail.unshift({ x:L.head.x, y:L.head.y });
+  if(L.trail.length > 300) L.trail.length = 300;
+
+  /* it breathes a great deal, which is the point of it */
+  if(L.fire > 0){
+    L.fire -= dt;
+    if(L.fire <= 0){ L.fire = 0; L.next = 1.4 + Math.random()*2.0; }
+  } else {
+    L.next -= dt;
+    if(L.next <= 0){
+      L.fire = 0.85 + Math.random()*0.5;
+      L.fireT = 0;
+      if(typeof G.bang === 'function') try{ G.bang('roar'); }catch(e){}
+    }
+  }
+  if(L.fire > 0) L.fireT += dt;
+}
+
+/* ---------- the art ---------- */
+function lordArt(k){
+  if(!LORD || !LORD.trail.length) return '';
+  const L = LORD, S1 = L.skin;
+  const op = Math.max(0, Math.min(1, k === undefined ? 1 : k));
+  if(op < 0.02) return '';
+
+  const SEGS = 34, SPACING = 9;
+  let s = `<g opacity="${(op*0.96).toFixed(3)}">`;
+
+  /* --- body ---
+     Sampled by distance travelled, not by frame count. Spacing the
+     segments every N trail entries made the body a string of loose beads
+     whenever the frame rate dropped, because the head covers more ground
+     per frame — the gaps were plainly visible in a 20fps capture. Walking
+     the trail by arc length gives the same serpent at any frame rate. */
+  const pts = [];
+  let acc = 0;
+  const push = (p, i)=>pts.push({ p, i });
+  push(L.trail[0], 0);
+  for(let j=1; j<L.trail.length && pts.length < SEGS; j++){
+    acc += Math.hypot(L.trail[j].x - L.trail[j-1].x, L.trail[j].y - L.trail[j-1].y);
+    if(acc >= SPACING){ acc = 0; push(L.trail[j], pts.length); }
+  }
+  pts.reverse();                       /* tail first, so the head overlaps */
+  pts.forEach(({p,i})=>{
+    const f = 1 - i/SEGS;                     /* 1 at the head, 0 at the tail */
+    /* the tail stays fat enough that its diameter still exceeds SPACING,
+       or the body comes apart at the thin end */
+    const r = 5.5 + f*f*11;
+    /* A dark contour under every segment. The arenas run from pale ice to
+       near-black lava, and a bronze serpent on a lava sky was invisible in
+       testing — the rim is what makes it read on all five of them. */
+    s += `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${n(r+1.8)}" fill="#120d08" opacity=".5"/>`;
+    s += `<circle cx="${n(p.x)}" cy="${n(p.y+2.2)}" r="${n(r)}" fill="${S1.deep}" opacity=".55"/>`;
+    s += `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${n(r)}" fill="${S1.body}"/>`;
+    s += `<circle cx="${n(p.x-r*0.26)}" cy="${n(p.y-r*0.30)}" r="${n(r*0.58)}" fill="${S1.lit}" opacity=".75"/>`;
+    /* the mane runs the length of the spine */
+    if(i % 2 === 0 && i < SEGS-2)
+      s += `<path d="M${n(p.x)} ${n(p.y-r*0.9)} l${n(-r*0.5)} ${n(-r*0.9)} l${n(r*1.0)} ${n(r*0.25)} Z"
+        fill="${S1.mane}" opacity=".9"/>`;
+    /* four short legs, spaced along it */
+    if(i === 5 || i === 11 || i === 17 || i === 22){
+      const lx = p.x - r*0.2, ly = p.y + r*0.8;
+      s += `<path d="M${n(lx)} ${n(ly)} q${n(-r*0.5)} ${n(r*0.8)} ${n(-r*0.15)} ${n(r*1.5)}"
+        stroke="${S1.deep}" stroke-width="${n(r*0.42)}" fill="none" stroke-linecap="round"/>`;
+      for(let c=0;c<3;c++)
+        s += `<circle cx="${n(lx - r*0.15 + (c-1)*r*0.22)}" cy="${n(ly + r*1.6)}" r="${n(r*0.16)}"
+          fill="${S1.horn}"/>`;
+    }
+  });
+
+  /* --- head --- */
+  const h = L.head, deg = h.a*180/Math.PI;
+  s += `<g transform="translate(${n(h.x)},${n(h.y)}) rotate(${deg.toFixed(1)})">`;
+  /* snout */
+  s += `<ellipse cx="9" cy="0" rx="15" ry="8.4" fill="${S1.body}"/>`;
+  s += `<ellipse cx="9" cy="-2.4" rx="12" ry="4.6" fill="${S1.lit}" opacity=".7"/>`;
+  s += `<ellipse cx="19" cy="2.2" rx="6.4" ry="4" fill="${S1.deep}"/>`;
+  s += `<ellipse cx="-2" cy="0" rx="12" ry="10.5" fill="${S1.body}"/>`;
+  s += `<ellipse cx="-3.5" cy="-3" rx="8.6" ry="6" fill="${S1.lit}" opacity=".6"/>`;
+  /* antlers, branched */
+  [-1,1].forEach(sd=>{
+    s += `<path d="M-4 ${n(sd*7)} q-7 ${n(sd*9)} -14 ${n(sd*10)} m7 ${n(sd*-5)} q-3 ${n(sd*6)} -9 ${n(sd*7)}"
+      stroke="${S1.horn}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
+  });
+  /* whiskers streaming back */
+  [-1,1].forEach(sd=>{
+    const w1 = Math.sin(L.t*3 + sd)*4;
+    s += `<path d="M17 ${n(sd*4)} q-14 ${n(sd*10 + w1)} -32 ${n(sd*7 + w1)}"
+      stroke="${S1.horn}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".95"/>`;
+  });
+  /* mane behind the skull */
+  s += `<path d="M-10 -9 l-9 -8 l4 10 l-9 -2 l6 9 Z" fill="${S1.mane}" opacity=".95"/>`;
+  /* eye and brow */
+  s += `<circle cx="2" cy="-4.2" r="3.4" fill="#f6f1e2"/>`;
+  s += `<circle cx="3.2" cy="-4.2" r="1.7" fill="#1a1410"/>`;
+  s += `<path d="M-2 -8.6 q5 -3 9 -1" stroke="${S1.horn}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  /* the mouth opens while it breathes */
+  if(L.fire > 0){
+    s += `<path d="M15 2 q7 5 11 1 q-5 6 -12 4 Z" fill="#2a1109"/>`;
+    /* the gout: layered tapered jets, the same trick the ride breaths use */
+    const k2 = Math.min(1, L.fireT*2.2);
+    const reach = 150 * Math.sin(Math.min(1, k2) * Math.PI) + 40;
+    const sp = 10 + 15*Math.sin(Math.min(1,k2)*Math.PI);
+    const jet = (r0, s0, col, o0)=>`<path d="M24 2 Q${n(24+r0*0.5)} ${n(2-s0)} ${n(24+r0)} 2
+      Q${n(24+r0*0.5)} ${n(2+s0)} 24 2 Z" fill="${col}" opacity="${o0}"/>`;
+    s += jet(reach, sp*1.15, '#ff4a12', 0.5);
+    s += jet(reach*0.76, sp*0.76, '#ff9a2a', 0.75);
+    s += jet(reach*0.48, sp*0.44, '#ffe07a', 0.9);
+    for(let i=0;i<6;i++){
+      const ex = 24 + reach*(0.5 + (i/6)*0.55), ey = 2 + (hash(i*4.1+Math.floor(L.t))-0.5)*sp*2.4;
+      s += `<circle cx="${n(ex)}" cy="${n(ey)}" r="${(1.2+hash(i*3)*2).toFixed(1)}" fill="#ffd27a" opacity=".85"/>`;
+    }
+  } else {
+    s += `<path d="M16 3 q6 3 10 1" stroke="${S1.deep}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  }
+  s += `</g></g>`;
+  return s;
+}
+
+/* ---------- wire it in ---------- */
+if(typeof G.startDuel === 'function'){
+  const _startDuelLord = G.startDuel;
+  G.startDuel = function(){
+    const r = _startDuelLord.apply(this, arguments);
+    try{
+      if(DUEL && !DUEL.over){
+        lordInit();
+        if(typeof log === 'function')
+          log(`Something long and ${LORD.skin.n} is turning over the peaks. It is not here for you.`,
+              '', 'farm');
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+if(typeof duelTick === 'function'){
+  const _duelTickLord = duelTick;
+  duelTick = function(dt){
+    const r = _duelTickLord.apply(this, arguments);
+    try{
+      if(DUEL && !DUEL.over) lordTick(typeof dt === 'number' ? dt : 0.05);
+      else LORD = null;
+    }catch(e){}
+    return r;
+  };
+}
+
+/* in front of the peaks, behind the fight — see the header */
+if(typeof arenaArt === 'function'){
+  const _arenaArtLord = arenaArt;
+  arenaArt = function(A, k){
+    const base = _arenaArtLord.apply(this, arguments);
+    try{ return base + lordArt(k); }catch(e){ return base; }
+  };
+}
+
+/* ---------- the helper dragon was too small to read ----------
+   In the report screenshot it is one small shape against a full-screen
+   arena. It is the player's own dragon and the reason the fight turns, so
+   it is drawn up at the scale the staging is working at. */
+if(typeof duelPaint === 'function'){
+  const _duelPaintScale = duelPaint;
+  duelPaint = function(){
+    const r = _duelPaintScale.apply(this, arguments);
+    try{
+      const el = document.getElementById('duellay');
+      if(!el || !DUEL || DUEL.over || !DUEL.dg) return r;
+      const g = el.querySelector('.dragon');
+      const wrap = g && g.parentElement;
+      if(wrap && wrap.getAttribute('transform') && !wrap.dataset.scaled){
+        wrap.setAttribute('transform', wrap.getAttribute('transform') + ' scale(1.7)');
+        wrap.dataset.scaled = '1';
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.dragonLordAudit = function(){
+  if(!LORD) return { inTheSky:false, note:'only during a champions duel',
+    colourways: LORD_SKINS.map(s=>s.n) };
+  const sk = lordSky();
+  return {
+    inTheSky:true,
+    colourway: LORD.skin.n,
+    at: `${Math.round(LORD.head.x)},${Math.round(LORD.head.y)}`,
+    skyBand: `${Math.round(sk.y)} to ${Math.round(sk.horizon)}`,
+    aboveTheHorizon: LORD.head.y < sk.horizon,
+    bodyLength: LORD.trail.length,
+    breathingNow: LORD.fire > 0,
+    secondsToNextBreath: LORD.fire > 0 ? 0 : +LORD.next.toFixed(1),
+    affectsTheFight: false,
+  };
+};
+
+/* =====================================================================
+   THE FRONT DOOR
+
+   index.html is the GitHub Pages landing page, so the first thing a
+   stranger sees is a hundred and twenty-five modules' worth of farm with
+   a land chooser already open on top of it. This puts a door in front of
+   that, with the two ways through that were asked for:
+
+     Play now      the homestead game — growing, animals, selling, the
+                   household. Everything a farm needs and nothing that
+                   needs explaining first.
+
+     Full version  every system in the build, behind the code.
+
+   IT DOES NOT INVENT A SECOND LOCK. The game already had all of this
+   machinery, just with no front on it: p40 owns UNLOCK_CODE and
+   G.tryUnlock, and p34 owns the thirty-minute trial, the PayPal link and
+   PLAY.unlocked. A parallel gate with its own key and its own copy of the
+   code would be two things to keep in step and one of them would drift.
+   So the full-version door routes through G.tryUnlock — the same call the
+   existing Code button in the top bar makes — and inherits everything it
+   does, including the cash and level it grants and the trial it lifts.
+   Change the code in p40 and this door changes with it.
+
+   WHAT "BASIC" MEANS HERE, and why it is what it is. The instinct is to
+   cut content, which makes a demo. The real problem for somebody arriving
+   cold is not too much farm — it is that the spectacle systems have no
+   context on day one. A button that summons two champions to level your
+   buildings is a poor first impression when you own two beds and a shed.
+   So the starter door keeps the whole farming game intact, at Relaxed,
+   and holds back only what needs a farm to make sense against: the
+   champions and wildlife buttons, the automation category, and the two
+   reference panels. Nothing is removed from the build and nothing is
+   capped. A starter save is a real save, and entering the code later
+   picks it up exactly where it was.
+
+   ON THE CODE, plainly. This is one static HTML file served to the
+   browser, so the code is in the source and always was — p40 says so
+   itself in a comment above UNLOCK_CODE. Hashing my own copy while the
+   original sits in plaintext three files earlier would be theatre. This
+   is a soft gate that keeps the full version out of a casual visitor's
+   way; it is not security, and nothing behind it should be anything you
+   would mind a stranger seeing.
+   ===================================================================== */
+
+const DOOR_KEY = 'greenhollow_door';         /* distinct from p34's GATE_KEY */
+
+/* what the starter door holds back */
+const DOOR_TABS = ['AI', 'Almanac'];         /* right-hand reference panels */
+const DOOR_CATS = ['auto'];                  /* build categories */
+
+function doorMode(){
+  try{ return localStorage.getItem(DOOR_KEY); }catch(e){ return null; }
+}
+function doorSet(m){
+  try{ localStorage.setItem(DOOR_KEY, m); }catch(e){}
+  applyDoorMode();
+}
+
+function applyDoorMode(){
+  /* anyone who has entered the code is on the full version regardless of
+     which door they came through, so the unlock wins */
+  const unlocked = (typeof S === 'object' && S && S.unlocked)
+    || (typeof PLAY !== 'undefined' && PLAY && PLAY.unlocked);
+  const starter = !unlocked && doorMode() === 'starter';
+  document.body.classList.toggle('gh-starter', starter);
+  const pill = document.getElementById('doorpill');
+  if(pill) pill.style.display = starter ? '' : 'none';
+
+  if(!starter){
+    /* Put back anything the starter door hid. The build categories come
+       back on their own because renderBuild rebuilds those buttons from
+       scratch, but the panel tabs are created once and kept — so entering
+       the code left AI and Almanac hidden on the full version until
+       something happened to recreate them. */
+    try{
+      document.querySelectorAll('.ptab').forEach(b=>{
+        if(DOOR_TABS.includes((b.textContent||'').trim())) b.style.display = '';
+      });
+      document.querySelectorAll('.cat').forEach(b=>{
+        const oc = b.getAttribute('onclick') || '';
+        if(DOOR_CATS.some(c=>oc.indexOf(`'${c}'`) >= 0)) b.style.display = '';
+      });
+    }catch(e){}
+    return;
+  }
+
+  try{
+    document.querySelectorAll('.ptab').forEach(b=>{
+      if(DOOR_TABS.includes((b.textContent||'').trim())) b.style.display = 'none';
+    });
+    document.querySelectorAll('.cat').forEach(b=>{
+      const oc = b.getAttribute('onclick') || '';
+      if(DOOR_CATS.some(c=>oc.indexOf(`'${c}'`) >= 0)) b.style.display = 'none';
+    });
+    /* if they were parked on something now hidden, move them somewhere real */
+    if(typeof rightTab !== 'undefined' && rightTab === 'almanac'){
+      const t = [...document.querySelectorAll('.ptab')].find(b=>(b.textContent||'').trim()==='Info');
+      if(t) t.click();
+    }
+    if(typeof curCat !== 'undefined' && DOOR_CATS.includes(curCat) && typeof G.cat === 'function')
+      G.cat('grow');
+  }catch(e){}
+}
+
+/* the gentler defaults, applied once when they choose the starter door */
+function doorStarterSettings(){
+  if(typeof setOpt !== 'function') return;
+  try{
+    setOpt('difficulty', 'Relaxed');
+    setOpt('dayLen', 60);
+    setOpt('autoSave', true);
+    setOpt('confirmSell', true);
+    setOpt('foxBtn', false);
+    setOpt('duelBtn', false);
+  }catch(e){}
+}
+
+/* ---------- what this browser already has ----------
+   The door greets everybody, so it has to know the difference between
+   somebody arriving for the first time and somebody coming back to a farm
+   they have been keeping for a hundred days. Choosing a door never
+   touches the save — it only decides which systems are on show. */
+function doorSave(){
+  try{
+    const raw = localStorage.getItem('greenhollow');
+    if(!raw) return null;
+    const d = JSON.parse(raw);
+    if(!d || d.day === undefined) return null;
+    return { day:d.day, cash:d.cash, land:d.landId,
+             objs:Array.isArray(d.objs) ? d.objs.length : 0 };
+  }catch(e){ return null; }
+}
+/* A farm past day one is somebody's farm. boot() writes a save row before
+   this door ever opens, so the row existing proves nothing. */
+function doorReturning(){
+  const s = doorSave();
+  return !!(s && (s.day || 1) > 1);
+}
+function doorUnlocked(){
+  return !!((typeof S === 'object' && S && S.unlocked)
+    || (typeof PLAY !== 'undefined' && PLAY && PLAY.unlocked));
+}
+
+/* ---------- the door itself ---------- */
+function doorHTML(){
+  const save = doorReturning() ? doorSave() : null;
+  const unlocked = doorUnlocked();
+  const money = (v)=>{ try{ return typeof fmt === 'function' ? fmt(Math.round(v||0)) : '$'+Math.round(v||0); }
+                       catch(e){ return ''; } };
+
+  const playCard = save
+    ? `<div class="door-kicker">Welcome back</div>
+       <div class="door-title">Continue</div>
+       <p>Your homestead is on <b>day ${save.day}</b>${save.objs ? ` with ${save.objs} things built` : ''}${
+          save.cash !== undefined ? `, ${money(save.cash)} in hand` : ''}. Picking up where you left off.</p>
+       <span class="door-btn">Back to the farm</span>`
+    : `<div class="door-kicker">Start here</div>
+       <div class="door-title">Play now</div>
+       <p>The farming game — beds, water, animals, the market and the household,
+          at a relaxed pace. Saved in this browser as you go.</p>
+       <span class="door-btn">Begin your homestead</span>`;
+
+  const fullCard = unlocked
+    ? `<div class="door-kicker">For the author</div>
+       <div class="door-title">Full version</div>
+       <p>This browser is already unlocked — every system in the build, and no trial.</p>
+       <button class="door-btn ghost" id="doorfull">Continue in full</button>`
+    : `<div class="door-kicker">For the author</div>
+       <div class="door-title">Full version</div>
+       <p>Every system in the build — automation, the valley, the champions,
+          the dragon and the almanac.</p>
+       <div class="door-row">
+         <input id="doorpass" type="password" inputmode="numeric" autocomplete="off"
+                maxlength="12" placeholder="Code" aria-label="Access code"/>
+         <button class="door-btn ghost" id="doorunlock">Enter</button>
+       </div>
+       <div class="door-err" id="doorerr" role="alert"></div>`;
+
+  return `
+  <div class="door-inner">
+    <div class="door-head">
+      <div class="door-mark">🌱</div>
+      <h1>Greenhollow</h1>
+      <p class="door-sub">A homestead you plan, plant and live on. Every tree, animal and
+        building here is drawn by the page as you play — there are no images in this file,
+        only instructions for making them.</p>
+    </div>
+
+    <div class="door-cards">
+      <button class="door-card door-go" id="doorplay">${playCard}</button>
+      <div class="door-card">${fullCard}</div>
+    </div>
+
+    <p class="door-foot">Runs entirely in your browser. Nothing is uploaded and there are
+      no accounts.${save ? ' Your farm is saved here and is not affected by this choice.' : ''}</p>
+  </div>`;
+}
+
+function openDoor(){
+  let el = document.getElementById('door');
+  if(!el){ el = document.createElement('div'); el.id = 'door'; document.body.appendChild(el); }
+  el.innerHTML = doorHTML();
+  el.style.display = '';
+  document.body.classList.add('gh-doored');
+
+  const shut = ()=>{
+    el.style.display = 'none';
+    document.body.classList.remove('gh-doored');
+    try{ if(typeof ui === 'function') ui(); if(typeof renderBuild === 'function') renderBuild(); }catch(e){}
+    applyDoorMode();
+  };
+
+  el.querySelector('#doorplay').onclick = ()=>{
+    /* The gentle defaults are for somebody who has never played. A farm
+       that already exists carries the player's own difficulty and day
+       length, and quietly resetting those to Relaxed and 60s because they
+       clicked Continue would be taking something off them.
+
+       Judged on the day, not on whether a save row exists. boot() writes
+       one before this door ever opens — and so does any setOpt — so
+       "there is a save" is true for a first-time visitor too, and testing
+       for it meant nobody ever got the gentle defaults. Day one is new. */
+    if(!doorReturning()) doorStarterSettings();
+    doorSet('starter');
+    shut();
+  };
+
+  /* already unlocked in this browser: straight back in, no retyping */
+  const cont = el.querySelector('#doorfull');
+  if(cont) cont.onclick = ()=>{ doorSet('full'); shut(); };
+
+  const pass = el.querySelector('#doorpass');
+  const err  = el.querySelector('#doorerr');
+  if(!pass) return;
+  const tryIt = ()=>{
+    const v = (pass.value || '').trim();
+    if(typeof UNLOCK_CODE === 'string' && v === UNLOCK_CODE){
+      doorSet('full');
+      /* Routed through the existing unlock rather than reimplemented, so
+         there is one place that knows what unlocking means. It lifts the
+         trial, sets PLAY.unlocked and S.unlocked, and grants the starting
+         cash and level the Code button in the top bar always has. */
+      try{
+        if(typeof G.tryUnlock === 'function'){
+          const tmp = document.createElement('input');
+          tmp.id = 'unlockin'; tmp.value = v; tmp.style.display = 'none';
+          document.body.appendChild(tmp);
+          G.tryUnlock();
+          tmp.remove();
+        }
+      }catch(e){}
+      shut();
+      return;
+    }
+    err.textContent = v ? 'That code is not right.' : 'Enter the code.';
+    pass.classList.add('bad');
+    setTimeout(()=>pass.classList.remove('bad'), 520);
+    pass.select();
+  };
+  el.querySelector('#doorunlock').onclick = tryIt;
+  pass.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); tryIt(); } });
+}
+G.openDoor = openDoor;
+
+/* a way back to the door for anyone who wants the other one */
+function doorPill(){
+  if(document.getElementById('doorpill')) return;
+  const b = document.createElement('button');
+  b.id = 'doorpill';
+  b.textContent = 'Full version';
+  b.title = 'Enter the code for every system in the build';
+  b.onclick = ()=>openDoor();
+  b.style.display = 'none';
+  document.body.appendChild(b);
+}
+
+/* ---------- style, in the game's own palette ---------- */
+(function doorCss(){
+  const s = document.createElement('style');
+  s.textContent = `
+  #door{ position:fixed; inset:0; z-index:99999; overflow:auto;
+    background:radial-gradient(120% 90% at 50% 0%, #24301c 0%, #12180f 62%, #0c110a 100%);
+    display:flex; align-items:center; justify-content:center; padding:22px;
+    font-family:var(--font); color:var(--ink); animation:doorin .45s ease; }
+  @keyframes doorin{ from{ opacity:0 } to{ opacity:1 } }
+  .door-inner{ width:100%; max-width:760px; }
+  .door-head{ text-align:center; margin-bottom:22px; }
+  .door-mark{ font-size:34px; line-height:1; margin-bottom:8px; }
+  #door h1{ font-size:34px; margin:0 0 8px; letter-spacing:-.4px; font-weight:800; }
+  .door-sub{ margin:0 auto; max-width:54ch; color:var(--ink2); font-size:13.5px; line-height:1.55; }
+  .door-cards{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width:640px){ .door-cards{ grid-template-columns:1fr } #door h1{ font-size:27px } }
+  .door-card{ display:block; width:100%; text-align:left; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--r); padding:16px 16px 18px;
+    box-shadow:var(--shadow); }
+  .door-go{ cursor:pointer; border-color:rgba(124,194,79,.42); font:inherit;
+    background:linear-gradient(180deg,#22301a,#1b2415);
+    transition:transform .16s ease, border-color .16s ease; }
+  .door-go:hover{ transform:translateY(-2px); border-color:var(--green); }
+  .door-kicker{ font-size:10.5px; letter-spacing:.10em; text-transform:uppercase;
+    color:var(--ink3); font-weight:700; }
+  .door-title{ font-size:19px; font-weight:750; margin:3px 0 6px; color:var(--ink); }
+  .door-card p{ margin:0 0 13px; color:var(--ink2); font-size:12.5px; line-height:1.55; }
+  .door-btn{ display:inline-block; background:linear-gradient(180deg,#7cc24f,#4d8f3c);
+    color:#0e1a09; font-weight:750; font-size:13px; padding:9px 15px; border-radius:9px; }
+  .door-btn.ghost{ background:var(--panel2); color:var(--ink); border:1px solid var(--line2);
+    cursor:pointer; font-family:inherit; }
+  .door-btn.ghost:hover{ border-color:var(--green); }
+  .door-row{ display:flex; gap:7px; }
+  #doorpass{ flex:1; min-width:0; background:#141b10; border:1px solid var(--line2);
+    color:var(--ink); border-radius:9px; padding:9px 11px; font-size:13px; font-family:inherit;
+    letter-spacing:.22em; }
+  #doorpass:focus{ outline:none; border-color:var(--green); }
+  #doorpass.bad{ border-color:var(--red); animation:doorshake .38s; }
+  @keyframes doorshake{ 0%,100%{ transform:translateX(0) } 25%{ transform:translateX(-5px) }
+    75%{ transform:translateX(5px) } }
+  .door-err{ color:var(--red); font-size:11.5px; min-height:15px; margin-top:6px; }
+  .door-foot{ text-align:center; color:var(--ink3); font-size:11px; margin:18px 0 0; }
+  body.gh-doored{ overflow:hidden; }
+
+  #doorpill{ position:fixed; left:10px; bottom:10px; z-index:60; font-family:var(--font);
+    font-size:11px; font-weight:650; color:var(--ink2); background:rgba(20,27,16,.82);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px; cursor:pointer;
+    opacity:.5; transition:opacity .18s ease, border-color .18s ease; }
+  #doorpill:hover{ opacity:1; border-color:var(--green); color:var(--ink); }
+
+  @media (prefers-reduced-motion: reduce){
+    #door, #doorpass.bad{ animation:none } .door-go:hover{ transform:none } }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ---------- keep the mode applied through repaints ---------- */
+if(typeof ui === 'function'){
+  const _uiDoor = ui;
+  ui = function(){ const r = _uiDoor.apply(this, arguments); try{ applyDoorMode(); }catch(e){} return r; };
+}
+if(typeof renderBuild === 'function'){
+  const _renderBuildDoor = renderBuild;
+  renderBuild = function(){
+    const r = _renderBuildDoor.apply(this, arguments);
+    try{ applyDoorMode(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- open it for everybody, every time ----------
+   It greets returning players and unlocked browsers as well as first
+   visits — asked for explicitly, and it is the right call for a page
+   people land on from a link: the door is the front of the game rather
+   than a one-off consent box. It reads the save and offers to continue,
+   and it never writes to the save, so a hundred-day farm is exactly where
+   it was whichever card you click. */
+setTimeout(function doorBoot(){
+  try{ doorPill(); openDoor(); }catch(e){ try{ applyDoorMode(); }catch(e2){} }
+}, 80);
+
+/* ---------- handle ---------- */
+G.doorAudit = function(){
+  const shown = (sel)=>[...document.querySelectorAll(sel)]
+    .filter(b=>b.style.display !== 'none').map(b=>(b.textContent||'').trim());
+  const el = document.getElementById('door');
+  return {
+    doorChosen: doorMode() || 'not yet — the door is up',
+    unlocked: !!((typeof S === 'object' && S && S.unlocked)
+      || (typeof PLAY !== 'undefined' && PLAY && PLAY.unlocked)),
+    starterHoldsBack: { tabs:DOOR_TABS, buildCategories:DOOR_CATS,
+      buttons:['champions', 'wildlife'] },
+    tabsVisible: shown('.ptab'),
+    buildCategoriesVisible: shown('.cat'),
+    doorOpen: !!(el && el.style.display !== 'none'),
+    codeComesFrom: (typeof UNLOCK_CODE === 'string') ? 'p40 UNLOCK_CODE' : 'MISSING',
+    trialStillApplies: (typeof gateApplies === 'function') ? gateApplies() : 'unknown',
+    honestly: 'client-side only — a soft gate, not security. See the file header.',
   };
 };
 

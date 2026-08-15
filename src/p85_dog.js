@@ -89,7 +89,9 @@ function tickDog(dt){
     if(t.mode === 'work' && t.stray){
       /* same per-frame spam guard as p92 — this path is superseded but
          must not be able to bring the problem back */
-      d.roundCool = Math.max(0, (d.roundCool || 0) - 0.05);
+      /* dt, not a fixed step: at 60fps a hardcoded 0.05 drained the four
+         second lockout in about one and a third real seconds */
+      d.roundCool = Math.max(0, (d.roundCool || 0) - dt);
       if(typeof G.roundUp === 'function' && d.roundCool <= 0){
         G.roundUp();
         d.roundCool = 4;

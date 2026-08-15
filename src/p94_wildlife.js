@@ -85,7 +85,15 @@ function spawnWild(key){
   const seed = Math.random();
   /* the species sets the middle of the range; the individual varies round
      it, so no two foxes behave alike */
-  const vary = (base, spread)=> Math.max(0.05, Math.min(1, base + (Math.random()-0.5)*spread));
+  /* A species that declares no base for one of these used to produce NaN,
+     and NaN spreads quietly: it fails every comparison downstream, so the
+     animal could never take fright and never finish what it came for. The
+     four aliens in p112 were exactly that case. Fall back to the middle of
+     the range rather than letting it through. */
+  const vary = (base, spread)=>{
+    const b = (typeof base === 'number' && isFinite(base)) ? base : 0.5;
+    return Math.max(0.05, Math.min(1, b + (Math.random()-0.5)*spread));
+  };
   const edge = Math.floor(Math.random()*4);
   const pad = 2;
   let x, y;

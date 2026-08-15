@@ -287,7 +287,8 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketGames.apply(this, arguments);
     marketInit();
     if(!S.market.active) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119 */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkmore')) return r;
     const games = [
       ['dowse', 'Water divining', 'Find the water under nine boards. Fills your tanks.'],

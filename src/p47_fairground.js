@@ -267,7 +267,8 @@ if(typeof G.openMarket === 'function'){
     const r = _openMarketWhere.apply(this, arguments);
     marketInit();
     if(!S.market.active || !S.market.onCommon) return r;
-    const body = document.querySelector('.mbox, .modal, #modal');
+    /* the dialog, not the flex backdrop it sits in — see p119 */
+    const body = document.getElementById('modalBody');
     if(!body || body.querySelector('.mkwhere')) return r;
     const sub = body.querySelector('.sub');
     if(sub) sub.insertAdjacentHTML('afterend',
