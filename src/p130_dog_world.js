@@ -46,6 +46,18 @@ function dogWorldState(){
   return S.dogworld;
 }
 
+/* A command does nothing at all while the game is paused: p20's unified
+   frame only calls tickPeople when S.speed > 0, so she is given the order
+   and then simply stands there. Pausing to look around before clicking
+   something is exactly what people do. p104 already resumes the world
+   before staging a duel; commands do the same. */
+function wakeTheWorld(){
+  if(S && S.speed === 0 && typeof G.setSpeed === 'function'){
+    try{ G.setSpeed(1); }catch(e){}
+  }
+}
+G.wakeTheWorld = wakeTheWorld;
+
 /* where you are standing, which is where the ball comes back to */
 function dogHandler(){
   if(S.you && S.you.x !== undefined) return { x:S.you.x, y:S.you.y };
@@ -99,6 +111,7 @@ G.openDogMenu = function(){
 G.dogCome = function(){
   const d = S.dog; if(!d) return;
   dogMenuClose();
+  wakeTheWorld();
   const h = dogHandler();
   d.cmd = { mode:'come', x:h.x - 22, y:h.y + 14, t:0 };
   d.task = null; d.taskT = 0;
@@ -108,6 +121,7 @@ G.dogCome = function(){
 G.dogBed = function(){
   const d = S.dog; if(!d) return;
   dogMenuClose();
+  wakeTheWorld();
   const home = (typeof kennelSpot === 'function') ? kennelSpot() : null;
   if(!home) return toast('She has no kennel','bad');
   d.cmd = { mode:'bed', x:home.x, y:home.y, t:0 };
@@ -117,6 +131,7 @@ G.dogBed = function(){
 G.dogRoundUp = function(){
   const d = S.dog; if(!d) return;
   dogMenuClose();
+  wakeTheWorld();
   const strays = (typeof strayList === 'function') ? strayList() : (S.strays || []);
   if(!strays || !strays.length){
     try{ sfx('whine'); }catch(e){}
@@ -140,6 +155,7 @@ function dogThrowTo(wx, wy){
   const d = S.dog; if(!d) return;
   DOGAIM = false;
   document.body.classList.remove('dog-aiming');
+  wakeTheWorld();
   const from = dogHandler();
   BALL = { x0:from.x, y0:from.y - 16, x1:wx, y1:wy, t:0, dur:0.75,
            x:from.x, y:from.y - 16, z:16, held:false, rest:false };

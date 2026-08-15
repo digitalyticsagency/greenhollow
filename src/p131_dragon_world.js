@@ -104,6 +104,9 @@ G.openDragonMenu = function(){
 /* ---------- commands ---------- */
 function dragonCmd(c){
   const d = S.dragon; if(!d) return;
+  /* every command funnels through here, so the paused-world wake goes
+     here too — see wakeTheWorld in p130 */
+  if(typeof G.wakeTheWorld === 'function') G.wakeTheWorld();
   d.cmd = c; d.task = null; d.taskT = 0;
   dragonMenuClose();
 }
@@ -141,15 +144,17 @@ G.dragonBurnStart = function(){
 };
 
 function dragonBurnAt(wx, wy){
-  DRAGONAIM = false;
-  document.body.classList.remove('dragon-aiming');
   /* the plot under the click, if there is one */
   const bed = (S.objs||[]).find(o=>{
     const bp = BPMAP[o.bp]; if(!bp || bp.kind !== 'plot') return false;
     const f = footprint(bp, o.rot);
     return wx >= o.tx*T && wx <= (o.tx+f.w)*T && wy >= o.ty*T && wy <= (o.ty+f.h)*T;
   });
-  if(!bed){ if(typeof toast === 'function') toast('That is not a bed', 'bad'); return; }
+  /* a miss keeps you aiming rather than silently dropping the whole
+     command — beds are small and the cursor is a crosshair for a reason */
+  if(!bed){ if(typeof toast === 'function') toast('Not a bed — click a plot, or Esc', 'bad'); return; }
+  DRAGONAIM = false;
+  document.body.classList.remove('dragon-aiming');
   const f = footprint(BPMAP[bed.bp], bed.rot);
   dragonCmd({ mode:'burn', bedId:bed.id, t:0,
               x:(bed.tx + f.w/2)*T, y:(bed.ty + f.h/2)*T - 26 });
