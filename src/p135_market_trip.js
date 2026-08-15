@@ -361,25 +361,56 @@ function mktBar(){
   let bar = document.getElementById('mktripbar');
   if(!M){ if(bar) bar.remove(); return; }
   const vp = document.getElementById('viewport') || document.body;
+
+  /* Built ONCE and updated in place. It used to rewrite innerHTML on every
+     tick, which meant the button you pressed on was destroyed and rebuilt
+     between mousedown and mouseup — so the browser never matched the two
+     up and no click event ever fired. Reported as "when I click it, it
+     doesn't open anything", and it was right: the button was a new element
+     sixty times a second. Same lesson as p115's wings — anything that
+     depends on an element still being the same element breaks when you
+     rebuild it every frame. */
   if(!bar){
     bar = document.createElement('div');
     bar.id = 'mktripbar';
+    bar.innerHTML = `<span class="mkt-where"></span>
+      <button class="mkt-do" id="mktdo"></button>
+      <span class="mkt-hint">← → to walk</span>
+      <button class="mkt-skip" id="mktskip">Skip the drive</button>
+      <button class="mkt-home" id="mkthome">Drive home</button>`;
     vp.appendChild(bar);
+    bar.querySelector('#mktskip').onclick = ()=>G.skipDrive();
+    bar.querySelector('#mkthome').onclick = ()=>G.leaveMarket();
+    /* the action button reads the CURRENT stall at click time rather than
+       closing over whichever one was near when it was created */
+    bar.querySelector('#mktdo').onclick = ()=>{
+      const near = MTRIP && MTRIP.near;
+      if(near && near.go) try{ near.go(); }catch(e){}
+    };
   }
-  if(M.phase !== 'at'){
-    bar.innerHTML = `<span class="mkt-where">${M.phase === 'home' ? 'Driving home' : 'On the way'}</span>
-      <button class="mkt-skip" onclick="G.skipDrive()">Skip the drive</button>`;
-    return;
+
+  const where = bar.querySelector('.mkt-where');
+  const hint  = bar.querySelector('.mkt-hint');
+  const doB   = bar.querySelector('#mktdo');
+  const skip  = bar.querySelector('#mktskip');
+  const home  = bar.querySelector('#mkthome');
+  const at    = M.phase === 'at';
+
+  const label = at ? 'Market' : (M.phase === 'home' ? 'Driving home' : 'On the way');
+  if(where.textContent !== label) where.textContent = label;
+
+  const want = at && M.near ? `${M.near.n} — ${M.near.d}` : '';
+  if(doB.dataset.k !== want){
+    doB.dataset.k = want;
+    doB.textContent = want;
+    doB.style.display = want ? '' : 'none';
   }
-  bar.innerHTML = `<span class="mkt-where">Market</span>
-    <button class="mkt-do" id="mktdo" style="${M.near?'':'display:none'}"></button>
-    <span class="mkt-hint">← → to walk</span>
-    <button class="mkt-home" onclick="G.leaveMarket()">Drive home</button>`;
-  const d = bar.querySelector('#mktdo');
-  if(d && M.near){
-    d.textContent = `${M.near.n} — ${M.near.d}`;
-    d.onclick = ()=>{ try{ M.near.go(); }catch(e){} };
-  }
+  const hintOn = at ? '' : 'none';
+  if(hint.style.display !== hintOn) hint.style.display = hintOn;
+  const skipOn = at ? 'none' : '';
+  if(skip.style.display !== skipOn) skip.style.display = skipOn;
+  const homeOn = at ? '' : 'none';
+  if(home.style.display !== homeOn) home.style.display = homeOn;
 }
 
 /* ---------- wire it in ---------- */
