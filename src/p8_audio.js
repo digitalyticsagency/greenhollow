@@ -280,6 +280,15 @@ const SND = (function(){
       const f=FX[name]; if(f) try{ f(arg); }catch(e){}
     },
     weather(k){ if(started) setWeather(k); },
+    /* The music bus was wired up and left at zero — the Music setting in
+       Settings has never had anything to turn on. Exposed so a score can
+       be played through the same mixer, mute and volume as everything
+       else rather than opening a second AudioContext beside it. */
+    music(){ const c = ctx(); if(!c) return null;
+      musG.gain.setTargetAtTime(muted || (S.snd && S.snd.mus === false) ? 0 : vol.mus,
+        c.currentTime, 0.4);
+      return { ctx:c, bus:musG }; },
+    musicOff(){ const c = ctx(); if(c) musG.gain.setTargetAtTime(0, c.currentTime, 0.5); },
     setMuted(m){ muted=m; applyMix(); },
     isMuted(){ return muted; },
     debug(){ return ac ? {state:ac.state, master:+master.gain.value.toFixed(4),
