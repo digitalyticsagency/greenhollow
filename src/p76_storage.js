@@ -92,7 +92,9 @@ if(typeof advanceDay === 'function'){
     if(!o || !BPMAP[o.bp] || BPMAP[o.bp].kind !== 'animal') return;
     const capN = penCapacity(o);
     const pct = Math.min(1, (o.ready || 0) / capN);
-    [...document.querySelectorAll('*')].forEach(el=>{
+    /* scoped to the panel: this walked all 35,000 nodes of the document on
+       every ui() call, and the label it wants is always in the right panel */
+    [...(document.getElementById('rightBody')||document).querySelectorAll('*')].forEach(el=>{
       if(el.children.length || el.dataset.penfull) return;
       const t = el.textContent.trim();
       if(t !== 'Waiting to collect' && t !== 'Waiting') return;

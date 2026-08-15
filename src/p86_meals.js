@@ -105,7 +105,7 @@ if(typeof advanceDay === 'function'){
   if(typeof ui !== 'function') return;
   const paint = ()=>{
     if(!S.lastMeal) return;
-    const labels = [...document.querySelectorAll('*')].filter(el =>
+    const labels = [...(document.getElementById('rightBody')||document).querySelectorAll('*')].filter(el =>
       el.children.length === 0 && /^(Morale|Household)$/.test(el.textContent.trim()));
     labels.forEach(lbl=>{
       const row = lbl.parentElement;

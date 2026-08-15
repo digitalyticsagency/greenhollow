@@ -93,9 +93,8 @@ if(typeof outgoings === 'function'){
 (function addHusbandryRow(){
   if(typeof ui !== 'function') return;
   const paint = () => {
-    document.querySelectorAll('.ledger-row, .tl').forEach(()=>{});
     /* find the Upkeep row the panel already draws and put husbandry after it */
-    const rows = [...document.querySelectorAll('*')].filter(el =>
+    const rows = [...(document.getElementById('rightBody')||document).querySelectorAll('*')].filter(el =>
       el.children.length === 0 && el.textContent.trim() === 'Upkeep');
     rows.forEach(lbl => {
       const row = lbl.parentElement;

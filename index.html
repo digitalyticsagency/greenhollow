@@ -22884,9 +22884,8 @@ if(typeof outgoings === 'function'){
 (function addHusbandryRow(){
   if(typeof ui !== 'function') return;
   const paint = () => {
-    document.querySelectorAll('.ledger-row, .tl').forEach(()=>{});
     /* find the Upkeep row the panel already draws and put husbandry after it */
-    const rows = [...document.querySelectorAll('*')].filter(el =>
+    const rows = [...(document.getElementById('rightBody')||document).querySelectorAll('*')].filter(el =>
       el.children.length === 0 && el.textContent.trim() === 'Upkeep');
     rows.forEach(lbl => {
       const row = lbl.parentElement;
@@ -23289,7 +23288,9 @@ if(typeof advanceDay === 'function'){
     if(!o || !BPMAP[o.bp] || BPMAP[o.bp].kind !== 'animal') return;
     const capN = penCapacity(o);
     const pct = Math.min(1, (o.ready || 0) / capN);
-    [...document.querySelectorAll('*')].forEach(el=>{
+    /* scoped to the panel: this walked all 35,000 nodes of the document on
+       every ui() call, and the label it wants is always in the right panel */
+    [...(document.getElementById('rightBody')||document).querySelectorAll('*')].forEach(el=>{
       if(el.children.length || el.dataset.penfull) return;
       const t = el.textContent.trim();
       if(t !== 'Waiting to collect' && t !== 'Waiting') return;
@@ -25419,7 +25420,7 @@ if(typeof advanceDay === 'function'){
   if(typeof ui !== 'function') return;
   const paint = ()=>{
     if(!S.lastMeal) return;
-    const labels = [...document.querySelectorAll('*')].filter(el =>
+    const labels = [...(document.getElementById('rightBody')||document).querySelectorAll('*')].filter(el =>
       el.children.length === 0 && /^(Morale|Household)$/.test(el.textContent.trim()));
     labels.forEach(lbl=>{
       const row = lbl.parentElement;
@@ -30147,9 +30148,15 @@ if(typeof G.openLayouts === 'function'){
 }
 /* hide its entry point wherever it is drawn */
 function syncLayoutButtons(){
+  /* A substring attribute selector over the whole document cost 2.5ms a
+     call on a large farm — measured the single most expensive thing in
+     ui(). These buttons only ever live in the build list or the right
+     panel, so it searches those two and nothing else. */
   const on = SET('layoutsOn');
-  document.querySelectorAll('[onclick*="openLayouts"],[onclick*="saveLayout"]').forEach(b=>{
-    b.style.display = on ? '' : 'none';
+  const sel = '[onclick*="openLayouts"],[onclick*="saveLayout"]';
+  ['buildList','rightBody'].forEach(id=>{
+    const root = document.getElementById(id);
+    if(root) root.querySelectorAll(sel).forEach(b=>{ b.style.display = on ? '' : 'none'; });
   });
 }
 if(typeof ui === 'function'){

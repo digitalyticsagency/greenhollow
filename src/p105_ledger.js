@@ -75,9 +75,15 @@ if(typeof G.openLayouts === 'function'){
 }
 /* hide its entry point wherever it is drawn */
 function syncLayoutButtons(){
+  /* A substring attribute selector over the whole document cost 2.5ms a
+     call on a large farm — measured the single most expensive thing in
+     ui(). These buttons only ever live in the build list or the right
+     panel, so it searches those two and nothing else. */
   const on = SET('layoutsOn');
-  document.querySelectorAll('[onclick*="openLayouts"],[onclick*="saveLayout"]').forEach(b=>{
-    b.style.display = on ? '' : 'none';
+  const sel = '[onclick*="openLayouts"],[onclick*="saveLayout"]';
+  ['buildList','rightBody'].forEach(id=>{
+    const root = document.getElementById(id);
+    if(root) root.querySelectorAll(sel).forEach(b=>{ b.style.display = on ? '' : 'none'; });
   });
 }
 if(typeof ui === 'function'){
