@@ -117,13 +117,33 @@ if(typeof expandFarm === 'function'){
    after it has been built. */
 function addDirButtons(){
   try{
-    if(typeof canExpand === 'function' && !canExpand()) return;
     const list = document.getElementById('buildList');
     if(!list) return;
+
+    /* When the neighbours have sold you everything, p17 stops drawing the
+       card at all — so the option to extend simply vanished with no word
+       about why, which reads as broken. It was reported as exactly that.
+       Say so, and point at the route that is still open. */
+    if(typeof canExpand === 'function' && !canExpand()){
+      if(list.querySelector('.dirpad-none')) return;
+      const more = (typeof canBuyLot === 'function') && canBuyLot();
+      const div = document.createElement('div');
+      div.className = 'card dirpad-none';
+      div.style.margin = '10px';
+      div.innerHTML = `<b style="font-size:12px">The neighbours have no more land</b>
+        <div class="muted" style="margin-top:4px">All ${typeof EXPAND_MAX!=='undefined'?EXPAND_MAX:'the'} adjoining
+        parcels are yours — the property is ${FARM.w}×${FARM.h}.</div>` +
+        (more ? `<div class="muted" style="margin-top:5px">There is still a separate block to buy in the Land tab.</div>`
+              : `<div class="muted" style="margin-top:5px">Every block is bought. This is as big as the valley gets.</div>`);
+      list.appendChild(div);
+      return;
+    }
+
     const card = [...list.querySelectorAll('.card')]
       .find(c=>/Buy adjoining land/.test(c.textContent));
     if(!card || card.querySelector('.dirpad')) return;
     const c = expandCost(), sz = expandSize();
+    const afford = S.cash >= c;
     const pad = document.createElement('div');
     pad.className = 'dirpad';
     pad.style.cssText = 'margin-top:8px';
@@ -131,10 +151,11 @@ function addDirButtons(){
       <div style="display:flex;gap:4px;flex-wrap:wrap">` +
       [['N','North'],['W','West'],['E','East'],['S','South']].map(([d,label])=>{
         const room = roomOn(d, sz);
-        const note = room ? '' : ' — the farm shifts to make room';
-        return `<button class="chip" ${S.cash>=c?'':'disabled'} onclick="G.expandTo('${d}')"
+        const note = room ? '' : ' \u2014 the farm shifts to make room';
+        return `<button class="chip" ${afford?'':'disabled'} onclick="G.expandTo('${d}')"
           data-tip="${esc(`<b>Buy to the ${label.toLowerCase()}</b>Adds a ${sz.w}\u00d7${sz.h} strip on that side${note}.<hr><div class="tl"><span>Price</span><span class="tk">${fmt(c)}</span></div>`)}">${label}</button>`;
-      }).join('') + `</div>`;
+      }).join('') + `</div>` +
+      (afford ? '' : `<div class="muted" style="font-size:11px;margin-top:5px">You have ${fmt(S.cash)} — the next parcel is ${fmt(c)}.</div>`);
     card.appendChild(pad);
   }catch(e){}
 }
