@@ -285,9 +285,18 @@ function moneyHTML(){
 
   h += `<div class="ph">What the numbers say</div>`;
   ledgerAdvice().forEach(a=>{
-    h += `<div class="card" style="border-left:3px solid ${a.bad?'#e2705c':'#7cc24f'}">
-      <b style="font-size:12px">${a.t}</b>
-      <div class="muted" style="margin-top:3px">${a.w}</div></div>`;
+    /* The game's own vocabulary: .warnbox is what it already uses for
+       something needing attention, and everything else is a plain card.
+       This first went out with a 3px coloured bar down the left edge,
+       which is louder than anything else in this UI and a pattern the
+       game uses nowhere - its borders are all .5px hairlines. */
+    if(a.bad){
+      h += `<div class="warnbox"><b>${a.t}</b>
+        <div style="margin-top:3px;opacity:.85">${a.w}</div></div>`;
+    } else {
+      h += `<div class="card"><b style="font-size:12px">${a.t}</b>
+        <div class="muted" style="margin-top:3px">${a.w}</div></div>`;
+    }
   });
   return h;
 }
