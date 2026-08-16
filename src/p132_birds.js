@@ -358,13 +358,28 @@ if(typeof tickPeople === 'function'){
   tickPeople = function(dt){
     const r = _tickPeopleFlock.apply(this, arguments);
     try{
-      if(typeof BIRDS === 'object' && BIRDS.sky && BIRDS.sky.length){
-        /* p32's sky birds are the same bird five times; these replace them */
+      /* p32's sky birds are the same bird five times and these replace
+         them — but emptying BIRDS.sky was a mistake. birdsInit() guards on
+         `if(BIRDS.sky.length) return` and then seeds BOTH arrays, so
+         clearing the sky list made it re-seed on every call and push five
+         MORE ground birds each time. Measured at fifteen against its own
+         maximum of five, and still climbing — that is the swarm of little
+         dark birds all over the grass.
+
+         The entries stay, so the guard holds and nothing re-seeds. They
+         are hidden instead, which is all that was ever wanted. */
+      if(typeof BIRDS === 'object' && BIRDS.sky){
         BIRDS.sky.forEach(b=>{
           const el = document.querySelector(`[data-b="${b.id}"]`);
-          if(el) el.remove();
+          if(el && el.style.display !== 'none') el.style.display = 'none';
         });
-        BIRDS.sky.length = 0;
+        /* and trim any that a previous build already over-seeded */
+        if(BIRDS.ground && BIRDS.ground.length > BIRD_GROUND_MAX){
+          BIRDS.ground.splice(BIRD_GROUND_MAX).forEach(b=>{
+            const el = document.querySelector(`[data-b="${b.id}"]`);
+            if(el) el.remove();
+          });
+        }
       }
       if(!FLOCK.list.length && S && S.objs) birdSpawn();
       tickFlock(Math.min(0.08, typeof dt === 'number' ? dt : 0.05));

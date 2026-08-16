@@ -130,7 +130,12 @@ function tickTrip(dt){
     M.x += dt * 240;
     if(M.t >= M.dur){ M.phase = 'at'; M.t = 0; }
   } else if(M.phase === 'home'){
-    M.x += dt * 240;
+    /* The truck is mirrored for the run home, but the scenery kept
+       scrolling the same way — so it faced left while the world moved as
+       though it were still going right, and the whole thing read as
+       driving backwards. The road runs the other way now, which is what
+       turning round actually looks like. */
+    M.x -= dt * 240;
     if(M.t >= M.dur){ mktEnd(); return; }
   } else {
     /* walking the street */
@@ -237,7 +242,7 @@ function driveArt(W, H, M){
   [-40, 26].forEach(wx=>{
     s += `<circle cx="${n(wx)}" cy="18" r="11" fill="#2f2a26"/>`;
     s += `<circle cx="${n(wx)}" cy="18" r="4.6" fill="#8d979d"/>`;
-    s += `<g transform="translate(${n(wx)},18) rotate(${(M.x*2.2)%360})">
+    s += `<g transform="translate(${n(wx)},18) rotate(${wrapX(M.x*2.2, 360)})">
       <rect x="-4.6" y="-0.9" width="9.2" height="1.8" fill="#5f696f"/></g>`;
   });
   s += `</g>`;
@@ -245,7 +250,8 @@ function driveArt(W, H, M){
   /* dust behind */
   for(let i=0;i<6;i++){
     const a = hash(i*3.7 + Math.floor(M.t*4));
-    s += `<circle cx="${n(cx - 70 - i*16 - a*20)}" cy="${n(cy + 18 - a*8)}"
+    /* dust trails behind the truck, so it swaps sides when it turns round */
+    s += `<circle cx="${n(cx - flip*(70 + i*16 + a*20))}" cy="${n(cy + 18 - a*8)}"
       r="${n(5 + a*7)}" fill="#d8cbae" opacity="${(0.32 - i*0.045).toFixed(2)}"/>`;
   }
 
