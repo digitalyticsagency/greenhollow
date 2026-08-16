@@ -375,6 +375,7 @@ function mktBar(){
     bar.id = 'mktripbar';
     bar.innerHTML = `<span class="mkt-where"></span>
       <button class="mkt-do" id="mktdo"></button>
+      <button class="mkt-do mkt-talk" id="mkttalk"></button>
       <span class="mkt-hint">← → to walk</span>
       <button class="mkt-skip" id="mktskip">Skip the drive</button>
       <button class="mkt-home" id="mkthome">Drive home</button>`;
@@ -386,6 +387,10 @@ function mktBar(){
     bar.querySelector('#mktdo').onclick = ()=>{
       const near = MTRIP && MTRIP.near;
       if(near && near.go) try{ near.go(); }catch(e){}
+    };
+    bar.querySelector('#mkttalk').onclick = ()=>{
+      const f = MTRIP && MTRIP.nearFolk;
+      if(f && typeof G.talkFolk === 'function') try{ G.talkFolk(f.id); }catch(e){}
     };
   }
 
@@ -404,6 +409,14 @@ function mktBar(){
     doB.dataset.k = want;
     doB.textContent = want;
     doB.style.display = want ? '' : 'none';
+  }
+  /* the person is a second button, not a replacement for the stall */
+  const talk = bar.querySelector('#mkttalk');
+  const wantTalk = at && M.nearFolk ? `Talk to ${M.nearFolk.n}` : '';
+  if(talk.dataset.k !== wantTalk){
+    talk.dataset.k = wantTalk;
+    talk.textContent = wantTalk;
+    talk.style.display = wantTalk ? '' : 'none';
   }
   const hintOn = at ? '' : 'none';
   if(hint.style.display !== hintOn) hint.style.display = hintOn;
@@ -466,6 +479,7 @@ if(typeof syncWorldButtons === 'function'){
     background:linear-gradient(180deg,#f0c14b,#c99a2c); border-radius:999px;
     padding:7px 13px; cursor:pointer; white-space:nowrap; overflow:hidden;
     text-overflow:ellipsis; max-width:300px; }
+  .mkt-talk{ background:linear-gradient(180deg,#9fd06a,#5f9a3c); }
   .mkt-home, .mkt-skip{ font-family:inherit; font-size:12px; color:var(--ink2);
     background:var(--panel2); border:1px solid var(--line); border-radius:999px;
     padding:6px 12px; cursor:pointer; white-space:nowrap; }

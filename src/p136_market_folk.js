@@ -38,21 +38,21 @@
    ===================================================================== */
 
 const FOLK = [
-  { id:'odile',  n:'Odile',  trade:'the mill',        p:0.16,
+  { id:'odile',  n:'Odile',  trade:'the mill',        p:0.04,
     shirt:'#4f5f8a', hair:'#4a3a2a', hat:'#6b5335', build:1.05 },
-  { id:'bram',   n:'Bram',   trade:'the bakery',      p:0.30,
+  { id:'bram',   n:'Bram',   trade:'the bakery',      p:0.17,
     shirt:'#c8583f', hair:'#2e2620', hat:null,       build:1.0 },
-  { id:'wren',   n:'Wren',   trade:'the cheese',      p:0.44,
+  { id:'wren',   n:'Wren',   trade:'the cheese',      p:0.31,
     shirt:'#7fa87a', hair:'#8a5f3a', hat:null,       build:0.92 },
-  { id:'perrin', n:'Perrin', trade:'a fiddle',        p:0.57,
+  { id:'perrin', n:'Perrin', trade:'a fiddle',        p:0.45,
     shirt:'#a98fd6', hair:'#3a3026', hat:'#5f4a6a', build:0.96, fiddle:1 },
-  { id:'hesper', n:'Hesper', trade:'the dairy',       p:0.68,
+  { id:'hesper', n:'Hesper', trade:'the dairy',       p:0.59,
     shirt:'#8a6a45', hair:'#c8c2b4', hat:'#7a6a52', build:0.98 },
-  { id:'gil',    n:'Gil',    trade:'the vegetables',  p:0.79,
+  { id:'gil',    n:'Gil',    trade:'the vegetables',  p:0.73,
     shirt:'#5f8f5a', hair:'#4a3a2a', hat:null,       build:1.06 },
-  { id:'nessa',  n:'Nessa',  trade:'the flowers',     p:0.88,
+  { id:'nessa',  n:'Nessa',  trade:'the flowers',     p:0.86,
     shirt:'#e8a3c0', hair:'#6a4a2a', hat:null,       build:0.9 },
-  { id:'tam',    n:'Tam',    trade:'the market',      p:0.97,
+  { id:'tam',    n:'Tam',    trade:'the market',      p:0.99,
     shirt:'#3f4a5a', hair:'#8a8272', hat:'#2f3742', build:1.02 },
 ];
 
@@ -348,12 +348,14 @@ if(typeof tickTrip === 'function'){
           const d = Math.abs(f.p - M.px);
           if(d < 0.045 && d < best){ best = d; M.nearFolk = f; }
         });
-        /* a person you can talk to outranks a stall you can shop at */
-        if(M.nearFolk){
-          const f = M.nearFolk;
-          M.near = { n:f.n, d:`talk — ${f.trade}`, go:()=>G.talkFolk(f.id) };
-          if(typeof mktBar === 'function') mktBar();
-        }
+        /* It used to overwrite M.near with the person, which meant a
+           trader standing near a stall made that stall permanently
+           unreachable — measured, Gil sat 0.01 from the sideshow row,
+           Hesper 0.02 from the beast and Tam 0.04 from the relief fund,
+           so three of the seven could never be opened at all. The person
+           is offered ALONGSIDE the stall now, and the folk stand in the
+           gaps between pitches rather than on top of them. */
+        if(typeof mktBar === 'function') mktBar();
       }
     }catch(e){}
     return r;
