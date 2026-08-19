@@ -44793,6 +44793,565 @@ G.moneyGuardAudit = function(){
   };
 };
 
+/* =====================================================================
+   A UTE THAT BREAKS DOWN
+
+   Farmhands do 2 + skill jobs a day and that is the whole of it — a
+   thirty acre block and a five acre one are worked at the same speed by
+   the same pair of hands carrying the same buckets. What is missing is
+   the thing every real holding has and every real holding argues about:
+   a vehicle.
+
+   THREE WAYS TO HAVE ONE, which is the actual decision.
+
+     Own it     $4,800 up front. Yours, always there, and it is your
+                problem when it stops.
+     Hire       $180 a day, a week at a time. Somebody else's problem,
+                and it costs more than owning if you keep doing it.
+     Share      $1,600 for a half share with the neighbour. Cheap, but
+                roughly one day in four he has it, and you find that out
+                on the morning you needed it.
+
+   IT WEARS. Every day it works takes condition off it, faster with more
+   hands using it. Below about a third it starts failing, and a failure is
+   not a warning — it is out of action until you pay for the repair, which
+   costs more than the service you did not do. Service it at any time for
+   a fraction of that. This is the whole of the maintenance argument in
+   two numbers, and the game already has the calendar to make you regret
+   the choice.
+
+   WHAT IT IS WORTH. Two extra jobs a day per farmhand, so a pair of hands
+   go from six jobs to ten. That is what a vehicle is for: not doing the
+   work, carrying it.
+   ===================================================================== */
+
+/* ---------- the machine ---------- */
+(function uteBlueprint(){
+  if(typeof BP === 'undefined' || BPMAP.ute) return;
+  const bp = { id:'ute', name:'Farm ute', art:'ute', cat:'auto',
+    w:2, h:1, cost:4800, lvl:2, kind:'bonus', charm:1,
+    desc:'A flatbed that has already had one life somewhere else.',
+    tip:'Two more jobs a day for every farmhand. Wears out, and lets you know at the worst time.' };
+  BP.push(bp); BPMAP[bp.id] = bp;
+})();
+if(typeof ART === 'object' && !ART.ute){
+  ART.ute = (w,h,o)=>{
+    const broken = o && o.broken;
+    const body = broken ? '#7d6a58' : '#8c5f4a';
+    let s = patch(w, h, '#9aa0a2', 41, 2);
+    s += ao(w*0.06, h*0.18, w*0.88, h*0.66, 0.3);
+    /* tray, cab, glass, wheels — read from above */
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.24)}" width="${n(w*0.88)}" height="${n(h*0.52)}" rx="3" fill="${body}"/>`;
+    s += `<rect x="${n(w*0.06)}" y="${n(h*0.24)}" width="${n(w*0.88)}" height="${n(h*0.16)}" rx="3" fill="#fff" opacity=".14"/>`;
+    s += `<rect x="${n(w*0.10)}" y="${n(h*0.30)}" width="${n(w*0.34)}" height="${n(h*0.40)}" rx="2" fill="#5c4636"/>`;
+    s += `<rect x="${n(w*0.50)}" y="${n(h*0.30)}" width="${n(w*0.30)}" height="${n(h*0.40)}" rx="2" fill="url(#gGlass)" opacity=".9"/>`;
+    [0.22, 0.78].forEach(fx=>{ [0.20, 0.80].forEach(fy=>{
+      s += `<rect x="${n(w*fx-3)}" y="${n(h*fy-2.4)}" width="6" height="4.8" rx="1.6" fill="#2a2a2e"/>`; }); });
+    if(broken){
+      s += `<path d="M${n(w*0.62)} ${n(h*0.16)} q3 -6 6 -2 q3 4 6 -1" stroke="#9aa6ad"
+        stroke-width="1.6" fill="none" opacity=".8"/>`;
+      s += `<circle cx="${n(w*0.88)}" cy="${n(h*0.14)}" r="2.4" fill="#e2705c"/>`;
+    }
+    return s;
+  };
+}
+
+function machState(){
+  if(!S.mach) S.mach = { hire:0, share:0, shareDay:-1, day:-1, told:false };
+  return S.mach;
+}
+function uteObjs(){ return (S.objs || []).filter(o=>o.bp === 'ute'); }
+
+/* the neighbour has it about one day in four, and you find out that morning */
+function shareAvailable(){
+  const M = machState();
+  if(M.share <= 0) return false;
+  if(M.shareDay !== S.day){
+    M.shareDay = S.day;
+    M.shareToday = hash((S.day || 1) * 3.77) > 0.26;
+  }
+  return !!M.shareToday;
+}
+
+/* is there a machine you can actually use today */
+function machineWorking(){
+  const M = machState();
+  const own = uteObjs().find(o=>!o.broken);
+  if(own) return { how:'own', o:own, condition:(own.cond === undefined ? 1 : own.cond) };
+  if(M.hire > 0) return { how:'hire', condition:1 };
+  if(shareAvailable()) return { how:'share', condition:0.8 };
+  return null;
+}
+
+const MACH_BOOST = 2;                       /* extra jobs a day, per farmhand */
+
+/* ---------- wear, failure and the day roll ---------- */
+function machDay(){
+  const M = machState();
+  if(M.day === S.day) return;
+  M.day = S.day;
+  if(M.hire > 0){
+    M.hire--;
+    if(M.hire === 0 && typeof log === 'function')
+      log('The hired ute went back this morning.', '', 'farm');
+  }
+  const hands = (S.workers || []).length;
+  uteObjs().forEach(o=>{
+    if(o.cond === undefined) o.cond = 1;
+    if(o.broken) return;
+    /* it only wears on days it is actually carrying something */
+    /* Tuned against a measurement: at 0.012 + 0.009 a hand it warned on day
+       22 and failed on day 36, which is five weeks out of a $4,800 machine
+       and reads as a punishment rather than maintenance. At these numbers a
+       pair of hands get about eleven weeks before the warning and a little
+       over three months before it fails, so servicing is a thing you do
+       twice a season rather than constantly. */
+    const use = 0.005 + hands * 0.0035;
+    o.cond = Math.max(0, o.cond - use);
+    const risk = o.cond > 0.34 ? 0 : (0.34 - o.cond) * 0.55;
+    if(Math.random() < risk){
+      o.broken = 1;
+      if(typeof log === 'function')
+        log(`The ute has stopped. ${fmt(machRepairCost(o))} to put right, and nothing is being `
+          + `carried until it is.`, 'bad', 'farm');
+      if(typeof toast === 'function') toast('The ute has broken down', 'bad');
+      try{ sfx('error'); }catch(e){}
+    } else if(o.cond < 0.34 && !o.warned){
+      o.warned = 1;
+      if(typeof log === 'function')
+        log('The ute is due a service. It will not ask twice.', 'bad', 'farm');
+    }
+  });
+}
+function machServiceCost(o){ return Math.round(140 + (1 - (o.cond === undefined ? 1 : o.cond)) * 520); }
+function machRepairCost(o){ return Math.round(900 + (1 - (o.cond === undefined ? 1 : o.cond)) * 900); }
+
+if(typeof tickPeople === 'function'){
+  const _tickMach = tickPeople;
+  tickPeople = function(){
+    const r = _tickMach.apply(this, arguments);
+    try{ machDay(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- what it is for ---------- */
+if(typeof workersDay === 'function'){
+  const _workersDayMach = workersDay;
+  workersDay = function(){
+    const m = machineWorking();
+    if(!m) return _workersDayMach.apply(this, arguments);
+    /* the budget in workersDay is 2 + skill, so lifting skill for the
+       duration of the call is the least invasive way to give them a
+       vehicle without reimplementing the day */
+    const hands = S.workers || [];
+    const keep = hands.map(w=>w.skill);
+    hands.forEach(w=>{ w.skill = (w.skill || 0) + MACH_BOOST; });
+    let r;
+    try{ r = _workersDayMach.apply(this, arguments); }
+    finally{ hands.forEach((w,i)=>{ w.skill = keep[i]; }); }
+    return r;
+  };
+}
+
+/* ---------- the yard ---------- */
+G.openMachinery = function(){
+  const M = machState();
+  const own = uteObjs();
+  const m = machineWorking();
+  const rows = own.map(o=>{
+    const c = o.cond === undefined ? 1 : o.cond;
+    return `<div class="row"><span>Farm ute${o.broken ? ' <span class="cbad">— broken down</span>' : ''}</span>
+      <b>${Math.round(c*100)}%</b></div>`;
+  }).join('');
+  modal(`<h2>The yard</h2>
+    <p class="sub">${m ? `A machine is available today — ${
+        m.how === 'own' ? 'your own' : m.how === 'hire' ? 'the hired one' : "the neighbour's"}. `
+        + `Every farmhand does ${MACH_BOOST} more jobs a day.`
+      : 'Nothing to carry with today. Farmhands are on foot.'}</p>
+    ${rows ? `<div class="rows">${rows}</div>` : ''}
+    <div class="mkgrid">
+      ${own.map((o,i)=>o.broken
+        ? `<button class="mkcard" ${S.cash < machRepairCost(o) ? 'disabled':''}
+            onclick="G.fixUte(${i})"><b>Repair it</b>
+            <span class="muted">It will not move until this is paid.</span>
+            <span class="lprice">${fmt(machRepairCost(o))}</span></button>`
+        : `<button class="mkcard" ${S.cash < machServiceCost(o) ? 'disabled':''}
+            onclick="G.serviceUte(${i})"><b>Service it</b>
+            <span class="muted">Oil, filters, and the brakes looked at. Back to as good as it gets.</span>
+            <span class="lprice">${fmt(machServiceCost(o))}</span></button>`).join('')}
+      <button class="mkcard" ${S.cash < 1260 || M.hire > 0 ? 'disabled':''} onclick="G.hireUte()">
+        <b>Hire one for a week</b>
+        <span class="muted">${M.hire > 0 ? `${M.hire} day${M.hire>1?'s':''} left on the current hire.`
+          : 'Somebody else services it. Cheap once, dear as a habit.'}</span>
+        <span class="lprice">${fmt(1260)}</span></button>
+      <button class="mkcard" ${S.cash < 1600 || M.share > 0 ? 'disabled':''} onclick="G.shareUte()">
+        <b>Half share with the neighbour</b>
+        <span class="muted">${M.share > 0
+          ? (shareAvailable() ? 'Yours today.' : 'He has it today.')
+          : 'Half the cost of owning. He has it about one day in four.'}</span>
+        <span class="lprice">${M.share > 0 ? 'Held' : fmt(1600)}</span></button>
+    </div>
+    <div class="mfoot"><button class="btn ghost" onclick="G.closeModal()">Shut the shed</button></div>`);
+};
+G.serviceUte = function(i){
+  const o = uteObjs()[i]; if(!o) return;
+  const c = machServiceCost(o);
+  if(S.cash < c) return toast('Not enough for the service','bad');
+  S.cash -= c; o.cond = 1; o.warned = 0;
+  if(typeof log === 'function') log(`Serviced the ute, ${fmt(c)}.`, '', 'money');
+  try{ sfx('build'); }catch(e){}
+  G.openMachinery();
+};
+G.fixUte = function(i){
+  const o = uteObjs()[i]; if(!o) return;
+  const c = machRepairCost(o);
+  if(S.cash < c) return toast('Not enough for the repair','bad');
+  S.cash -= c; o.broken = 0; o.cond = 0.85; o.warned = 0;
+  if(typeof log === 'function') log(`Repaired the ute, ${fmt(c)}. Cheaper to have serviced it.`, 'bad', 'money');
+  try{ sfx('build'); }catch(e){}
+  if(typeof render === 'function') render();
+  G.openMachinery();
+};
+G.hireUte = function(){
+  if(S.cash < 1260) return toast('Not enough to hire','bad');
+  S.cash -= 1260; machState().hire = 7;
+  if(typeof log === 'function') log('Hired a ute for the week.', '', 'money');
+  G.openMachinery();
+};
+G.shareUte = function(){
+  if(S.cash < 1600) return toast('Not enough for a half share','bad');
+  S.cash -= 1600; machState().share = 1;
+  if(typeof log === 'function')
+    log('Went halves with the neighbour on a ute. He gets it when he needs it.', '', 'money');
+  G.openMachinery();
+};
+
+if(typeof syncWorldButtons === 'function'){
+  const _syncMach = syncWorldButtons;
+  syncWorldButtons = function(){
+    const r = _syncMach.apply(this, arguments);
+    try{
+      const host = document.getElementById('zoomctl');
+      if(host && !document.getElementById('machbtn')){
+        const b = document.createElement('button');
+        b.id = 'machbtn'; b.textContent = '🛻';
+        b.title = 'The yard';
+        b.setAttribute('data-tip','<b>The yard</b>Own, hire or share a ute — and keep it running.');
+        b.onclick = ()=>G.openMachinery();
+        host.insertBefore(b, host.firstChild);
+      }
+      const b2 = document.getElementById('machbtn');
+      const M = machState();
+      if(b2) b2.style.display = (uteObjs().length || M.hire > 0 || M.share > 0 ||
+        (S.workers || []).length) ? '' : 'none';
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.machineryAudit = function(){
+  const M = machState();
+  const m = machineWorking();
+  return {
+    owned: uteObjs().map(o=>({ condition:Math.round((o.cond === undefined ? 1 : o.cond)*100) + '%',
+      broken:!!o.broken, service:fmt(machServiceCost(o)), repair:fmt(machRepairCost(o)) })),
+    hireDaysLeft: M.hire,
+    halfShare: !!M.share,
+    shareAvailableToday: M.share ? shareAvailable() : false,
+    workingToday: m ? m.how : 'none',
+    boostPerHand: m ? MACH_BOOST : 0,
+    jobsPerHand: (S.workers || []).map(w=>(2 + (w.skill || 0) + (m ? MACH_BOOST : 0))),
+  };
+};
+
+/* =====================================================================
+   SOMEBODY COMES FOR THE SEASON
+
+   Hiring is a transaction: a signing fee, a wage, and a farmhand who
+   arrives already able to do the job. The thing that actually happens on
+   a smallholding is warmer and considerably less efficient — someone
+   turns up for a season, works for their board and their dinner, and is
+   genuinely no use for the first fortnight.
+
+   THEY ARRIVE WITH A REASON. A name, somewhere they came from, and why
+   they wrote to you: leaving a city job, learning before buying their own
+   block, travelling and out of money, writing a thesis on soil. It is one
+   line and it is the difference between a person and a unit of labour.
+
+   THEY ARE BAD AT IT FIRST. A hired hand starts at skill one to three. A
+   WWOOFer starts at zero — worse than nobody, because you are also
+   feeding them — and climbs to about two and a half over a fortnight. Take
+   one on the week before harvest and you have made a mistake. Take one in
+   the quiet part of the season and by the time it matters they are
+   worth having.
+
+   THEY EAT. They go into the household count, so dinner is cooked for one
+   more and the barn empties faster. That is the deal: board and food, no
+   wage. It is cheaper than hiring and it is not free.
+
+   THEY LEAVE. Six weeks and they are gone. Some ask to stay on — and they
+   ask, rather than you deciding, with the answer depending on whether the
+   place was any good to be on. Say yes and they become a paid farmhand at
+   a wage they have earned, already knowing where everything is.
+
+   Housing is a bed, not a cottage: a bunk in the guest wing or the
+   bunkhouse will do, which is what those buildings are for and what
+   nobody was using them for.
+   ===================================================================== */
+
+const WWOOF_NAMES = ['Ines','Tomas','Mei','Rafa','Anneke','Jonah','Priya','Kai',
+                     'Marta','Lucien','Saoirse','Otto'];
+const WWOOF_FROM  = ['Lyon','Osaka','Galway','Turin','Rotterdam','Valparaíso','Leeds',
+                     'Kraków','Porto','Wellington','Montréal','Ljubljana'];
+const WWOOF_WHY = [
+  'left an office job in March and has not gone back',
+  'wants a block of their own and has never dug one',
+  'is travelling and ran out of money in the nicest possible way',
+  'is writing something about soil and needs to have held some',
+  'grew up on a farm that was sold and misses it',
+  'answered the notice in the co-op window',
+];
+const WWOOF_STAY = 42;            /* days: six weeks */
+const WWOOF_LEARN = 14;           /* days to become worth having */
+
+function wwoofState(){
+  if(!S.wwoof) S.wwoof = { day:-1, offer:null, seen:0 };
+  return S.wwoof;
+}
+function wwoofers(){ return (S.workers || []).filter(w=>w.wwoof); }
+/* a bunk anywhere will do — that is the point of them */
+function wwoofBeds(){
+  return (S.objs || []).reduce((a,o)=>{
+    const bp = BPMAP[o.bp]; if(!bp) return a;
+    if(['guest_wing','bunkhouse','bunk_annexe','shepherd_hut','worker_cottage'].includes(bp.id))
+      return a + Math.max(1, bp.slots || 2);
+    return a;
+  }, 0);
+}
+function wwoofRoom(){ return wwoofBeds() - wwoofers().length; }
+
+/* skill climbs from nothing over a fortnight */
+function wwoofSkill(w){
+  const days = (S.day || 1) - (w.wwoof.arrived || 1);
+  return Math.max(0, Math.min(2.5, (days / WWOOF_LEARN) * 2.5));
+}
+
+/* ---------- somebody writes to you ---------- */
+function wwoofTick(){
+  const W = wwoofState();
+  if(W.day === S.day) return;
+  W.day = S.day;
+
+  /* skills climb, stays run out */
+  (S.workers || []).forEach(w=>{
+    if(!w.wwoof) return;
+    w.skill = wwoofSkill(w);
+    const left = (w.wwoof.arrived + WWOOF_STAY) - (S.day || 1);
+    if(left === 7 && typeof log === 'function')
+      log(`${w.name} has a week left.`, '', 'home');
+    if(left <= 0) wwoofLeaves(w);
+  });
+
+  /* an offer, now and then, if there is a bed and not already one here */
+  if(!W.offer && wwoofRoom() > 0 && wwoofers().length < 2 && (S.day || 1) > 6){
+    if(Math.random() < 0.06){
+      const i = Math.floor(Math.random()*WWOOF_NAMES.length);
+      W.offer = {
+        name: WWOOF_NAMES[i],
+        from: WWOOF_FROM[(i + Math.floor(Math.random()*5)) % WWOOF_FROM.length],
+        why:  WWOOF_WHY[Math.floor(Math.random()*WWOOF_WHY.length)],
+        day:  S.day || 1,
+      };
+      if(typeof log === 'function')
+        log(`${W.offer.name} from ${W.offer.from} has written asking to come and work for `
+          + `board and food.`, 'gold', 'home');
+      if(typeof toast === 'function') toast('A letter about the summer', 'gold');
+    }
+  }
+  /* an unanswered letter goes cold */
+  if(W.offer && (S.day || 1) - W.offer.day > 5){
+    if(typeof log === 'function') log(`${W.offer.name} found somewhere else.`, '', 'home');
+    W.offer = null;
+  }
+}
+
+function wwoofLeaves(w){
+  const W = wwoofState();
+  const goodPlace = ((S.morale === undefined ? 0.6 : S.morale) > 0.55)
+    && ((typeof stat === 'function' ? (stat().charm || 0) : 0) > 40);
+  S.workers = (S.workers || []).filter(z=>z.id !== w.id);
+  W.seen = (W.seen || 0) + 1;
+  if(goodPlace && Math.random() < 0.45){
+    const wage = 900 + Math.round(w.skill * 280);
+    if(typeof log === 'function')
+      log(`${w.name}'s six weeks are up and they have asked to stay on — ${fmt(wage)} a month, `
+        + `and they already know where everything is.`, 'gold', 'home');
+    W.askingToStay = { name:w.name, skill:+w.skill.toFixed(1), wage, from:w.wwoof.from };
+    if(typeof toast === 'function') toast(`${w.name} would like to stay`, 'gold');
+  } else {
+    if(typeof log === 'function')
+      log(`${w.name} went back to ${w.wwoof.from} this morning.`, '', 'home');
+  }
+}
+
+G.wwoofAccept = function(){
+  const W = wwoofState();
+  const o = W.offer; if(!o) return;
+  if(wwoofRoom() <= 0) return toast('Nowhere to put them','bad');
+  S.workers = S.workers || [];
+  S.workers.push({
+    id:'ww' + Date.now(), name:o.name, skill:0, wage:0,
+    x:(FARM.x+2)*T, y:(FARM.y+2)*T, path:[], state:'idle', dir:1, t:0, done:0,
+    wwoof:{ arrived:S.day || 1, from:o.from, why:o.why },
+  });
+  W.offer = null;
+  if(typeof log === 'function')
+    log(`${o.name} arrived from ${o.from}. Six weeks, board and food, and no idea what a `
+      + `dibber is.`, 'gold', 'home');
+  try{ sfx('build'); }catch(e){}
+  if(typeof render === 'function') render();
+  if(typeof ui === 'function') ui();
+  G.openWwoof();
+};
+G.wwoofDecline = function(){
+  const W = wwoofState();
+  if(W.offer && typeof log === 'function') log(`Wrote back to ${W.offer.name} to say no.`, '', 'home');
+  W.offer = null;
+  G.openWwoof();
+};
+G.wwoofKeep = function(yes){
+  const W = wwoofState();
+  const a = W.askingToStay; if(!a) return;
+  if(yes){
+    if(S.cash < a.wage) return toast('Not enough to take on a wage','bad');
+    S.workers = S.workers || [];
+    S.workers.push({ id:'w' + Date.now(), name:a.name, skill:Math.max(1, Math.round(a.skill)),
+      wage:a.wage, x:(FARM.x+2)*T, y:(FARM.y+2)*T, path:[], state:'idle', dir:1, t:0, done:0 });
+    if(typeof log === 'function') log(`${a.name} stayed on at ${fmt(a.wage)} a month.`, 'gold', 'home');
+  } else {
+    if(typeof log === 'function') log(`${a.name} went back to ${a.from}.`, '', 'home');
+  }
+  W.askingToStay = null;
+  if(typeof ui === 'function') ui();
+  G.openWwoof();
+};
+
+/* ---------- they eat ---------- */
+if(typeof household === 'function'){
+  const _householdWwoof = household;
+  household = function(){
+    /* p86 counts you plus the family. A WWOOFer is board and food, so they
+       are at the table; a paid farmhand feeds themselves. */
+    return _householdWwoof.apply(this, arguments) + wwoofers().length;
+  };
+}
+/* and they need a bed, but not a worker cottage */
+if(typeof workerBeds === 'function'){
+  const _bedsWwoof = workerBeds;
+  workerBeds = function(){
+    return _bedsWwoof.apply(this, arguments) + wwoofers().length;
+  };
+}
+
+if(typeof tickPeople === 'function'){
+  const _tickWwoof = tickPeople;
+  tickPeople = function(){
+    const r = _tickWwoof.apply(this, arguments);
+    try{ wwoofTick(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- the panel ---------- */
+G.openWwoof = function(){
+  const W = wwoofState();
+  const here = wwoofers();
+  let h = `<h2>Working visitors</h2>`;
+  if(W.askingToStay){
+    const a = W.askingToStay;
+    h += `<div class="note" style="border-left:2px solid var(--gold,#d8b45a);padding-left:14px;margin:0 0 14px">
+      <b>${a.name} would like to stay on.</b> Skill ${a.skill} now, and they know the place.
+      ${fmt(a.wage)} a month.
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn" onclick="G.wwoofKeep(1)">Take them on</button>
+        <button class="btn ghost" onclick="G.wwoofKeep(0)">Say goodbye</button></div></div>`;
+  }
+  if(W.offer){
+    const o = W.offer;
+    h += `<div class="mkgrid"><button class="mkcard" onclick="G.wwoofAccept()">
+        <b>${o.name}, from ${o.from}</b>
+        <span class="muted">${o.why}. Six weeks, board and food, no wage.</span>
+        <span class="lprice">Write back yes</span></button>
+      <button class="mkcard" onclick="G.wwoofDecline()"><b>Not this season</b>
+        <span class="muted">You have enough on.</span>
+        <span class="lprice">Decline</span></button></div>`;
+  }
+  if(here.length){
+    h += `<h3 style="margin:14px 0 6px;font-size:15px">Here now</h3><div class="rows">`;
+    here.forEach(w=>{
+      const days = (S.day || 1) - w.wwoof.arrived;
+      const left = WWOOF_STAY - days;
+      h += `<div class="row"><span><b>${w.name}</b> <span class="muted">from ${w.wwoof.from}</span><br>
+        <span class="muted" style="font-size:11px">${days < WWOOF_LEARN
+          ? 'still learning — ' + Math.round(wwoofSkill(w)*10)/10 + ' of 2.5'
+          : 'worth having now'}</span></span>
+        <b>${left} day${left===1?'':'s'} left</b></div>`;
+    });
+    h += `</div>`;
+  }
+  if(!W.offer && !here.length && !W.askingToStay){
+    h += `<p class="sub">Nobody at the moment. People write when there is a bed free —
+      a bunk in the guest wing, the bunkhouse or a shepherd's hut is enough.
+      You have ${wwoofRoom()} spare.</p>`;
+  }
+  h += `<p class="sub" style="margin-top:12px">They work for board and their dinner. No wage, but
+    they eat with the household, and they are no use at all for the first fortnight.</p>
+    <div class="mfoot"><button class="btn ghost" onclick="G.closeModal()">Close</button></div>`;
+  modal(h);
+};
+
+if(typeof syncWorldButtons === 'function'){
+  const _syncWwoof = syncWorldButtons;
+  syncWorldButtons = function(){
+    const r = _syncWwoof.apply(this, arguments);
+    try{
+      const host = document.getElementById('zoomctl');
+      if(host && !document.getElementById('wwoofbtn')){
+        const b = document.createElement('button');
+        b.id = 'wwoofbtn'; b.textContent = '🎒';
+        b.title = 'Working visitors';
+        b.setAttribute('data-tip','<b>Working visitors</b>Somebody for the season, for board and food.');
+        b.onclick = ()=>G.openWwoof();
+        host.insertBefore(b, host.firstChild);
+      }
+      const b2 = document.getElementById('wwoofbtn');
+      const W = wwoofState();
+      if(b2) b2.style.display = (wwoofers().length || W.offer || W.askingToStay || wwoofBeds() > 0)
+        ? '' : 'none';
+      if(b2) b2.classList.toggle('has-people', !!(W.offer || W.askingToStay));
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- handle ---------- */
+G.wwoofAudit = function(){
+  const W = wwoofState();
+  return {
+    beds: wwoofBeds(), spare: wwoofRoom(),
+    hereNow: wwoofers().map(w=>({ name:w.name, from:w.wwoof.from,
+      day:(S.day||1) - w.wwoof.arrived, skill:+wwoofSkill(w).toFixed(2),
+      jobsPerDay: 2 + wwoofSkill(w), wage:w.wage })),
+    offerOpen: W.offer ? `${W.offer.name} from ${W.offer.from}` : null,
+    askingToStay: W.askingToStay ? W.askingToStay.name : null,
+    haveStayed: W.seen || 0,
+    householdAtTable: (typeof household === 'function') ? household() : '?',
+    stayLength: WWOOF_STAY + ' days', learnIn: WWOOF_LEARN + ' days',
+  };
+};
+
 
 </script>
 
