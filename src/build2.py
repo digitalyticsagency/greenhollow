@@ -12,10 +12,33 @@ for _f in parts:
     for _i, _line in enumerate(open(_f), 1):
         _m = _re.match(r'(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=', _line)
         if _m: _decl[_m.group(1)].append(f"{_f}:{_i}")
+# Top-level function declarations collide silently: the later one simply
+# replaces the earlier, no error, and every existing caller now gets the
+# wrong shape back. That is exactly how p149's household() replaced
+# p86_meals' household() and put NaN into the player's cash. Same guard,
+# same failure, so check them together.
+for _f in parts:
+    if not _f.endswith('.js'): continue
+    for _i, _line in enumerate(open(_f), 1):
+        _m = _re.match(r'function\s+([A-Za-z_$][\w$]*)\s*\(', _line)
+        if _m: _decl[_m.group(1)].append(f"{_f}:{_i} (function)")
+
 _dups = {k: v for k, v in _decl.items() if len(v) > 1}
-if _dups:
+# const/let collisions are a SyntaxError and must stop the build. Duplicate
+# function declarations are legal JavaScript and this codebase uses them on
+# purpose in places - p33 replaces p31's interiorArt, p58 replaces p52's
+# ufoArt - so they are reported rather than fatal. Read the list every time:
+# a name appearing twice with different arguments is a silent bug, which is
+# how p136's folkArt took over p110's and drew the ride's people at
+# scale(undefined).
+_fatal = {k: v for k, v in _dups.items() if any('(function)' not in x for x in v)}
+_warn  = {k: v for k, v in _dups.items() if k not in _fatal}
+if _warn:
+    print("NOTE - duplicate top-level function declarations (later one wins):")
+    for k, v in _warn.items(): print(f"   {k}: {v}")
+if _fatal:
     print("BUILD FAILED - top-level redeclaration (SyntaxError at load):")
-    for k, v in _dups.items(): print(f"   {k}: {v}")
+    for k, v in _fatal.items(): print(f"   {k}: {v}")
     _sys.exit(1)
 for _f in parts:
     if not _f.endswith('.js'): continue

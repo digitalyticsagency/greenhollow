@@ -63,7 +63,13 @@ function whereIs(p){
   return { place:'outside', indoors:false };
 }
 
-function household(){
+/* NOT household() — p86_meals declares that and expects a number, 1 + the
+   family. Declaring a second household() here silently replaced it, and
+   p86's `bill = 14 * want` became 14 * an array, which is NaN, which went
+   straight into S.cash the first evening the barn was empty. That was the
+   A$NaN on the cash pill. Function declarations are not covered by the
+   build guard, so nothing caught it. */
+function dollFolk(){
   const rows = [];
   if(S.you) rows.push({ id:'__you', name:'You', role:'you', p:S.you });
   (S.family || []).forEach(f=>rows.push({ id:f.id, name:f.name, role:f.role, p:f }));
@@ -161,7 +167,7 @@ G.toggleRoofForDoll = function(){
   G.openHousehold();
 };
 G.goToPerson = function(id){
-  const row = household().find(r=>r.id === id);
+  const row = dollFolk().find(r=>r.id === id);
   if(!row || !row.p) return;
   try{
     if(typeof G.focusAt === 'function') G.focusAt(row.p.x, row.p.y);
@@ -176,7 +182,7 @@ G.goToPerson = function(id){
 function dollRows(){
   const box = document.getElementById('dollrows');
   if(!box) return;
-  const rows = household();
+  const rows = dollFolk();
   /* grouped by where they are, so the dairy shows its two hands together */
   const by = {};
   rows.forEach(r=>{ (by[r.where] = by[r.where] || []).push(r); });
@@ -238,7 +244,7 @@ if(typeof syncWorldButtons === 'function'){
 
 /* ---------- handle ---------- */
 G.dollhouseAudit = function(){
-  const rows = household();
+  const rows = dollFolk();
   const roofOff = (typeof SET === 'function') && SET('roofOff');
   const lying = document.querySelectorAll('.npc.lying').length;
   const labels = document.querySelectorAll('.dollact').length;

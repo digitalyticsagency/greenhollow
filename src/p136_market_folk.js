@@ -271,7 +271,12 @@ G.folkSay = function(id, i){
 };
 
 /* ---------- they stand at their pitches and move about ---------- */
-function folkArt(f, x, y, t){
+/* mktFolkArt, not folkArt: p110 already declares folkArt for the people you
+   fly over on the dragon, with the signature (f, sx, groundY, sc). This one
+   took the name, so the ride was calling this function with its own
+   arguments — sc arriving as t, and f.build undefined, which put
+   scale(undefined) on every roadside figure. */
+function mktFolkArt(f, x, y, t){
   const b = f.build;
   const bob = Math.sin(t*1.6 + f.p*9) * 1.6;
   const sway = Math.sin(t*0.9 + f.p*5) * 2.4;
@@ -322,7 +327,7 @@ if(typeof paintTrip === 'function'){
         const x = (f.p - M.px)*W*2.6 + W*0.5;
         if(x < -70 || x > W+70) return;
         const y = roadY + 26;
-        s += folkArt(f, x, y, M.t);
+        s += mktFolkArt(f, x, y, M.t);
         const on = M.nearFolk === f;
         s += `<rect x="${n(x-30)}" y="${n(y-46)}" width="60" height="16" rx="8"
           fill="${on ? '#f0c14b' : 'rgba(20,27,16,.75)'}"/>`;
