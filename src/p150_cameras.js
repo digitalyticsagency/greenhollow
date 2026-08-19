@@ -220,6 +220,26 @@ if(typeof syncWorldButtons === 'function'){
   };
 }
 
+/* Nothing calls syncWorldButtons when you place a building. p104 hangs it
+   off ui() and off the settings panel, and place() calls neither — so you
+   could buy a camera post, watch it go up, and the button to look through
+   it never appeared until something unrelated refreshed the interface.
+   Verified: place('camera_post') left the button display 'none' with a
+   post standing in the field.
+
+   Placing or losing a building now resyncs. It is wrapped rather than
+   patched into p5 so the same fix covers every conditional button in that
+   row, not just this one. */
+['place', 'wreck'].forEach(fn=>{
+  if(typeof window[fn] !== 'function') return;
+  const base = window[fn];
+  window[fn] = function(){
+    const r = base.apply(this, arguments);
+    try{ if(typeof syncWorldButtons === 'function') syncWorldButtons(); }catch(e){}
+    return r;
+  };
+});
+
 (function camCss(){
   const s = document.createElement('style');
   s.textContent = `
