@@ -238,6 +238,35 @@ function tickTogether(dt){
   if(TOGETHER.t > 14 || happy.length < 3){ TOGETHER.on = 0; TOGETHER.cool = 90; }
 }
 
+/* The flock milled inside two tiles: measured roam boxes of 35x73px while a
+   hunting martin covered 313px. Flocking keeps birds near each other but
+   nothing was moving the flock itself, so they orbited one spot all day.
+   This gives the flock somewhere to be, moved every so often to a new part
+   of the farm, which is what makes them read as birds crossing your land
+   rather than a mobile over the cot. */
+/* 2.1 overshot to 151% of declared and the martin hit 203% — 4.9 tiles a
+   second, which reads as frantic rather than quick. 1.4 lands cruising on
+   about its own speed. */
+let BIRD_DRIVE = 1.4;   /* tunable: G.setBirdDrive() */
+const FLOCKPT = { x:0, y:0, t:99 };
+function flockPoint(dt){
+  FLOCKPT.t += dt;
+  if(FLOCKPT.t > 11){
+    FLOCKPT.t = 0;
+    const pad = 90;
+    FLOCKPT.x = pad + Math.random()*(WPX - pad*2);
+    FLOCKPT.y = pad*0.6 + Math.random()*(HPX*0.55);
+  }
+  return FLOCKPT;
+}
+if(typeof tickFlock === 'function'){
+  const _flockPtTick = tickFlock;
+  tickFlock = function(dt){
+    try{ flockPoint(typeof dt === 'number' ? dt : 1/30); }catch(e){}
+    return _flockPtTick.apply(this, arguments);
+  };
+}
+
 /* ---------- the mind, on top of everything below it ---------- */
 if(typeof birdThink === 'function'){
   const _thinkLives = birdThink;
@@ -278,11 +307,46 @@ if(typeof birdThink === 'function'){
 
     let want = _thinkLives.apply(this, arguments);
 
-    /* the soul bends whatever it was going to do */
+    /* Measured: a finch declared at 64px/s was asking for 26-56 and carrying
+       15-19 after the integrator smoothed it — a third of its own speed, and
+       the reason the flock looked like it was wading. The cause is the usual
+       one for boids: cohesion, separation and alignment are summed, they
+       partly cancel, and the leftover magnitude becomes the speed. Direction
+       should come from the forces; speed should come from the bird.
+
+       So while it is going somewhere, the steering vector is renormalised to
+       the species speed. Not while it is holding station — a bird at a seed
+       pile or perched is meant to be slow, and forcing those to full speed
+       would make them jitter. */
+    /* hunting is not in this list: a martin was already flying at 109% of
+       its declared speed under its own logic, and renormalising it too took
+       it to 203%. Only the modes that were measurably slow are corrected. */
+    const CRUISING = ['flock','rejoining','cruise','raiding','toseed',
+                      'nesting','over a roof','playing together','patrol'];
     if(want){
       const zip = 0.85 + s.bold*0.4;
-      want = { vx: want.vx*zip, vy: want.vy*zip };
+      const mag = Math.hypot(want.vx, want.vy);
+      if(CRUISING.includes(b.mode) && mag > 0.01){
+        /* The integrator eases toward the requested velocity and never
+           arrives, so asking for exactly the species speed produced 43-59%
+           of it — measured. Asking for more lands on it. BIRD_DRIVE was
+           tuned against the path-length measurement, not guessed. */
+        const target = K.speed * zip * BIRD_DRIVE;
+        const k2 = target / mag;
+        want = { vx: want.vx*k2, vy: want.vy*k2 };
+      } else {
+        want = { vx: want.vx*zip, vy: want.vy*zip };
+      }
     }
+    /* cruising birds are pulled gently toward wherever the flock is headed,
+       so the whole group drifts across the farm instead of orbiting */
+    if(want && (b.mode === 'flock' || b.mode === 'rejoining')){
+      const dx = FLOCKPT.x - b.x, dy = FLOCKPT.y - b.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const pull = Math.min(1, d/300) * K.speed * 0.9;
+      want = { vx: want.vx + dx/d*pull, vy: want.vy + dy/d*pull };
+    }
+
     /* and nothing goes through a roof */
     const off = keepOffBuildings(b);
     if(off.over){
@@ -534,6 +598,7 @@ if(typeof syncWorldButtons === 'function'){
 })();
 
 /* ---------- handle ---------- */
+G.setBirdDrive = function(v){ BIRD_DRIVE = v; return BIRD_DRIVE; };
 G.birdLivesAudit = function(){
   const B = broodState();
   const souls = FLOCK.list.map(b=>{ const s=soulOf(b); return {
